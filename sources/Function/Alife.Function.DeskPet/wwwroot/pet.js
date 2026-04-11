@@ -5,7 +5,7 @@ const ui = {
     sendBtn: document.getElementById("send-btn")
 };
 
-let app = new PIXI.Application({
+const app = new PIXI.Application({
     view: document.getElementById("canvas"),
     autoStart: true,
     resizeTo: window,
@@ -14,6 +14,7 @@ let app = new PIXI.Application({
 });
 
 let model = null;
+let isDragging = false;
 
 //输入功能
 window.chrome.webview.addEventListener("message", (e) => {
@@ -47,7 +48,7 @@ window.chrome.webview.addEventListener("message", (e) => {
 
     async function loadModel(url) {
         if (model) app.stage.removeChild(model);
-        model = await PIXI.live2d.Live2DModel.from(url, { autoInteract: false });
+        model = await PIXI.live2d.Live2DModel.from(url, {autoInteract: false});
         app.stage.addChild(model);
 
         // 设置动画曲线
@@ -74,31 +75,41 @@ window.chrome.webview.addEventListener("message", (e) => {
     }
 
     //双击触摸反馈
-    window.addEventListener("dblclick", (e) => {
+    window.addEventListener("dblclick", async (e) => {
         if (e.target.tagName !== "CANVAS") return;
-        model.hitTest(e.clientX, e.clientY).then(areas => {
-            if (areas.length > 0) postMessage({ type: "hit", areas });
-        });
+        const hitAreas = await model.hitTest(e.clientX, e.clientY);
+        if (hitAreas.length > 0) postMessage({type: "poke", areas: hitAreas});
     });
 
     //单击拖动反馈
     window.addEventListener("mousedown", async (e) => {
         if (e.button !== 0 || e.target.tagName !== "CANVAS") return;
         const hitAreas = await model.hitTest(e.clientX, e.clientY);
-        if (!hitAreas || hitAreas.length === 0) postMessage({ type: "drag-request" });
+        if (!hitAreas || hitAreas.length === 0) {
+            isDragging = true;
+            postMessage({type: "drag_start"});
+        }
     });
+    window.addEventListener("mouseup", async (e) => {
+        if (isDragging === true) {
+            isDragging = false;
+            postMessage({type: "drag_end"});
+        }
+    })
 
     //文本输入反馈
     const onSend = () => {
         const text = ui.chatInput.value.trim();
         if (text) {
-            postMessage({ type: "chat", text });
+            postMessage({type: "input", text});
             ui.chatInput.value = "";
         }
     };
     ui.sendBtn.onclick = onSend;
-    ui.chatInput.onkeydown = (e) => { if (e.key === "Enter") onSend(); };
+    ui.chatInput.onkeydown = (e) => {
+        if (e.key === "Enter") onSend();
+    };
 
 }
 
-postMessage({ type: "ready" });
+postMessage({type: "ready"});

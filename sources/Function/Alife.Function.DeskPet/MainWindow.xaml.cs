@@ -1,14 +1,17 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.Wpf;
 
 namespace Alife.Function.DeskPet;
 
 /// <summary>
 /// 极薄的 UI 壳层，仅通过 IPetWindow 接口提供窗口服务
 /// </summary>
-public partial class MainWindow : IPetWindow
+public partial class MainWindow
 {
     public static async Task<MainWindow> Create()
     {
@@ -16,16 +19,17 @@ public partial class MainWindow : IPetWindow
         mainWindow.InitializeComponent();
         mainWindow.Show();
 
+        //禁用窗口最大化
         mainWindow.StateChanged += (_, _) => {
-            //禁用窗口最大化
             if (mainWindow.WindowState == WindowState.Maximized) mainWindow.WindowState = WindowState.Normal;
         };
-        mainWindow.MouseDown += (_, e) => {
-            //支持拖拽移动
-            if (e.LeftButton == MouseButtonState.Pressed) mainWindow.DragMove();
-        };
 
-        await mainWindow.WebView.EnsureCoreWebView2Async();
+        WebView2 webView = mainWindow.WebView;
+        await webView.EnsureCoreWebView2Async();
+        string wwwroot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot");
+        webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            "app.local", wwwroot, CoreWebView2HostResourceAccessKind.Allow);
+        webView.Source = new Uri("https://app.local/index.html");
 
         return mainWindow;
     }

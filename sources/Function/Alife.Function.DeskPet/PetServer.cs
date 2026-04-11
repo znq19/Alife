@@ -10,49 +10,10 @@ namespace Alife.Function.DeskPet;
 /// </summary>
 public class PetServer : IAsyncDisposable
 {
-    public event Action<string>? OnChat;
-    public event Action<string>? OnPoke;
+    public event Action? OnReady;
+    public event Action<string>? OnInput;
+    public event Action<string>? OnInteracted;
     public PetModelMetadata Metadata { get; }
-
-    public void ShowBubble(string text) => petProcess.SendInput(new BubbleCommand(text));
-
-    public void HideBubble() => petProcess.SendInput(new HideBubbleCommand());
-
-    public void PlayExpression(string? id) => petProcess.SendInput(new PlayExpressionCommand(id));
-
-    public void PlayMotion(string group, int index) => petProcess.SendInput(new MotionCommand(group, index));
-
-    public async Task MoveAsync(double x, double y, int duration)
-    {
-        petProcess.SendInput(new WindowMoveCommand(x, y, duration));
-        await Task.Delay(duration + 200);
-    }
-
-    public async Task<(double x, double y)> GetPositionAsync()
-    {
-        posTcs = new TaskCompletionSource<(double, double)>(TaskCreationOptions.RunContinuationsAsynchronously);
-        petProcess.SendInput(new GetPositionCommand());
-
-        Task completedTask = await Task.WhenAny(posTcs.Task, Task.Delay(2000));
-        if (completedTask == posTcs.Task)
-        {
-            (double x, double y) result = await posTcs.Task;
-            posTcs = null;
-            return result;
-        }
-
-        posTcs = null;
-        throw new TimeoutException("获取桌宠位置超时");
-    }
-
-    public void ResetInteractions()
-    {
-        posTcs?.TrySetCanceled();
-    }
-
-    readonly Process nativeProcess;
-    readonly PetProcess petProcess;
-    TaskCompletionSource<(double, double)>? posTcs;
 
     public PetServer()
     {
@@ -99,13 +60,56 @@ public class PetServer : IAsyncDisposable
         petProcess.Dispose();
         await Task.CompletedTask;
     }
+
+    public void ShowBubble(string text) => petProcess.SendInput(new BubbleCommand(text));
+
+    public void HideBubble() => petProcess.SendInput(new HideBubbleCommand());
+
+    public void PlayExpression(string? id) => petProcess.SendInput(new PlayExpressionCommand(id));
+
+    public void PlayMotion(string group, int index) => petProcess.SendInput(new MotionCommand(group, index));
+
+    public async Task MoveAsync(double x, double y, int duration)
+    {
+        petProcess.SendInput(new WindowMoveCommand(x, y, duration));
+        await Task.Delay(duration + 200);
+    }
+
+    public async Task<(double x, double y)> GetPositionAsync()
+    {
+        posTcs = new TaskCompletionSource<(double, double)>(TaskCreationOptions.RunContinuationsAsynchronously);
+        petProcess.SendInput(new GetPositionCommand());
+
+        Task completedTask = await Task.WhenAny(posTcs.Task, Task.Delay(2000));
+        if (completedTask == posTcs.Task)
+        {
+            (double x, double y) result = await posTcs.Task;
+            posTcs = null;
+            return result;
+        }
+
+        posTcs = null;
+        throw new TimeoutException("获取桌宠位置超时");
+    }
+
+    public void ResetInteractions()
+    {
+        posTcs?.TrySetCanceled();
+    }
+
+    readonly Process nativeProcess;
+    readonly PetProcess petProcess;
+    TaskCompletionSource<(double, double)>? posTcs;
+
+
     void OnEventReceived(IpcEvent ev)
     {
         switch (ev)
         {
-            case ChatEvent chat: OnChat?.Invoke(chat.Text); break;
-            case PokeEvent poke: OnPoke?.Invoke(poke.Text); break;
-            case PositionEvent pos: posTcs?.TrySetResult((pos.X, pos.Y)); break;
+            case ReadyEvent: OnReady?.Invoke(); break;
+            case InputEvent input: OnInput?.Invoke(input.Text); break;
+            case InteractionEvent interaction: OnInteracted?.Invoke(interaction.Interaction); break;
+            case PositionEvent position: posTcs?.TrySetResult((position.X, position.Y)); break;
         }
     }
 }

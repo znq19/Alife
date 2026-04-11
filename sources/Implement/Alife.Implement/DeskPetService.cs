@@ -129,7 +129,7 @@ public class DeskPetService : Plugin, IAsyncDisposable
     {
         chatBot = chatActivity.ChatBot;
 
-        client.OnChat += text => chatBot.Chat("[DeskPetService] " + text);
+        client.OnInput += text => chatBot.Chat("[DeskPetService] " + text);
         client.OnPoke += text => chatBot.Poke("[DeskPetService] " + text);
 
         chatActivity.ChatBot.ChatSent += _ => client.ResetInteractions();

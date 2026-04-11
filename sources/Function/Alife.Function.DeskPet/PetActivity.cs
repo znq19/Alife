@@ -3,9 +3,9 @@ namespace Alife.Function.DeskPet;
 /// <summary>
 /// 负责桌宠的自主业务行为逻辑 (灵魂)
 /// </summary>
-public class PetActivity
+public class PetActivity : IDisposable
 {
-    public PetActivity(PetProcess process, PetBridge bridge, PetModelMetadata metadata, IPetWindow window)
+    public PetActivity(PetProcess process, PetBridge bridge, PetModelMetadata metadata, MainWindow window)
     {
         this.process = process;
         this.bridge = bridge;
@@ -14,76 +14,111 @@ public class PetActivity
 
         detector = new MotionDetector();
         tracker = new MouseTracker();
+        cancellationTokenSource = new CancellationTokenSource();
 
-        //客户端输入
-        this.process.InputReceived += OnCommandReceived;
-        this.process.ListenInput();
-
-        //桌宠端输入
-        this.bridge.OnHit += areas => {
-            HandleMouseHit(areas);
-            process.SendOutput(new HitEvent(areas));
-        };
-        this.bridge.OnChat += text => process.SendOutput(new ChatEvent(text));
-        this.bridge.OnReady += () => {
-            this.bridge.LoadModel(this.metadata.ModelPath);
-            HandleInteraction("startup");
-            process.SendOutput(new ReadyEvent());
-        };
-        this.bridge.OnDragRequest += () => process.SendOutput(new DragRequestEvent());
-
-        //运行交互检测
-        detector.Shaked += () => {
-            HandleInteraction("shake");
-            this.process.SendOutput(new ShakeEvent());
-        };
-        detector.Moved += () => {
-            HandleInteraction("move");
-            this.process.SendOutput(new MoveEvent());
-        };
-        detector.MouseShaked += () => HandleInteraction("random");
-
-        //鼠标位置跟踪
-        tracker.MouseMoved += (x, y) => HandleMouseMove(x, y);
-        tracker.Start();
-
-        //自动重置视线功能
-        HandleFocusReset();
+        this.bridge.OnReady += OnPetReady;
     }
+    public void Dispose()
+    {
+        cancellationTokenSource.Dispose();
+    }
+
 
     readonly PetProcess process;
     readonly PetBridge bridge;
-    readonly IPetWindow window;
+    readonly MainWindow window;
     readonly PetModelMetadata metadata;
-
     readonly MotionDetector detector;
     readonly MouseTracker tracker;
+    readonly CancellationTokenSource cancellationTokenSource;
+
+    double lastWindowMouseX;
+    double lastWindowMouseY;
 
     long lastMouseMoveTime; //上次鼠标移动时间
     int comboCount; //短时间累计点击数量
     long lastHitTime; //上次点击交互时间
+    bool isDragging;
 
-    void HandleMouseMove(int x, int y)
+    async void OnPetReady()
     {
+        //加载live2d
+        bridge.LoadModel(metadata.ModelPath);
+        HandleInteraction("startup");
+
+        //监听客户端输入
+        process.InputReceived += OnCommandReceived;
+        process.ListenInput();
+
+        //监听桌宠端输入
+        bridge.OnPoke += areas => HandleMousePoke(areas);
+        bridge.OnInput += text => process.SendOutput(new InputEvent(text));
+        bridge.OnDragStart += () => isDragging = true;
+        bridge.OnDragEnd += () => isDragging = false;
+
+        //监听鼠标移动
+        tracker.MouseMoved += (x, y) => OnMouseMove(x, y);
+        tracker.Start();
+
+        //监听特殊运动交互
+        detector.WindowShaken += () => {
+            HandleInteraction("window_shake");
+            process.SendOutput(new InteractionEvent("桌宠被大幅晃动"));
+        };
+        detector.WindowMoved += () => {
+            HandleInteraction("window_move");
+            process.SendOutput(new InteractionEvent("桌宠被快速移动"));
+        };
+        detector.MouseShaken += () => {
+            HandleInteraction("mouse_shake");
+            process.SendOutput(new InteractionEvent("鼠标在快速转圈"));
+        };
+
+        //自动重置视线功能
+        HandleFocusReset(cancellationTokenSource.Token);
+
+        process.SendOutput(new ReadyEvent());
+
+        foreach (string expression in metadata.Expressions)
+        {
+            await Task.Delay(3000);
+            Console.WriteLine(expression);
+            bridge.PlayExpression(expression);
+        }
+    }
+
+    void OnMouseMove(int x, int y)
+    {
+        //计算窗口鼠标位置（收dpi影响，符合窗口坐标系的鼠标位置）
         lastMouseMoveTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         (double ScaleX, double ScaleY) dpi = window.GetDpi();
-        (double Left, double Top, double Width, double Height) layout = window.GetLayout();
+        double windowMouseX = x / dpi.ScaleX;
+        double windowMouseY = y / dpi.ScaleY;
 
-        double logicalMouseX = x / dpi.ScaleX;
-        double logicalMouseY = y / dpi.ScaleY;
-        double centerX = layout.Left + layout.Width / 2;
-        double centerY = layout.Top + layout.Height / 2;
+        {
+            //传递鼠标事件给运动交互侦测器
+            (double Left, double Top, double Width, double Height) layout = window.GetLayout();
+            double centerX = layout.Left + layout.Width / 2;
+            double centerY = layout.Top + layout.Height / 2;
+            detector.Update(windowMouseX, windowMouseY, centerX, centerY, layout.Left, layout.Top);
 
-        //传递鼠标事件给运动交互侦测器
-        detector.ReportMouseLocation(logicalMouseX, logicalMouseY, centerX, centerY);
-        detector.ReportLocation(layout.Left, layout.Top);
+            //传递给桌宠看鼠标
+            double clientX = windowMouseX - layout.Left;
+            double clientY = windowMouseY - layout.Top;
+            bridge.SetFocus(clientX, clientY);
 
-        //传递给桌宠看鼠标
-        double nx = (logicalMouseX - centerX) / (layout.Width / 2);
-        double ny = (logicalMouseY - centerY) / (layout.Height / 2);
-        bridge.SetFocus(nx, ny);
+            //实现窗口拖动功能
+            if (isDragging)
+            {
+                window.Left += windowMouseX - lastWindowMouseX;
+                window.Top += windowMouseY - lastWindowMouseY;
+            }
+        }
+
+        lastWindowMouseX = windowMouseX;
+        lastWindowMouseY = windowMouseY;
     }
-    void HandleMouseHit(List<string> areas)
+    void HandleMousePoke(List<string> areas)
     {
         long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         if (now - lastHitTime < 2500) comboCount++;
@@ -93,15 +128,17 @@ public class PetActivity
         //连击交互
         if (comboCount >= 5 && comboCount % 5 == 0)
         {
-            HandleInteraction("combo");
+            HandleInteraction("mouse_combo");
+            process.SendOutput(new InteractionEvent("桌宠被连续戳击"));
             return;
         }
 
         //普通点击交互
-        string category = "random";
+        string? category = null;
         if (areas.Any(a => a.Contains("Head", StringComparison.OrdinalIgnoreCase))) category = "head";
         else if (areas.Any(a => a.Contains("Body", StringComparison.OrdinalIgnoreCase))) category = "body";
-        HandleInteraction(category);
+        if (category != null)
+            HandleInteraction(category);
     }
     void HandleInteraction(string type)
     {
@@ -111,25 +148,23 @@ public class PetActivity
         InteractionItem item = pool[Random.Shared.Next(pool.Count)];
         if (string.IsNullOrEmpty(item.Exp) == false) bridge.PlayExpression(item.Exp);
         if (item.Mtn != null) bridge.PlayMotion(item.Mtn.Group, item.Mtn.Index);
-        if (string.IsNullOrEmpty(item.Text) == false)
-        {
-            bridge.ShowBubble(item.Text);
-            process.SendOutput(new PokeEvent($"(交互: {type}) {item.Text}"));
-        }
+        if (string.IsNullOrEmpty(item.Text) == false) bridge.ShowBubble(item.Text);
     }
-    async void HandleFocusReset()
+    async void HandleFocusReset(CancellationToken cancellationToken)
     {
         try
         {
             while (true)
             {
-                await Task.Delay(500);
+                await Task.Delay(500, cancellationToken);
                 if (DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastMouseMoveTime > 3000)
                 {
-                    bridge.SetFocus(0, 0);
+                    (double Left, double Top, double Width, double Height) layout = window.GetLayout();
+                    bridge.SetFocus(layout.Width / 2, layout.Height / 2);
                 }
             }
         }
+        catch (OperationCanceledException) { }
         catch (Exception e)
         {
             Console.WriteLine(e);

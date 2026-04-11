@@ -95,27 +95,15 @@ public record MotionCommand(string Group, int Index) : IpcCommand;
 public record HideBubbleCommand : IpcCommand;
 
 [JsonDerivedType(typeof(ReadyEvent), "ready")]
-[JsonDerivedType(typeof(HitEvent), "hit")]
-[JsonDerivedType(typeof(ChatEvent), "chat")]
-[JsonDerivedType(typeof(PokeEvent), "poke")]
-[JsonDerivedType(typeof(ShakeEvent), "shake")]
-[JsonDerivedType(typeof(MoveEvent), "move")]
+[JsonDerivedType(typeof(InputEvent), "input")]
+[JsonDerivedType(typeof(InteractionEvent), "interaction")]
 [JsonDerivedType(typeof(PositionEvent), "position")]
-[JsonDerivedType(typeof(DragRequestEvent), "drag-request")]
 public abstract record IpcEvent;
 
 public record ReadyEvent : IpcEvent;
 
-public record HitEvent(List<string> Areas) : IpcEvent;
+public record InputEvent(string Text) : IpcEvent;
 
-public record ChatEvent(string Text) : IpcEvent;
-
-public record PokeEvent(string Text) : IpcEvent;
-
-public record ShakeEvent : IpcEvent;
-
-public record MoveEvent : IpcEvent;
+public record InteractionEvent(string Interaction) : IpcEvent;
 
 public record PositionEvent(double X, double Y) : IpcEvent;
-
-public record DragRequestEvent : IpcEvent;
