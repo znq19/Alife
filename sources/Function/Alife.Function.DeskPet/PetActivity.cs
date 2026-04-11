@@ -1,75 +1,69 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Alife.Function.DeskPet;
-
-public record InteractionItem
-{
-    public string? Text { get; set; }
-    public string? Exp { get; set; }
-    public MotionRef? Mtn { get; set; }
-}
-
-public record MotionRef(string Group, int Index);
-
 
 /// <summary>
 /// 负责桌宠的自主业务行为逻辑 (灵魂)
 /// </summary>
 public class PetActivity
 {
-    public PetBridge? Bridge { get; private set; }
-    public Dictionary<string, List<InteractionItem>> Interactions { get; } = new();
-
-    public PetActivity(PetProcess process, IPetWindow window)
+    public PetActivity(PetProcess process, PetBridge bridge, PetModelMetadata metadata, IPetWindow window)
     {
         this.process = process;
+        this.bridge = bridge;
+        this.metadata = metadata;
         this.window = window;
-        detector = new InterferenceDetector();
+
+        detector = new MotionDetector();
         tracker = new MouseTracker();
 
+        //客户端输入
         this.process.InputReceived += OnCommandReceived;
-        
+        this.process.ListenInput();
+
+        //桌宠端输入
+        this.bridge.OnHit += areas => {
+            HandleMouseHit(areas);
+            process.SendOutput(new HitEvent(areas));
+        };
+        this.bridge.OnChat += text => process.SendOutput(new ChatEvent(text));
+        this.bridge.OnReady += () => {
+            this.bridge.LoadModel(this.metadata.ModelPath);
+            HandleInteraction("startup");
+            process.SendOutput(new ReadyEvent());
+        };
+        this.bridge.OnDragRequest += () => process.SendOutput(new DragRequestEvent());
+
+        //运行交互检测
         detector.Shaked += () => {
-            ExecuteInteraction("shake");
+            HandleInteraction("shake");
             this.process.SendOutput(new ShakeEvent());
         };
         detector.Moved += () => {
-            ExecuteInteraction("move");
+            HandleInteraction("move");
             this.process.SendOutput(new MoveEvent());
         };
-        detector.MouseShaked += () => ExecuteInteraction("random");
-        
-        tracker.MouseMoved += (int x, int y) => HandleMouseMove(x, y);
+        detector.MouseShaked += () => HandleInteraction("random");
 
-        LoadInteractionConfig();
-    }
-
-    public void Initialize(PetBridge bridge)
-    {
-        this.Bridge = bridge;
-        this.Bridge.OnHit += (List<string> areas) => {
-            HandleHit(areas);
-            process.SendOutput(new HitEvent(areas));
-        };
-        this.Bridge.OnChat += (string text) => process.SendOutput(new ChatEvent(text));
-        this.Bridge.OnReady += () => {
-            Bridge.LoadModelAsync("model/Mao/Mao.model3.json");
-            ExecuteInteraction("startup");
-            process.SendOutput(new ReadyEvent());
-        };
-        this.Bridge.OnDragRequest += () => process.SendOutput(new DragRequestEvent());
-
+        //鼠标位置跟踪
+        tracker.MouseMoved += (x, y) => HandleMouseMove(x, y);
         tracker.Start();
-        _ = StartFocusResetLoop();
+
+        //自动重置视线功能
+        HandleFocusReset();
     }
 
-    public void HandleMouseMove(int x, int y)
+    readonly PetProcess process;
+    readonly PetBridge bridge;
+    readonly IPetWindow window;
+    readonly PetModelMetadata metadata;
+
+    readonly MotionDetector detector;
+    readonly MouseTracker tracker;
+
+    long lastMouseMoveTime; //上次鼠标移动时间
+    int comboCount; //短时间累计点击数量
+    long lastHitTime; //上次点击交互时间
+
+    void HandleMouseMove(int x, int y)
     {
         lastMouseMoveTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         (double ScaleX, double ScaleY) dpi = window.GetDpi();
@@ -80,88 +74,66 @@ public class PetActivity
         double centerX = layout.Left + layout.Width / 2;
         double centerY = layout.Top + layout.Height / 2;
 
+        //传递鼠标事件给运动交互侦测器
         detector.ReportMouseLocation(logicalMouseX, logicalMouseY, centerX, centerY);
         detector.ReportLocation(layout.Left, layout.Top);
 
+        //传递给桌宠看鼠标
         double nx = (logicalMouseX - centerX) / (layout.Width / 2);
         double ny = (logicalMouseY - centerY) / (layout.Height / 2);
-
-        Bridge?.SetFocusAsync(nx, ny);
+        bridge.SetFocus(nx, ny);
     }
-
-    public void ExecuteInteraction(string type)
-    {
-        if (Interactions.TryGetValue(type, out List<InteractionItem>? pool) == false || pool.Count == 0) return;
-        InteractionItem item = pool[Random.Shared.Next(pool.Count)];
-        
-        if (string.IsNullOrEmpty(item.Exp) == false) PlayExpression(item.Exp);
-        if (item.Mtn != null) Bridge?.PlayMotionAsync(item.Mtn.Group, item.Mtn.Index);
-        if (string.IsNullOrEmpty(item.Text) == false) 
-        {
-            Bridge?.ShowBubbleAsync(item.Text);
-            process.SendOutput(new PokeEvent($"(交互: {type}) {item.Text}"));
-        }
-    }
-
-    public void PlayExpression(string? id, int duration = 5000)
-    {
-        if (Bridge == null) return;
-        Bridge.PlayExpressionAsync(id);
-
-        expressionCts?.Cancel();
-        expressionCts = null;
-
-        if (string.IsNullOrEmpty(id) == false)
-        {
-            expressionCts = new CancellationTokenSource();
-            CancellationToken token = expressionCts.Token;
-            _ = Task.Run(async () => {
-                try {
-                    await Task.Delay(duration, token);
-                    if (token.IsCancellationRequested == false) Bridge.PlayExpressionAsync(null);
-                } catch (OperationCanceledException) { }
-            }, token);
-        }
-    }
-
-    void LoadInteractionConfig()
-    {
-        try
-        {
-            string modelJsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/model/Mao/Mao.model3.json");
-            if (File.Exists(modelJsonPath) == false) return;
-
-            using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(modelJsonPath));
-            if (doc.RootElement.TryGetProperty("Interaction", out JsonElement interactJson) &&
-                interactJson.TryGetProperty("Dialogues", out JsonElement dialogues))
-            {
-                foreach (JsonProperty poolProp in dialogues.EnumerateObject())
-                {
-                    Interactions[poolProp.Name] = JsonSerializer.Deserialize<List<InteractionItem>>(poolProp.Value.GetRawText(), PetProcess.JsonOptions) ?? new();
-                }
-            }
-        }
-        catch { }
-    }
-
-    void HandleHit(List<string> areas)
+    void HandleMouseHit(List<string> areas)
     {
         long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-        if (now - lastInteractionTime < 2500) comboCount++;
+        if (now - lastHitTime < 2500) comboCount++;
         else comboCount = 1;
-        lastInteractionTime = now;
+        lastHitTime = now;
 
+        //连击交互
         if (comboCount >= 5 && comboCount % 5 == 0)
         {
-            ExecuteInteraction("combo");
+            HandleInteraction("combo");
             return;
         }
 
+        //普通点击交互
         string category = "random";
         if (areas.Any(a => a.Contains("Head", StringComparison.OrdinalIgnoreCase))) category = "head";
         else if (areas.Any(a => a.Contains("Body", StringComparison.OrdinalIgnoreCase))) category = "body";
+        HandleInteraction(category);
+    }
+    void HandleInteraction(string type)
+    {
+        if (metadata.Interactions.TryGetValue(type, out List<InteractionItem>? pool) == false || pool.Count == 0)
+            return;
 
-        ExecuteInteraction(category);
+        InteractionItem item = pool[Random.Shared.Next(pool.Count)];
+        if (string.IsNullOrEmpty(item.Exp) == false) bridge.PlayExpression(item.Exp);
+        if (item.Mtn != null) bridge.PlayMotion(item.Mtn.Group, item.Mtn.Index);
+        if (string.IsNullOrEmpty(item.Text) == false)
+        {
+            bridge.ShowBubble(item.Text);
+            process.SendOutput(new PokeEvent($"(交互: {type}) {item.Text}"));
+        }
+    }
+    async void HandleFocusReset()
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(500);
+                if (DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastMouseMoveTime > 3000)
+                {
+                    bridge.SetFocus(0, 0);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
 
     void OnCommandReceived(IpcCommand cmd)
@@ -174,34 +146,12 @@ public class PetActivity
             case GetPositionCommand:
                 (double Left, double Top, double Width, double Height) layout = window.GetLayout();
                 (double ScaleX, double ScaleY) dpi = window.GetDpi();
-                process.SendOutput(new PositionEvent((layout.Left + layout.Width/2) * dpi.ScaleX, (layout.Top + layout.Height/2) * dpi.ScaleY));
+                process.SendOutput(new PositionEvent((layout.Left + layout.Width / 2) * dpi.ScaleX, (layout.Top + layout.Height / 2) * dpi.ScaleY));
                 break;
-            case BubbleCommand b: Bridge?.ShowBubbleAsync(b.Text); break;
-            case PlayExpressionCommand e: PlayExpression(e.Id); break;
-            case MotionCommand m: Bridge?.PlayMotionAsync(m.Group, m.Index); break;
-            case HideBubbleCommand: Bridge?.HideBubbleAsync(); break;
+            case BubbleCommand b: bridge.ShowBubble(b.Text); break;
+            case PlayExpressionCommand e: bridge.PlayExpression(e.Id); break;
+            case MotionCommand m: bridge.PlayMotion(m.Group, m.Index); break;
+            case HideBubbleCommand: bridge.HideBubble(); break;
         }
     }
-
-    async Task StartFocusResetLoop()
-    {
-        while (true)
-        {
-            await Task.Delay(500);
-            if (DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastMouseMoveTime > 3000)
-            {
-                Bridge?.SetFocusAsync(0, 0);
-            }
-        }
-    }
-
-    PetProcess process;
-    IPetWindow window;
-    InterferenceDetector detector;
-    MouseTracker tracker;
-    
-    int comboCount;
-    long lastInteractionTime;
-    long lastMouseMoveTime;
-    CancellationTokenSource? expressionCts;
 }

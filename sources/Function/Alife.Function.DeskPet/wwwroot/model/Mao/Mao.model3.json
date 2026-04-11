@@ -65,6 +65,33 @@
 			]
 		}
 	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamA"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	],
+	"HitAreas": [
+		{
+			"Id": "HitAreaHead",
+			"Name": "Head"
+		},
+		{
+			"Id": "HitAreaBody",
+			"Name": "Body"
+		}
+	],
 	"Interaction": {
 		"Dialogues": {
 			"head": [
@@ -102,32 +129,5 @@
 				{ "text": "喵~ 主人你回来啦！真央一直在这里等你喵~(ฅ´ω`ฅ)", "exp": "微笑", "mtn": { "group": "TapBody", "index": 3 } }
 			]
 		}
-	},
-	"Groups": [
-		{
-			"Target": "Parameter",
-			"Name": "LipSync",
-			"Ids": [
-				"ParamA"
-			]
-		},
-		{
-			"Target": "Parameter",
-			"Name": "EyeBlink",
-			"Ids": [
-				"ParamEyeLOpen",
-				"ParamEyeROpen"
-			]
-		}
-	],
-	"HitAreas": [
-		{
-			"Id": "HitAreaHead",
-			"Name": "Head"
-		},
-		{
-			"Id": "HitAreaBody",
-			"Name": "Body"
-		}
-	]
+	}
 }

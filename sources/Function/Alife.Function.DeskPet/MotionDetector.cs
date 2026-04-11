@@ -1,12 +1,9 @@
-using System;
-using System.Collections.Generic;
-
 namespace Alife.Function.DeskPet;
 
 /// <summary>
 /// 干扰识别器：负责纯数学逻辑，识别摇摆、大幅位移以及鼠标逗弄
 /// </summary>
-public class InterferenceDetector
+public class MotionDetector
 {
     public event Action? Shaked;
     public event Action? Moved;

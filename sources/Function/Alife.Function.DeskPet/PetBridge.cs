@@ -14,37 +14,37 @@ public class PetBridge
     public event Action<string>? OnChat;
     public event Action? OnDragRequest;
 
-    public void LoadModelAsync(string url)
+    public void LoadModel(string url)
     {
-        SendCommandAsync(new { type = "load", url });
+        SendCommand(new { type = "load", url });
     }
 
-    public void PlayExpressionAsync(string? id)
+    public void PlayExpression(string? id)
     {
-        SendCommandAsync(new { type = "expression", id });
+        SendCommand(new { type = "expression", id });
     }
 
-    public void PlayMotionAsync(string group, int index)
+    public void PlayMotion(string group, int index)
     {
-        SendCommandAsync(new { type = "motion", group, index });
+        SendCommand(new { type = "motion", group, index });
     }
 
-    public void ShowBubbleAsync(string text)
+    public void ShowBubble(string text)
     {
-        SendCommandAsync(new { type = "bubble", text });
+        SendCommand(new { type = "bubble", text });
     }
 
-    public void HideBubbleAsync()
+    public void HideBubble()
     {
-        SendCommandAsync(new { type = "hide-bubble" });
+        SendCommand(new { type = "hide-bubble" });
     }
 
-    public void SetFocusAsync(double x, double y, bool instant = false)
+    public void SetFocus(double x, double y, bool instant = false)
     {
-        SendCommandAsync(new { type = "look", x, y, instant });
+        SendCommand(new { type = "look", x, y, instant });
     }
 
-    void SendCommandAsync(object command)
+    void SendCommand(object command)
     {
         string json = JsonSerializer.Serialize(command);
         webView.CoreWebView2.PostWebMessageAsJson(json);
