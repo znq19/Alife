@@ -113,11 +113,13 @@ public class XmlStreamExecutor : IAsyncDisposable
         }
     }
 
-    Task OnTagOpened()
+    async Task OnTagOpened()
     {
         if (aboveContentBuffer.Count < parser.TagStack.Count)
             aboveContentBuffer.Add(new StringBuilder());
-        return HandleTag(CallMode.Opening);
+
+        await FlushContentBuffer(); //有新的标签要进入，不能让新标签拿到老内容
+        await HandleTag(CallMode.Opening);
     }
 
     async Task OnTagClosed()
@@ -128,8 +130,7 @@ public class XmlStreamExecutor : IAsyncDisposable
         }
         else
         {
-            if (contentBuffer.Length != 0)
-                await FlushContentBuffer(); //即使没有触发分词也必须推送了，因为标签即将关闭
+            await FlushContentBuffer(); //即使没有触发分词也必须推送了，因为标签即将关闭
             await HandleTag(CallMode.Closing);
         }
         aboveContentBuffer[parser.TagStack.Count - 1].Clear();
@@ -181,6 +182,8 @@ public class XmlStreamExecutor : IAsyncDisposable
     {
         string content = contentBuffer.ToString();
         contentBuffer.Clear();
+        if (content == string.Empty)
+            return;
 
         for (int index = parser.TagStack.Count - 1; index >= 0; index--)
         {

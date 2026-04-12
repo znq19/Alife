@@ -52,16 +52,17 @@ public class PetProcess : IDisposable
         writer.Flush();
     }
 
-    async void StartListening<T>(Action<T>? callback)
+    void StartListening<T>(Action<T>? callback)
     {
-        try
-        {
-            SynchronizationContext? syncContext = SynchronizationContext.Current;
+        SynchronizationContext? syncContext = SynchronizationContext.Current;
 
-            listeningCancellation = new CancellationTokenSource();
-            CancellationToken token = listeningCancellation.Token;
-            await Task.Run(async () => {
-                while (token.IsCancellationRequested == false)
+        listeningCancellation = new CancellationTokenSource();
+        CancellationToken token = listeningCancellation.Token;
+
+        Task.Run(async () => {
+            while (token.IsCancellationRequested == false)
+            {
+                try
                 {
                     string? line = await reader.ReadLineAsync(token);
                     if (string.IsNullOrEmpty(line)) break;
@@ -72,17 +73,16 @@ public class PetProcess : IDisposable
                     if (syncContext != null)
                         syncContext.Post(_ => callback?.Invoke(msg), null);
                     else
-                        callback?.Invoke(msg);
-
-                    await File.AppendAllTextAsync("D:\\123.txt", line, token);
+                        _ = Task.Run(() => callback?.Invoke(msg), token);
+                    
+                    await File.AppendAllTextAsync("pet.log", line + Environment.NewLine, token);
                 }
-            }, token);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception e)
-        {
-            await File.AppendAllTextAsync("pet.log", e + Environment.NewLine);
-        }
+                catch (Exception e)
+                {
+                    await File.AppendAllTextAsync("pet.log", e + Environment.NewLine, token);
+                }
+            }
+        }, token);
     }
 
     readonly TextWriter writer;

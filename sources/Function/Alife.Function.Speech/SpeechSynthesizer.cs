@@ -1,6 +1,6 @@
 using System.Diagnostics;
+using Alife.Basic;
 using NAudio.Wave;
-using Environment = Alife.Basic.Environment;
 
 namespace Alife.Function.Speech;
 
@@ -61,7 +61,7 @@ public class SpeechSynthesizer
             return outputPath;
 
         ProcessStartInfo psi = new() {
-            FileName = Environment.PythonExecutablePath,
+            FileName = AlifePath.PythonExecutablePath,
             Arguments = $"-m edge_tts --text \"{fileSafeText}\" --voice {voiceTone} --write-media \"{outputPath}\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,

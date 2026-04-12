@@ -5,7 +5,6 @@ using System.Text;
 using Alife.Framework;
 using Alife.Function.Interpreter;
 using Microsoft.SemanticKernel;
-using Environment = Alife.Basic.Environment;
 
 namespace Alife.Implement;
 
@@ -15,11 +14,10 @@ namespace Alife.Implement;
 public class PythonService : Plugin
 {
     [XmlFunction]
-    [Description(@"你的专属python执行器，如果执行有结果，还会在之后返回给你。
+    [Description(@"执行python脚本（使用后需要等待系统响应）。
 注意事项：
-1. 永远把它作为最后一条指令执行，不要捏造结果，调用后请停止说话，并等待结果返回。
-2. 主人看不到结果，包括其返回的结果，不要让主人操作，不要写会等待的应用（例如你如果想画画，你可以直接保存到本地，然后单独开一个进程打开图片）。
-3. 注意一定要少写代码，能一行解决就不要两行，慎用，因为这个非常烧token，烧完你就宕机了！")]
+1. 用户看不到结果也无法交互，所以不要编写需要用户操作的代码，否则会导致进程卡死（如果需要异步，你可以尝试自己单独创建一个进程）。
+2. 要极简代码量，只写必要代码，不要写注释、异常判断等非必要代码，能一行解决就不要两行。（因为这个非常烧token，烧完你就宕机了！）")]
     public async Task Python(XmlExecutorContext context, [XmlContent] string _)
     {
         if (context.CallMode != CallMode.Closing)
@@ -28,7 +26,7 @@ public class PythonService : Plugin
         string filePath = storageSystem.GetTempPath("pythonScript.py");
         await File.WriteAllTextAsync(filePath, context.FullContent);
         ProcessStartInfo startInfo = new ProcessStartInfo {
-            FileName = Environment.PythonExecutablePath,
+            FileName = AlifePath.PythonExecutablePath,
             Arguments = filePath,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -38,7 +36,7 @@ public class PythonService : Plugin
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
-        
+
         using Process process = new Process();
         process.StartInfo = startInfo;
         process.Start();

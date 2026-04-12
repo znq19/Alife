@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using Environment = Alife.Basic.Environment;
 
 namespace Alife.Function.Vision;
 
@@ -52,7 +51,7 @@ public class VisionAnalyzer : IDisposable
         }
 
         var psi = new ProcessStartInfo {
-            FileName = Environment.PythonExecutablePath,
+            FileName = AlifePath.PythonExecutablePath,
             Arguments = arguments,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,

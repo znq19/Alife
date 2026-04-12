@@ -1,6 +1,6 @@
 namespace Alife.Basic;
 
-public static class Environment
+public static class AlifePath
 {
     public static string ModelsFolderPath { get; private set; }
     public static string PythonFolderPath { get; private set; }
@@ -9,7 +9,7 @@ public static class Environment
     public static string OutputsFolderPath { get; private set; }
     public static string TempFolderPath { get; private set; }
 
-    static Environment()
+    static AlifePath()
     {
         {
             string? current = AppContext.BaseDirectory;
@@ -28,7 +28,7 @@ public static class Environment
         }
 
         {
-            string? oneDrivePath = System.Environment.GetEnvironmentVariable("OneDrive");
+            string? oneDrivePath = Environment.GetEnvironmentVariable("OneDrive");
             if (string.IsNullOrEmpty(oneDrivePath) == false)
             {
                 string path = Path.Combine(oneDrivePath, "Alife.Storage");

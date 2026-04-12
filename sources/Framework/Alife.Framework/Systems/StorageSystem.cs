@@ -1,12 +1,12 @@
+using Alife.Basic;
 using Newtonsoft.Json;
-using Environment = Alife.Basic.Environment;
 
 namespace Alife.Framework;
 
 public class StorageSystem
 {
-    public string GetStoragePath() => Environment.StorageFolderPath;
-    public string GetTempPath(string filename) => $"{Environment.StorageFolderPath}/{filename}";
+    public string GetStoragePath() => AlifePath.StorageFolderPath;
+    public string GetTempPath(string filename) => $"{AlifePath.StorageFolderPath}/{filename}";
 
     public string? GetJson(string key, string? defaultValue = null)
     {

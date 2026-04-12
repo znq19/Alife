@@ -6,7 +6,6 @@ using Alife.Function.Interpreter;
 using Alife.Function.Speech;
 using Microsoft.SemanticKernel;
 using NAudio.CoreAudioApi;
-using Environment = Alife.Basic.Environment;
 
 namespace Alife.Implement;
 
@@ -106,7 +105,7 @@ public class SpeechService : Plugin, IAsyncDisposable
         interpreterService.RegisterHandler(this);
 
         //创建识别器
-        recognizer = new SpeechRecognizer(Environment.ModelsFolderPath);
+        recognizer = new SpeechRecognizer(AlifePath.ModelsFolderPath);
         recognizer.Recognized += OnRecognized;
 
         //创建合成器
