@@ -156,7 +156,7 @@ public class ChatBot : IAsyncDisposable
             while (await periodicTimer.WaitForNextTickAsync(cancelTimerSource.Token))
             {
                 currentTime += DeltaTime;
-                if (currentTime - lastAutoFlushTime > 2)
+                if (currentTime - lastAutoFlushTime > 3)
                 {
                     TryFlushMessageCache();
                     lastAutoFlushTime = currentTime;

@@ -121,25 +121,27 @@ public class PetActivity : IDisposable
     }
     void HandleMousePoke(List<string> areas)
     {
+        //计算交互部位
+        string? category = null;
+        if (areas.Any(a => a.Contains("Head", StringComparison.OrdinalIgnoreCase))) category = "head";
+        else if (areas.Any(a => a.Contains("Body", StringComparison.OrdinalIgnoreCase))) category = "body";
+        if (category == null)
+            return; //不支持
+
+        //连击交互判定
         long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         if (now - lastHitTime < 2500) comboCount++;
         else comboCount = 1;
         lastHitTime = now;
-
-        //连击交互
         if (comboCount >= 5 && comboCount % 5 == 0)
         {
             HandleInteraction("mouse_combo");
-            process.SendOutput(new InteractionEvent("桌宠被连续戳击"));
+            process.SendOutput(new InteractionEvent("桌宠被连续触摸：" + category));
             return;
         }
 
         //普通点击交互
-        string? category = null;
-        if (areas.Any(a => a.Contains("Head", StringComparison.OrdinalIgnoreCase))) category = "head";
-        else if (areas.Any(a => a.Contains("Body", StringComparison.OrdinalIgnoreCase))) category = "body";
-        if (category != null)
-            HandleInteraction(category);
+        HandleInteraction(category);
     }
     void HandleInteraction(string type)
     {

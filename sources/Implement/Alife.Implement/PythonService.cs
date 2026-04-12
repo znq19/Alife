@@ -14,7 +14,7 @@ namespace Alife.Implement;
 public class PythonService : Plugin
 {
     [XmlFunction]
-    [Description(@"执行python脚本（使用后需要等待系统响应）。
+    [Description(@"执行python脚本（使用后需要等待系统响应，所以只能放句尾使用）。
 注意事项：
 1. 用户看不到结果也无法交互，所以不要编写需要用户操作的代码，否则会导致进程卡死（如果需要异步，你可以尝试自己单独创建一个进程）。
 2. 要极简代码量，只写必要代码，不要写注释、异常判断等非必要代码，能一行解决就不要两行。（因为这个非常烧token，烧完你就宕机了！）")]

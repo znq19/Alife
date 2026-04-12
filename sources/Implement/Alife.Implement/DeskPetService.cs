@@ -65,7 +65,7 @@ public class DeskPetService : Plugin, IAsyncDisposable
         client.PlayMotion(motion.Group, motion.Index);
     }
     [XmlFunction("move")]
-    [Description("在屏幕上进行相对位置位移。示例: <pmove x=\"200\" y=\"100\" duration=\"500\" /> - 表示在0.5秒内从当前位置向右移200像素，下移100像素")]
+    [Description("在屏幕上进行相对位置位移（可以连续调用）。示例: <pmove x=\"200\" y=\"100\" duration=\"500\" /> - 表示在0.5秒内从当前位置向右移200像素，下移100像素")]
     public Task PetMove(XmlExecutorContext context, double x = 0, double y = 0, int duration = 1000)
     {
         if (context.CallMode != CallMode.OneShot)
@@ -74,7 +74,7 @@ public class DeskPetService : Plugin, IAsyncDisposable
         return client.MoveAsync(x, y, duration);
     }
     [XmlFunction("pos")]
-    [Description("请求系统返回当前所在位置（使用后需要等待系统响应）。")]
+    [Description("请求系统返回当前所在位置（使用后需要等待系统响应，所以只能放句尾使用）。")]
     public async Task PetPos(XmlExecutorContext context)
     {
         if (context.CallMode != CallMode.OneShot)
@@ -120,6 +120,7 @@ public class DeskPetService : Plugin, IAsyncDisposable
              ## 位置移动
                 - 当前屏幕分辨率：{AlifeDevice.GetResolution()}
                 - 注意：移动是相对移动，如果要进行绝对移动，必须先确认自身位置！
+                - 提示：可以用随机的相对移动，模拟出一些特殊反馈，比如假装跳舞。
              """);
         return Task.CompletedTask;
     }

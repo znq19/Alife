@@ -60,6 +60,13 @@ public partial class MainWindow
         DoubleAnimation xAnim = new DoubleAnimation(startX, endX, TimeSpan.FromMilliseconds(durationMs)) { EasingFunction = new QuadraticEase() };
         DoubleAnimation yAnim = new DoubleAnimation(startY, endY, TimeSpan.FromMilliseconds(durationMs)) { EasingFunction = new QuadraticEase() };
 
+        yAnim.Completed += (s, e) => {
+            BeginAnimation(LeftProperty, null);
+            BeginAnimation(TopProperty, null);
+            Left = endX;
+            Top = endY;
+        };
+
         BeginAnimation(LeftProperty, xAnim);
         BeginAnimation(TopProperty, yAnim);
     }
