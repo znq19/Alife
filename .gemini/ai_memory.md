@@ -74,8 +74,8 @@
 
 ### 异常与验证
 
-- **面向程序员的 API**：让异常自然抛出，程序员应自行处理错误
-- **面向用户的代码**：适当添加验证和异常处理
+- **面向程序员 of API**：让异常自然抛出，程序员应自行处理错误
+- **面向用户的代码**：适当添加验证 and 异常处理
 - 明显不应该为空的参数：不需要判空
 - 可能为空的业务场景：应该验证
 
@@ -159,3 +159,9 @@
 ### 8. 永久循环后台任务 (Perpetual Background Tasks)
 - **使用 `async void`**：对于在对象生命周期内始终循环执行且不返回结果的私有后台函数（如 `LoopProcessInput`），优先使用 `async void` 而非 `Task`。
 - **设计理由**：因为这类函数无法被有效 `await`（永远等不到结果），若返回 `Task` 会误导调用者。通过 `async void` 并在内部进行全量 `try-catch` 处理，可以确保任务的独立性与安全性，同时简化外部调用逻辑。
+
+### 9. 分层记忆存储 (Hierarchical Memory Storage: Frontier & Archive)
+- **核心模式**：采用 **Frontier (活跃快照)** 与 **Archive (归档批次)** 分离的架构。
+- **快照持久化 (Frontier)**：每一轮对话（OnChatOver）触发一次 `SaveFrontier`，将当前内存中所有层级（L0 - Ln）的活跃记录全量保存为 `{characterId}/Frontier.json`。这保证了会话意外中断后能完美恢复。
+- **批次归档 (Archive)**：当 L0 达到阈值触发压缩时，将这组原始记录保存到 `Archives/{summaryId}.json`。摘要记录的 `Id` 作为文件名，实现了稳健的溯源。
+- **上下文还原**：通过 `RefreshChatHistory` 逻辑将分层记忆动态映射回 `ChatHistory`。对于 Level 0 记录，应通过文本拆分（"用户：" / "回复："）还原 User/Assistant 角色，而非简单的单条注入。

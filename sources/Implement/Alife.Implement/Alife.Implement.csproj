@@ -14,10 +14,12 @@
     <ProjectReference Include="..\..\Function\Alife.Function.Speech\Alife.Function.Speech.csproj" />
     <ProjectReference Include="..\..\Function\Alife.Function.QChat\Alife.Function.QChat.csproj" />
     <ProjectReference Include="..\..\Function\Alife.Function.Vision\Alife.Function.Vision.csproj" />
+    <ProjectReference Include="..\..\Function\Alife.Function.Memory\Alife.Function.Memory.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" Version="1.74.0-alpha" />
   </ItemGroup>
 
   <ItemGroup>
