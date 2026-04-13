@@ -1,5 +1,3 @@
-using Microsoft.SemanticKernel.Embeddings;
-
 namespace Alife.Function.Memory;
 
 /// <summary>
@@ -8,9 +6,9 @@ namespace Alife.Function.Memory;
 /// </summary>
 public class MemoryIndex
 {
-    public MemoryIndex(ITextEmbeddingGenerationService embeddingService, string modelName = "all-minilm-l6-v2")
+    public MemoryIndex(TextVectorizer vectorizer, string modelName = "all-minilm-l6-v2")
     {
-        this.embeddingService = embeddingService;
+        this.vectorizer = vectorizer;
         this.modelName = modelName;
     }
 
@@ -22,7 +20,7 @@ public class MemoryIndex
     {
         if (record.Embedding.Length == 0 || record.EmbeddingModel != modelName)
         {
-            record.Embedding = (await embeddingService.GenerateEmbeddingAsync(record.Content)).ToArray();
+            record.Embedding = await vectorizer.VectorizeAsync(record.Content);
             record.EmbeddingModel = modelName;
         }
 
@@ -54,7 +52,7 @@ public class MemoryIndex
     /// </summary>
     public async Task<List<MemoryRecord>> SearchAsync(string query, int topK = 5)
     {
-        float[] queryEmbedding = (await embeddingService.GenerateEmbeddingAsync(query)).ToArray();
+        float[] queryEmbedding = await vectorizer.VectorizeAsync(query);
 
         List<(float Score, MemoryRecord Record)> scored;
         lock (index)
@@ -75,7 +73,7 @@ public class MemoryIndex
             index.Remove(recordId);
     }
 
-    readonly ITextEmbeddingGenerationService embeddingService;
+    readonly TextVectorizer vectorizer;
     readonly string modelName;
     readonly Dictionary<string, MemoryRecord> index = new();
 

@@ -59,7 +59,8 @@ public class MemoryService : Plugin, IConfigurable<MemoryServiceConfig>
 
         // 初始化内存框架
         var storage = new MemoryStorage(storageSystem.GetStoragePath());
-        var index = new MemoryIndex(embeddingService, "all-minilm-l6-v2");
+        var vectorizer = new TextVectorizer(AlifePath.ModelsFolderPath);
+        var index = new MemoryIndex(vectorizer, "all-minilm-l6-v2");
         var compressor = new MemoryCompressor(chatService);
         
         memoryManager = new MemoryManager(storage, index, compressor);
