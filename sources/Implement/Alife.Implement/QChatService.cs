@@ -73,14 +73,12 @@ public class QChatService : Plugin, IAsyncDisposable, IConfigurable<QChatConfig>
     }
 
     OneBotClient oneBotClient = null!;
-    readonly StorageSystem storageSystem;
     QChatConfig config = null!;
     ChatActivity chatActivity = null!;
     readonly Dictionary<long, StringBuilder> groupBuffers = new();
 
-    public QChatService(InterpreterService interpreterService, StorageSystem storageSystem)
+    public QChatService(InterpreterService interpreterService)
     {
-        this.storageSystem = storageSystem;
         interpreterService.RegisterHandler(this);
     }
 
