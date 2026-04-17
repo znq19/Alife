@@ -111,7 +111,7 @@ public class MemoryService : Plugin, IConfigurable<MemoryConfig>
         //初始化向量化器和感知人设的压缩器
         TextVectorizer vectorizer = new(AlifePath.ModelsFolderPath);
         AlifeTextCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), chatHistory);
-        string storagePath = Path.Combine(AlifePath.StorageFolderPath, "Memory", chatActivity.Character.ID);
+        string storagePath = Path.Combine(AlifePath.StorageFolderPath, "Memories", chatActivity.Character.ID);
         memoryManager = new MemoryManager(compressor, vectorizer, storagePath, config.Threshold, config.BatchSize);
 
         //加载历史记忆

@@ -5,3 +5,4 @@
 /Resources/
 bin/
 obj/
+*.log

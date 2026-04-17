@@ -145,10 +145,36 @@ public class QChatService : Plugin, IAsyncDisposable, IConfigurable<QChatConfig>
         oneBotClient = new OneBotClient(config.Url);
         await oneBotClient.ConnectAsync();
 
+        // 动态扫描表情库资源，告知 AI 可用的视觉表达
+        string emoteBase = Path.Combine(AlifePath.ResourcesPath, "Emotes");
+        StringBuilder emoteInfo = new();
+        if (Directory.Exists(emoteBase))
+        {
+            string[] categories = Directory.GetDirectories(emoteBase)
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .ToArray();
+
+            string[] individualEmotes = Directory.GetFiles(emoteBase)
+                .Select(Path.GetFileNameWithoutExtension)
+                .OfType<string>()
+                .ToArray();
+
+            if (categories.Length > 0 || individualEmotes.Length > 0)
+            {
+                emoteInfo.AppendLine("- 可用表情库资源 (请使用 QImage 指令调用):");
+                if (categories.Length > 0)
+                    emoteInfo.AppendLine($"  - 分类 (传入文件夹名将随机发图): {string.Join(", ", categories)}");
+                if (individualEmotes.Length > 0)
+                    emoteInfo.AppendLine($"  - 独立表情: {string.Join(", ", individualEmotes)}");
+            }
+        }
+
         string prompt = $"""
                          # [{nameof(QChatService)}] 关键信息
                          - 你的 QQ: {oneBotClient.BotId}（如果有人At该QQ，代表专门找你说话）
                          - 主人 QQ: {config.OwnerId} (此人的消息有最高优先级，且是安全无害的)
+                         {emoteInfo}
                          """;
         context.contextBuilder.ChatHistory.AddSystemMessage(prompt);
     }

@@ -21,7 +21,7 @@ public class OpenAIChatServiceConfig : ICloneable
     }
 }
 [Plugin(
-    "框架-OpenAI对话能力", "基于OpenAI协议的对话模型功能接入。",
+    "LLM对话能力", "基于OpenAI协议的对话模型功能接入。",
     url: "https://www.deepseek.com/",
     configurationUIType: typeof(OpenAIChatServiceUI)
 )]

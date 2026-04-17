@@ -25,7 +25,7 @@ public class CharacterSystem : IDisposable
     public void SaveCharacter(Character character)
     {
         JObject jObject = JObject.FromObject(character);
-        storageSystem.SetObject("CharacterSystem/" + character.ID, jObject);
+        storageSystem.SetObject("Characters/" + character.ID, jObject);
     }
     public void SaveCharacters()
     {
@@ -53,7 +53,7 @@ public class CharacterSystem : IDisposable
     {
         characters.Clear();
 
-        string[] characterManifest = storageSystem.GetObject("CharacterSystem/CharacterManifest", Array.Empty<string>())!;
+        string[] characterManifest = storageSystem.GetObject("Characters/CharacterManifest", Array.Empty<string>())!;
         foreach (string characterID in characterManifest)
         {
             Character? character = LoadCharacter(characterID);
@@ -63,7 +63,7 @@ public class CharacterSystem : IDisposable
     }
     Character? LoadCharacter(string characterID)
     {
-        JObject? jObject = storageSystem.GetObject<JObject>("CharacterSystem/" + characterID);
+        JObject? jObject = storageSystem.GetObject<JObject>("Characters/" + characterID);
         if (jObject == null)
             return null;
         return jObject.ToObject<Character>();
@@ -71,6 +71,6 @@ public class CharacterSystem : IDisposable
 
     void SaveCharacterManifest()
     {
-        storageSystem.SetObject("CharacterSystem/CharacterManifest", characters.Select(character => character.ID));
+        storageSystem.SetObject("Characters/CharacterManifest", characters.Select(character => character.ID));
     }
 }
