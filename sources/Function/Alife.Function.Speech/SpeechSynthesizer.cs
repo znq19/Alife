@@ -61,7 +61,7 @@ public class SpeechSynthesizer
             return outputPath;
 
         ProcessStartInfo psi = new() {
-            FileName = AlifePath.PythonExecutablePath,
+            FileName = AlifePython.ExecutablePath,
             Arguments = $"-m edge_tts --text \"{fileSafeText}\" --voice {voiceTone} --write-media \"{outputPath}\"",
             UseShellExecute = false,
             RedirectStandardOutput = true,

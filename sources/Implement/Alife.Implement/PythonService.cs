@@ -26,7 +26,7 @@ public class PythonService : Plugin
         string filePath = storageSystem.GetTempPath("pythonScript.py");
         await File.WriteAllTextAsync(filePath, context.FullContent);
         ProcessStartInfo startInfo = new ProcessStartInfo {
-            FileName = AlifePath.PythonExecutablePath,
+            FileName = AlifePython.ExecutablePath,
             Arguments = filePath,
             UseShellExecute = false,
             RedirectStandardOutput = true,

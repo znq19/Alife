@@ -1,5 +1,6 @@
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
+using Alife.Basic;
 
 namespace Alife.Function.Memory;
 
@@ -11,8 +12,16 @@ public class TextVectorizer
 {
     public TextVectorizer(string modelRootPath)
     {
-        string modelPath = Path.Combine(modelRootPath, "bge-small-zh-v1.5", "model.onnx");
-        string vocabPath = Path.Combine(modelRootPath, "bge-small-zh-v1.5", "vocab.txt");
+        string targetDir = Path.Combine(modelRootPath, "bge-small-zh-v1.5");
+        
+        // 自动自检并下载组件
+        ResourceDownloader.Ensure("记忆语义模型 (BGE)", targetDir,
+            ("model.onnx", "https://modelscope.cn/models/BAAI/bge-small-zh-v1.5/resolve/master/model.onnx"),
+            ("vocab.txt", "https://modelscope.cn/models/BAAI/bge-small-zh-v1.5/resolve/master/vocab.txt")
+        );
+
+        string modelPath = Path.Combine(targetDir, "model.onnx");
+        string vocabPath = Path.Combine(targetDir, "vocab.txt");
 
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"找不到嵌入模型，请将 model.onnx 放置到：{modelPath}");

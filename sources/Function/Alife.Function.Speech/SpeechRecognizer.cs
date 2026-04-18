@@ -1,5 +1,6 @@
 using NAudio.Wave;
 using SherpaOnnx;
+using Alife.Basic;
 
 namespace Alife.Function.Speech;
 
@@ -27,6 +28,13 @@ public class SpeechRecognizer : IDisposable
 
     public SpeechRecognizer(string modelRootPath)
     {
+        // 自动自检并下载组件
+        ResourceDownloader.Ensure("语音识别与检测模型", modelRootPath,
+            ("sensevoice-small/model.int8.onnx", "https://modelscope.cn/models/iic/SenseVoiceSmall/resolve/master/model.int8.onnx"),
+            ("sensevoice-small/tokens.txt", "https://modelscope.cn/models/iic/SenseVoiceSmall/resolve/master/tokens.txt"),
+            ("silero-vad/silero_vad.onnx", "https://modelscope.cn/models/deepghs/silero-vad-onnx/resolve/master/silero_vad.onnx")
+        );
+
         OfflineRecognizerConfig config = new();
         config.ModelConfig.SenseVoice.Model = Path.Combine(modelRootPath, "sensevoice-small", "model.int8.onnx");
         config.ModelConfig.SenseVoice.Language = "zh";

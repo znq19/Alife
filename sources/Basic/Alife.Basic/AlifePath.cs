@@ -4,8 +4,6 @@ public static class AlifePath
 {
     public static string ResourcesPath { get; private set; }
     public static string ModelsFolderPath { get; private set; }
-    public static string PythonFolderPath { get; private set; }
-    public static string PythonExecutablePath { get; private set; }
     public static string StorageFolderPath { get; private set; }
     public static string OutputsFolderPath { get; private set; }
     public static string TempFolderPath { get; private set; }
@@ -24,8 +22,6 @@ public static class AlifePath
 
             ResourcesPath = Path.Combine(current, "Resources");
             ModelsFolderPath = Path.Combine(ResourcesPath, "Models").Replace(Path.DirectorySeparatorChar, '/');
-            PythonFolderPath = Path.Combine(ResourcesPath, "Python").Replace(Path.DirectorySeparatorChar, '/');
-            PythonExecutablePath = Path.Combine(PythonFolderPath, "Scripts", "python.exe").Replace(Path.DirectorySeparatorChar, '/');
             OutputsFolderPath = Path.Combine(current, "Outputs").Replace(Path.DirectorySeparatorChar, '/');
         }
 
