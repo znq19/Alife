@@ -171,7 +171,7 @@ public class MemoryStorage
             string content = reader.GetString(3);
             long startMs = reader.GetInt64(4);
             long endMs = reader.GetInt64(5);
-            float score = reader.GetFloat(6);
+            float score = (float)reader.GetDouble(6);
             results.Add(new SearchResult(name, level, summary, content,
                 DateTimeOffset.FromUnixTimeMilliseconds(startMs),
                 DateTimeOffset.FromUnixTimeMilliseconds(endMs), score));

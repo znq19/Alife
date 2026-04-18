@@ -56,8 +56,9 @@ public static class OneBotExtensions
     /// </summary>
     public static async Task DownloadFileAsync(this string url, string savePath)
     {
-        using HttpClient http = new();
-        byte[] data = await http.GetByteArrayAsync(url);
+        byte[] data = await SharedHttpClient.GetByteArrayAsync(url);
         await File.WriteAllBytesAsync(savePath, data);
     }
+
+    static readonly HttpClient SharedHttpClient = new();
 }

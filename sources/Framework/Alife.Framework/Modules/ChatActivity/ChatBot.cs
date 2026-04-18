@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using OpenAI.Chat;
@@ -27,6 +28,7 @@ public class ChatBot : IAsyncDisposable
         }
 
         await chatSemaphore.WaitAsync();
+        try
         {
             message = $"[当前时间：{DateTime.Now}]{message}";
             llmAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
@@ -36,7 +38,7 @@ public class ChatBot : IAsyncDisposable
 
             ChatSent?.Invoke(message);
             string? error = null;
-            var enumerator = llmAgent
+            await using IAsyncEnumerator<AgentResponseItem<StreamingChatMessageContent>> enumerator = llmAgent
                 .InvokeStreamingAsync(llmAgentThread, cancellationToken: cancelChatSource.Token)
                 .GetAsyncEnumerator();
             while (true)
@@ -83,7 +85,10 @@ public class ChatBot : IAsyncDisposable
                 yield return error;
             }
         }
-        chatSemaphore.Release();
+        finally
+        {
+            chatSemaphore.Release();
+        }
     }
     public async Task<string> ChatAsync(string message, AuthorRole? role = null)
     {
