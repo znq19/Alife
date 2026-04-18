@@ -2,7 +2,6 @@ namespace Alife.Basic;
 
 public static class AlifePath
 {
-    public static string ResourcesPath { get; }
     public static string StorageFolderPath { get; private set; }
     public static string OutputsFolderPath { get; private set; }
     public static string TempFolderPath { get; private set; }
@@ -18,8 +17,7 @@ public static class AlifePath
                 Terminal.LogError("无法确定项目根目录位置！");
                 throw new Exception("无法确定项目根目录位置！");
             }
-
-            ResourcesPath = Path.Combine(current, "Resources");
+            
             OutputsFolderPath = Path.Combine(current, "Outputs").Replace(Path.DirectorySeparatorChar, '/');
         }
 

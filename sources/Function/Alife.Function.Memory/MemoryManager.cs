@@ -159,7 +159,7 @@ public class MemoryManager
     }
     async Task<string> SaveMemory(MemoryMeta memoryMeta, string summary, string content)
     {
-        string name = $"{memoryMeta.Level}-{memoryMeta.StartTime:yyyyMMddhhmmss}-{memoryMeta.EndTime:yyyyMMddhhmmss}";
+        string name = $"{memoryMeta.Level}-{memoryMeta.StartTime:yyyyMMddHHmmss}-{memoryMeta.EndTime:yyyyMMddHHmmss}";
         await memoryStorage.SaveAsync(name, memoryMeta.Level, summary, content, memoryMeta.StartTime, memoryMeta.EndTime);
         return name;
     }

@@ -44,7 +44,7 @@ public class QChatService : Plugin, IAsyncDisposable, IConfigurable<QChatConfig>
         if (string.IsNullOrEmpty(file)) return;
 
         // 尝试从表情库匹配 (优先)
-        string emoteBase = Path.Combine(AlifePath.ResourcesPath, "Emotes");
+        string emoteBase = Path.Combine(AlifePath.StorageFolderPath, "Emotes");
         string emotePath = Path.Combine(emoteBase, file).Replace('\\', '/');
 
         if (Directory.Exists(emotePath))
@@ -125,7 +125,7 @@ public class QChatService : Plugin, IAsyncDisposable, IConfigurable<QChatConfig>
     QChatConfig config = null!;
     ChatActivity chatActivity = null!;
     readonly Dictionary<long, StringBuilder> groupBuffers = new();
-    bool isGroupEnabled = false;
+    bool isGroupEnabled;
 
     public QChatService(InterpreterService interpreterService)
     {
@@ -146,7 +146,7 @@ public class QChatService : Plugin, IAsyncDisposable, IConfigurable<QChatConfig>
         await oneBotClient.ConnectAsync();
 
         // 动态扫描表情库资源，告知 AI 可用的视觉表达
-        string emoteBase = Path.Combine(AlifePath.ResourcesPath, "Emotes");
+        string emoteBase = Path.Combine(AlifePath.StorageFolderPath, "Emotes");
         StringBuilder emoteInfo = new();
         if (Directory.Exists(emoteBase))
         {

@@ -23,7 +23,7 @@ public class PythonService : Plugin
         if (context.CallMode != CallMode.Closing)
             return;
 
-        string filePath = storageSystem.GetTempPath("pythonScript.py");
+        string filePath = $"{AlifePath.StorageFolderPath}/{"pythonScript.py"}";
         await File.WriteAllTextAsync(filePath, context.FullContent);
         ProcessStartInfo startInfo = new() {
             FileName = "python",

@@ -28,18 +28,11 @@ public class SpeechRecognizer : IDisposable
 
     public SpeechRecognizer()
     {
-        string senseVoiceId = "iic/SenseVoiceSmall";
-        string vadId = "pengzhendong/silero-vad";
-
-        // 自动自检并下载组件
-        ModelDownloader.EnsureModel(senseVoiceId, "model.int8.onnx");
-        ModelDownloader.EnsureModel(vadId, "silero_vad.onnx");
-
-        string senseVoicePath = Path.Combine(ModelDownloader.ModelScopeCachePath, senseVoiceId.Replace('/', Path.DirectorySeparatorChar));
-        string vadPath = Path.Combine(ModelDownloader.ModelScopeCachePath, vadId.Replace('/', Path.DirectorySeparatorChar));
-
+        //下载语音识别模型
+        const string SenseVoiceId = "iic/SenseVoiceSmall-onnx";
+        string senseVoicePath = ModelDownloader.EnsureModel(SenseVoiceId);
         OfflineRecognizerConfig config = new();
-        config.ModelConfig.SenseVoice.Model = Path.Combine(senseVoicePath, "model.int8.onnx");
+        config.ModelConfig.SenseVoice.Model = Path.Combine(senseVoicePath, "model_quant.onnx");
         config.ModelConfig.SenseVoice.Language = "zh";
         config.ModelConfig.SenseVoice.UseInverseTextNormalization = 1;
         config.ModelConfig.Tokens = Path.Combine(senseVoicePath, "tokens.txt");
@@ -47,8 +40,11 @@ public class SpeechRecognizer : IDisposable
         config.ModelConfig.Debug = 0;
         recognizer = new OfflineRecognizer(config);
 
+        //下载语音检测模型
+        const string VadId = "pengzhendong/silero-vad";
+        string vadModelPath = ModelDownloader.EnsureModel(VadId, "silero_vad.onnx");
         VadModelConfig vadConfig = new();
-        vadConfig.SileroVad.Model = Path.Combine(vadPath, "silero_vad.onnx");
+        vadConfig.SileroVad.Model = vadModelPath;
         vadConfig.SileroVad.Threshold = 0.5f;
         vadConfig.SileroVad.MinSilenceDuration = 0.5f;
         vadConfig.SileroVad.MinSpeechDuration = 0.25f;

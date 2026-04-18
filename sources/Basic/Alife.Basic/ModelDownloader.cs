@@ -8,17 +8,17 @@ public static class ModelDownloader
 {
     public static string ModelScopeCachePath { get; }
 
-    public static string EnsureModel(string modelId, string checkFileRelPath = "config.json")
+    public static string EnsureModel(string modelId, string? targetFile = null)
     {
         string localPath = Path.Combine(ModelScopeCachePath, modelId.Replace('/', Path.DirectorySeparatorChar).Replace(".", "___"));
-        string checkFile = Path.Combine(localPath, checkFileRelPath);
+        string checkFile = Path.Combine(localPath, targetFile ?? "config.json");
 
         if (!File.Exists(checkFile))
             AlifeCommand.Command("python", $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
         if (!File.Exists(checkFile))
             throw new DirectoryNotFoundException($"模型下载失败，目录不存在：{localPath}");
 
-        return localPath;
+        return targetFile != null ? checkFile : localPath;
     }
 
     public static void ConvertSafetensorsToOnnx(string modelDir, string taskType = "feature-extraction")

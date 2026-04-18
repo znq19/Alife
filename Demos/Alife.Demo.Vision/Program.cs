@@ -8,7 +8,7 @@ class Program
     static async Task Main(string[] args)
     {
         // 1. 定义角色：具有视觉能力的“真央”
-        var character = new Character
+        Character character = new Character
         {
             ID = "VisionMao",
             Name = "真央",
@@ -27,7 +27,7 @@ class Program
         };
 
         // 2. 初始化 Demo 套件
-        var suite = await DemoSuite.InitializeAsync(character);
+        DemoSuite suite = await DemoSuite.InitializeAsync(character);
 
         Terminal.LogInfo("提示：视觉 Demo 已重构为大模型驱动模式。");
         Terminal.LogInfo("你可以直接对真央说：“帮我看看屏幕”、“这张图片里有什么：C:\\path\\to\\image.jpg”等。");

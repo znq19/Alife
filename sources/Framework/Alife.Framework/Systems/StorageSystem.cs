@@ -5,9 +5,6 @@ namespace Alife.Framework;
 
 public class StorageSystem
 {
-    public string GetStoragePath() => AlifePath.StorageFolderPath;
-    public string GetTempPath(string filename) => $"{AlifePath.StorageFolderPath}/{filename}";
-
     public string? GetJson(string key, string? defaultValue = null)
     {
         return GetValue(key, "json", defaultValue);
@@ -50,14 +47,14 @@ public class StorageSystem
 
     public string? GetValue(string key, string type, string? defaultValue = null)
     {
-        string path = $"{GetStoragePath()}/{key}.{type}";
+        string path = $"{AlifePath.StorageFolderPath}/{key}.{type}";
         if (File.Exists(path))
             return File.ReadAllText(path);
         return defaultValue;
     }
     public void SetValue(string key, string type, string value)
     {
-        string path = $"{GetStoragePath()}/{key}.{type}";
+        string path = $"{AlifePath.StorageFolderPath}/{key}.{type}";
         if (Directory.Exists(Path.GetDirectoryName(path)) == false)
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, value);

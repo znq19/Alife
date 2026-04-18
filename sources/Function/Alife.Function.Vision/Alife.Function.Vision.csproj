@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <!-- Python bridge script: copy to output directory -->
-    <Content Include="qwen_vision_bridge.py">
+    <Content Include="vision_bridge.py">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
