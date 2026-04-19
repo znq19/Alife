@@ -114,8 +114,8 @@ public class MemoryService : Plugin, IConfigurable<MemoryConfig>
         chatBot.ChatHistoryAdd += OnChatHistoryAdd;
 
         //初始化向量化器和感知人设的压缩器
+        string storagePath = Path.Combine(AlifePath.StorageFolderPath, chatActivity.Character.StorageKey, "Memory");
         AlifeTextCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), chatHistory);
-        string storagePath = Path.Combine(AlifePath.StorageFolderPath, "Memories", chatActivity.Character.ID);
         memoryManager = new MemoryManager(compressor, TextVectorizer, storagePath, config.Threshold, config.BatchSize);
 
         //加载历史记忆

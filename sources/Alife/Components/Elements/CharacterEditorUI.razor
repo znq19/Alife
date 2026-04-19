@@ -4,7 +4,7 @@
 @inject CharacterSystem CharacterSystem
 
 <Modal
-    Title=@($"配置 {Context.ID}")
+    Title=@($"配置 {Context.Name}")
     Visible="Visible"
     BodyStyle="height: 50vh;"
     DefaultMaximized="true"
@@ -15,8 +15,8 @@
             <Flex Style="height: 100%;" Direction="FlexDirection.Vertical" Gap="FlexGap.Small">
                 <Text>生日</Text>
                 <Input Disabled="true" Value="@(Context.Birthday)"/>
-                <Text>名称</Text>
-                <Input Disabled="@(IsOnlyRead)" @bind-Value="name"/>
+                <Text>唯一标识（名称）</Text>
+                <Input ReadOnly="true" @bind-Value="name"/>
                 <Text>设定</Text>
                 <TextArea MinRows="10" Disabled="@(IsOnlyRead)" @bind-Value="prompt"></TextArea>
                 <Text>插件</Text>
@@ -105,7 +105,6 @@
 
     void OnConfirm()
     {
-        Context.Name = name;
         Context.Prompt = prompt;
         Context.Plugins = pluginIDs
             .Select(PluginSystem.GetPlugin)

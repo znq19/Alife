@@ -9,8 +9,7 @@ Terminal.Log("========================================", ConsoleColor.Magenta);
 
 // 1. 配置演示角色
 var character = new Character {
-    ID = "PetDemoMao",
-    Name = "真央",
+    Name = "PetDemoMao",
     Prompt = "你是一个桌宠，名叫真央。你非常活泼，喜欢用猫娘语说话（每句话带喵）。\n" +
              "你可以通过控制桌宠应用来表达情感。请在对话中适时使用表情和动作喵！",
     Plugins = new HashSet<Type> {

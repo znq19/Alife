@@ -5,13 +5,22 @@ namespace Alife.Framework;
 
 public class StorageSystem
 {
-    public string? GetJson(string key, string? defaultValue = null)
+    public string[] GetFolders(string key)
     {
-        return GetValue(key, "json", defaultValue);
+        string path = $"{AlifePath.StorageFolderPath}/{key}";
+        if (Directory.Exists(path) == false)
+            return [];
+        return Directory.GetDirectories(path)
+            .Select(f => Path.GetFileNameWithoutExtension(f)!)
+            .ToArray();
     }
-    public void SetJson(string key, string value)
+    public void DeleteKey(string key)
     {
-        SetValue(key, "json", value);
+        string path = $"{AlifePath.StorageFolderPath}/{key}";
+        if (Directory.Exists(path))
+            Directory.Delete(path, true);
+        else if (File.Exists(path))
+            File.Delete(path);
     }
     public T? GetObject<T>(string key, T? defaultValue = default, JsonSerializerSettings? settings = null)
     {
@@ -35,16 +44,14 @@ public class StorageSystem
         string data = JsonConvert.SerializeObject(value, settings);
         SetJson(key, data);
     }
-
-    public string? GetText(string key, string? defaultValue = null)
+    public string? GetJson(string key, string? defaultValue = null)
     {
-        return GetValue(key, "txt", defaultValue);
+        return GetValue(key, "json", defaultValue);
     }
-    public void SetText(string key, string value)
+    public void SetJson(string key, string value)
     {
-        SetValue(key, "txt", value);
+        SetValue(key, "json", value);
     }
-
     public string? GetValue(string key, string type, string? defaultValue = null)
     {
         string path = $"{AlifePath.StorageFolderPath}/{key}.{type}";

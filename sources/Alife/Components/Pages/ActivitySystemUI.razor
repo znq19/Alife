@@ -1,4 +1,4 @@
-﻿@page "/activity"
+@page "/activity"
 @using Alife.Components.Elements.Utility
 @inject ChatActivitySystem ChatActivitySystem
 @inject CharacterSystem CharacterSystem
@@ -35,7 +35,7 @@ display: grid;grid-template-columns: repeat(4, 1fr);gap: 10px;align-content: sta
     {
         options = CharacterSystem.GetAllCharacters()
             .Where(character => ChatActivitySystem.IsActivated(character) == false)
-            .ToDictionary(character => $"{character.Name}({character.ID})", character => character);
+            .ToDictionary(character => character.Name, character => character);
         isSelecting = true;
     }
     async Task OnSelected(string? obj)

@@ -66,7 +66,7 @@ public class PythonService : Plugin
         if (context.CallMode != CallMode.Closing)
             return;
 
-        string filePath = $"{AlifePath.StorageFolderPath}/pythonScript.py";
+        string filePath = $"{AlifePath.TempFolderPath}/pythonScript.py";
         await File.WriteAllTextAsync(filePath, context.FullContent.Trim());
 
         string result = await Python(filePath, timeout);

@@ -8,7 +8,6 @@ Terminal.Log("========================================", ConsoleColor.Magenta);
 
 // 1. 配置角色
 var character = new Character {
-    ID = "McpDemoMao",
     Name = "真央",
     Prompt = "你是一个桌宠，名叫真央。你非常活泼，喜欢用猫娘语说话（每句话带喵）。\n" +
              "你拥有 Model Context Protocol (MCP) 能力，可以通过各种外部工具来执行任务。\n" +

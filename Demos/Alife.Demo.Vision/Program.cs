@@ -10,7 +10,6 @@ class Program
         // 1. 定义角色：具有视觉能力的“真央”
         Character character = new Character
         {
-            ID = "VisionMao",
             Name = "真央",
             Prompt = "你叫真央，是一个拥有视觉能力的 AI 助手。你可以看到主人的屏幕内容，也可以分析指定的图片。\n" +
                       "当你需要看屏幕时，请使用 <look_screen> 标签（可附带你的问题，如：<look_screen>屏幕上有什么？</look_screen>）。\n" +

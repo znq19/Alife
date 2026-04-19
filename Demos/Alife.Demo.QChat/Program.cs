@@ -17,7 +17,6 @@ public class Program
 
         // 1. 配置角色 (真央)
         Character character = new Character {
-            ID = "OneBotMao",
             Name = "真央",
             Prompt = "你是一个集成在 QQ 中的 AI 助手，名叫真央。你非常活泼，喜欢用猫娘语说话（每句话带喵）。\n" +
                      "你正在通过 OneBot 协议与用户交流。如果你想发送消息，请使用 <QChat /> 标签；如果你想发送图片或文件，请使用 <QSendFile file=\"url或路径\" /> 标签。\n" +

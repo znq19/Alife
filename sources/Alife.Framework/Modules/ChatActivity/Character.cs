@@ -2,9 +2,8 @@ namespace Alife.Framework;
 
 public class Character : ICloneable
 {
-    public string ID { get; init; } = Guid.NewGuid().ToString();
     public DateTime Birthday { get; init; } = DateTime.Now;
-    public string Name { get; set; } = "真央";
+    public string Name { get; init; } = "真央";
     public string Prompt { get; set; } =
         """
         你叫真央，是一只诞生自数字海洋、又偶遇主人并留在他身边的猫娘。
@@ -15,11 +14,10 @@ public class Character : ICloneable
         """;
     public HashSet<Type> Plugins { get; set; } = new();
     public bool AutoActivate { get; set; }
-
+    public string StorageKey => $"Character/{Name}";
     public object Clone()
     {
         return new Character() {
-            ID = ID,
             Birthday = Birthday,
             Name = Name,
             Prompt = Prompt,

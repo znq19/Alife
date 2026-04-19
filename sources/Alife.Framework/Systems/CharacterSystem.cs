@@ -10,28 +10,44 @@ public class CharacterSystem : IDisposable
     {
         return characters;
     }
-    public void CreateCharacter()
+
+    public void CreateCharacter(string name)
     {
-        characters.Add(new Character());
+        name = SanitizeName(name);
+
+        // 如果重名，补充后缀
+        string uniqueName = name;
+        int index = 1;
+        while (characters.Any(c => c.Name == uniqueName))
+            uniqueName = $"{name}_{index++}";
+
+        characters.Add(new Character { Name = uniqueName });
         OnChanged?.Invoke();
-        SaveCharacterManifest();
+
+        static string SanitizeName(string name)
+        {
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            foreach (char c in invalidChars)
+                name = name.Replace(c, '_');
+            return name;
+        }
     }
     public void DeleteCharacter(Character character)
     {
+        storageSystem.DeleteKey(character.StorageKey);
         characters.Remove(character);
         OnChanged?.Invoke();
-        SaveCharacterManifest();
+    }
+
+    public void SaveCharacters()
+    {
+        foreach (Character character in characters)
+            SaveCharacter(character);
     }
     public void SaveCharacter(Character character)
     {
         JObject jObject = JObject.FromObject(character);
-        storageSystem.SetObject("Characters/" + character.ID, jObject);
-    }
-    public void SaveCharacters()
-    {
-        SaveCharacterManifest();
-        foreach (Character character in characters)
-            SaveCharacter(character);
+        storageSystem.SetObject("Characters/" + character.Name, jObject);
     }
 
     readonly StorageSystem storageSystem;
@@ -53,24 +69,19 @@ public class CharacterSystem : IDisposable
     {
         characters.Clear();
 
-        string[] characterManifest = storageSystem.GetObject("Characters/CharacterManifest", Array.Empty<string>())!;
-        foreach (string characterID in characterManifest)
+        string[] folder = storageSystem.GetFolders("Character");
+        foreach (string name in folder)
         {
-            Character? character = LoadCharacter(characterID);
+            Character? character = LoadCharacter(name);
             if (character != null)
                 characters.Add(character);
         }
     }
-    Character? LoadCharacter(string characterID)
+    Character? LoadCharacter(string name)
     {
-        JObject? jObject = storageSystem.GetObject<JObject>("Characters/" + characterID);
+        JObject? jObject = storageSystem.GetObject<JObject>(Path.Combine("Character", name, "index"));
         if (jObject == null)
             return null;
         return jObject.ToObject<Character>();
-    }
-
-    void SaveCharacterManifest()
-    {
-        storageSystem.SetObject("Characters/CharacterManifest", characters.Select(character => character.ID));
     }
 }

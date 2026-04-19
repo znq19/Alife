@@ -45,7 +45,7 @@ public class ChatActivity : IAsyncDisposable
         foreach (Plugin pluginInstance in allPlugins)
         {
             Type pluginType = pluginInstance.GetType();
-            object? extensionData = configurationSystem.GetConfiguration(pluginType, character.ID);
+            object? extensionData = configurationSystem.GetConfiguration(pluginType, character.StorageKey);
             if (extensionData != null)
             {
                 MethodInfo? configureMethod = pluginType.GetMethod("Configure");

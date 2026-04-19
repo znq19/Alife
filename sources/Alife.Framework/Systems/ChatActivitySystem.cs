@@ -6,24 +6,28 @@ public class ChatActivitySystem
     {
         return activities.Values;
     }
+
     public bool IsActivated(Character character)
     {
-        return activities.ContainsKey(character.ID);
+        return activities.ContainsKey(character.Name);
     }
+
     public async Task Play(Character character, IProgress<(string, float)>? progress = null)
     {
         ChatActivity chatActivity = await ChatActivity.Create(character, configuration, progress, [
             configuration,
             storageSystem
         ]);
-        activities.Add(character.ID, chatActivity);
+        activities.Add(character.Name, chatActivity);
     }
+
     public async Task Stop(Character character)
     {
-        ChatActivity chatActivity = activities[character.ID];
+        ChatActivity chatActivity = activities[character.Name];
         await chatActivity.DisposeAsync();
-        activities.Remove(character.ID);
+        activities.Remove(character.Name);
     }
+
     public ChatActivitySystem(ConfigurationSystem configuration, StorageSystem storageSystem)
     {
         this.configuration = configuration;
