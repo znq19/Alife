@@ -112,7 +112,7 @@ public class ChatActivity : IAsyncDisposable
             InstructionsRole = AuthorRole.System,
             Kernel = kernelService,
             Arguments = new KernelArguments(
-                new PromptExecutionSettings() { FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(), }
+                new PromptExecutionSettings()
             ),
         };
         chatBot = new(llmAgent, context);

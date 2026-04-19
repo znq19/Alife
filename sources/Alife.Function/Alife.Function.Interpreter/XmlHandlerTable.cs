@@ -109,7 +109,7 @@ public class XmlHandlerTable
 
         foreach (XmlHandler handler in xmlHandlers)
         {
-            sb.AppendLine(handler.Name);
+            sb.AppendLine($"来源：{handler.Name}");
             if (string.IsNullOrEmpty(handler.Description) == false)
             {
                 sb.AppendLine($"> {handler.Description}");
