@@ -14,8 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alife.Demo.Framework\Alife.Demo.Framework.csproj" />
-    <ProjectReference Include="..\..\Sources\Framework\Alife.Framework\Alife.Framework.csproj" />
-    <ProjectReference Include="..\..\Sources\Implement\Alife.Implement\Alife.Implement.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Framework\Alife.Framework.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Implement\Alife.Implement.csproj" />
   </ItemGroup>
 
 </Project>

@@ -122,7 +122,6 @@
         aiMessage.content += obj;
         InvokeAsync(() => {
             StateHasChanged();
-            JsRuntime.InvokeVoidAsync("scrollMessageArea");
         });
     }
     void OnChatOver()
@@ -140,7 +139,6 @@
     {
         Visible = obj;
         VisibleChanged.InvokeAsync(obj);
-        messages.Clear();
     }
 
     void OnSend()

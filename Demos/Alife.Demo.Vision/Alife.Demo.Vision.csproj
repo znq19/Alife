@@ -12,10 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Sources\Framework\Alife.Framework\Alife.Framework.csproj" />
-    <ProjectReference Include="..\..\Sources\Implement\Alife.Implement\Alife.Implement.csproj" />
-    <ProjectReference Include="..\..\Sources\Function\Alife.Function.Vision\Alife.Function.Vision.csproj" />
-    <ProjectReference Include="..\..\Sources\Basic\Alife.Basic\Alife.Basic.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Basic\Alife.Basic.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Framework\Alife.Framework.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Implement\Alife.Implement.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Function\Alife.Function.Vision\Alife.Function.Vision.csproj" />
     <ProjectReference Include="..\Alife.Demo.Framework\Alife.Demo.Framework.csproj" />
   </ItemGroup>
 

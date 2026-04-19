@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text;
 using Alife.Framework;
 using Alife.Components;
 

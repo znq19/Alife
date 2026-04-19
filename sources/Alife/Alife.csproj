@@ -16,12 +16,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Framework\Alife.Framework\Alife.Framework.csproj" />
-    <ProjectReference Include="..\Implement\Alife.Implement\Alife.Implement.csproj" />
+    <ProjectReference Include="..\Alife.Framework\Alife.Framework.csproj" />
+    <ProjectReference Include="..\Alife.Implement\Alife.Implement.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="baidu_search.html" />
-  </ItemGroup>
-
+  
 </Project>

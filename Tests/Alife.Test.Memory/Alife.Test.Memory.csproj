@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Sources\Function\Alife.Function.Memory\Alife.Function.Memory.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Function\Alife.Function.Memory\Alife.Function.Memory.csproj" />
   </ItemGroup>
 
 </Project>

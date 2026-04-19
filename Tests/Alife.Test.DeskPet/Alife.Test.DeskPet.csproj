@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Sources\Implement\Alife.Implement\Alife.Implement.csproj" />
+    <ProjectReference Include="..\..\Sources\Alife.Implement\Alife.Implement.csproj" />
   </ItemGroup>
 
 </Project>
