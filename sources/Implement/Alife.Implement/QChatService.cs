@@ -14,7 +14,7 @@ public record QChatConfig
     public string Url { get; set; } = "ws://127.0.0.1:3001";
     public long OwnerId { get; set; }
 }
-[Plugin("QQ聊天", "连接 OneBot v11 服务器，实现 QQ 消息收发及文件传输。")]
+[Plugin("QQ聊天", "连接 OneBot v11 服务器，实现 QQ 消息收发及文件传输。(推荐的QQ机器人平台应用：https://github.com/LLOneBot/LuckyLilliaBot/releases/download/v7.12.2/LLBot-Desktop-win-x64.zip)")]
 public class QChatService : Plugin, IAsyncDisposable, IConfigurable<QChatConfig>
 {
     [XmlFunction]

@@ -164,6 +164,8 @@ public class SpeechSynthesizer
 
     public SpeechSynthesizer()
     {
+        AlifeCommand.Command("pip", "install edge-tts");
+
         invalidChars = Path.GetInvalidFileNameChars();
         voiceTone = "zh-CN-XiaoyiNeural";
         currentTask = Task.CompletedTask;

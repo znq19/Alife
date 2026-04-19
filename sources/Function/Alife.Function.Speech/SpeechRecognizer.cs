@@ -29,13 +29,13 @@ public class SpeechRecognizer : IDisposable
     public SpeechRecognizer()
     {
         //下载语音识别模型
-        const string SenseVoiceId = "iic/SenseVoiceSmall-onnx";
+        const string SenseVoiceId = "pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue";
         string senseVoicePath = ModelDownloader.EnsureModel(SenseVoiceId);
         OfflineRecognizerConfig config = new();
-        config.ModelConfig.SenseVoice.Model = Path.Combine(senseVoicePath, "model_quant.onnx");
+        config.ModelConfig.SenseVoice.Model = Path.Combine(senseVoicePath, "model.int8.onnx");
         config.ModelConfig.SenseVoice.Language = "zh";
         config.ModelConfig.SenseVoice.UseInverseTextNormalization = 1;
-        config.ModelConfig.Tokens = Path.Combine(senseVoicePath, "tokens.json");
+        config.ModelConfig.Tokens = Path.Combine(senseVoicePath, "tokens.txt");
         config.ModelConfig.NumThreads = 1;
         config.ModelConfig.Debug = 0;
         recognizer = new OfflineRecognizer(config);

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace Alife.Basic;
 
@@ -9,6 +10,9 @@ public static class AlifeCommand
 {
     public static void EnsureInitialized()
     {
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+        
         if (HasPython() == false)
         {
             InstallPython();

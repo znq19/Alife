@@ -28,8 +28,7 @@ public static class ModelDownloader
 
     static ModelDownloader()
     {
-        AlifeCommand.Command("pip", "install optimum[onnxruntime]");
-        AlifeCommand.Command("pip", "install modelscope");
+        AlifeCommand.Command("pip", "install modelscope optimum[onnxruntime]");
         ModelScopeCachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "modelscope", "hub", "models").Replace(Path.DirectorySeparatorChar, '/');
     }
 }
