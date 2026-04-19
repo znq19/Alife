@@ -18,52 +18,57 @@ public class ConfigurationSystem
         configurationTypes[target] = configurationType;
         return configurationType;
     }
+
     public bool CanConfiguration(Type type)
     {
         return GetConfigurationType(type) != null;
     }
-    public object? GetConfiguration(Type target)
+
+    public object? GetConfiguration(Type target, string relativePath = "")
     {
         Type? configurationType = GetConfigurationType(target);
         if (configurationType == null)
-            return null; //不支持配置
-
-        // 尝试从缓存获取
-        if (configurations.TryGetValue(target, out JObject? configuration))
-            return configuration.ToObject(configurationType);
-
-        // 尝试从存储加载
-        string key = $"Configuration/{target.FullName}";
-        configuration = storageSystem.GetObject<JObject>(key);
-
-        if (configuration != null)
-        {
-            configurations[target] = configuration;
-            return configuration.ToObject(configurationType);
-        }
-
-        // 创建默认实例
-        object? rawConfiguration = Activator.CreateInstance(configurationType, null);
-        if (rawConfiguration == null)
             return null;
 
-        return rawConfiguration;
+        string targetKey = target.FullName!;
+        string currentPath = relativePath.Replace('\\', '/').Trim('/');
+
+        while (true)
+        {
+            string key = string.IsNullOrEmpty(currentPath)
+                ? $"Configuration/{targetKey}"
+                : $"Configuration/{currentPath}/{targetKey}";
+
+            JObject? configuration = storageSystem.GetObject<JObject>(key);
+            if (configuration != null)
+                return configuration.ToObject(configurationType);
+
+            if (string.IsNullOrEmpty(currentPath))
+                break;
+
+            int lastSlash = currentPath.LastIndexOf('/');
+            currentPath = (lastSlash == -1) ? "" : currentPath[..lastSlash];
+        }
+
+        return Activator.CreateInstance(configurationType, null);
     }
-    public void SetConfiguration(Type target, object configuration)
+
+    public void SetConfiguration(Type target, object configuration, string relativePath = "")
     {
         if (CanConfiguration(target) == false)
             throw new Exception("目标类型不支持配置功能！");
 
-        JObject json = JObject.FromObject(configuration);
-        configurations[target] = json;
+        string currentPath = relativePath.Replace('\\', '/').Trim('/');
+        string key = string.IsNullOrEmpty(currentPath)
+            ? $"Configuration/{target.FullName}"
+            : $"Configuration/{currentPath}/{target.FullName}";
 
-        // 针对每个插件单独保存
-        string key = $"Configuration/{target.FullName}";
         storageSystem.SetObject(key, configuration);
     }
-    public JObject? GetConfigurationJson(Type target)
+
+    public JObject? GetConfigurationJson(Type target, string relativePath = "")
     {
-        object? configuration = GetConfiguration(target);
+        object? configuration = GetConfiguration(target, relativePath);
         if (configuration != null)
             return JObject.FromObject(configuration);
         return null;
@@ -72,11 +77,9 @@ public class ConfigurationSystem
     public ConfigurationSystem(StorageSystem storageSystem)
     {
         this.storageSystem = storageSystem;
-        configurations = new Dictionary<Type, JObject>();
         configurationTypes = new Dictionary<Type, Type>();
     }
 
     readonly StorageSystem storageSystem;
-    readonly Dictionary<Type, JObject> configurations;
     readonly Dictionary<Type, Type> configurationTypes;
 }
