@@ -89,7 +89,9 @@ public class MemoryService : Plugin, IConfigurable<MemoryConfig>
     {
         context.contextBuilder.ChatHistory.AddSystemMessage(
             $"""
-             [{nameof(MemoryService)}] 上下文压缩功能说明
+             [{nameof(MemoryService)}] 
+      
+             ## 上下文压缩
 
              有时你会收到关于上下文压缩的提示，它会给予你一段过往时间的聊天记录或记忆存档。这些内容是即将移出上下文的内容，所以需要你用第一人称简述一下发生的事情，方便日后回忆。
 

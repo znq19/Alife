@@ -90,18 +90,6 @@
     {
         base.OnInitialized();
 
-        // 恢复历史记录
-        foreach (var historyMessage in ChatBot.ChatHistory)
-        {
-            if (string.IsNullOrEmpty(historyMessage.Content)) continue;
-            
-            messages.Add(new ChatMessage {
-                content = historyMessage.Content,
-                isUser = historyMessage.Role == Microsoft.SemanticKernel.ChatCompletion.AuthorRole.User,
-                isInputting = false
-            });
-        }
-
         ChatBot.ChatSent += OnChatSent;
         ChatBot.ChatReceived += OnChatReceived;
         ChatBot.ChatOver += OnChatOver;

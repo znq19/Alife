@@ -47,7 +47,7 @@ public class CharacterSystem : IDisposable
     public void SaveCharacter(Character character)
     {
         JObject jObject = JObject.FromObject(character);
-        storageSystem.SetObject("Characters/" + character.Name, jObject);
+        storageSystem.SetObject($"Character/{character.Name}/index", jObject);
     }
 
     readonly StorageSystem storageSystem;

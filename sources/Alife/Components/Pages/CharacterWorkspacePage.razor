@@ -62,7 +62,7 @@ else
                     </MenuItem>
                     <MenuItem Key="history" OnClick="@(() => activeTab = "history")">
                         <Icon Type="@IconType.Outline.Book" />
-                        <span>历史存档</span>
+                        <span>完整历史</span>
                     </MenuItem>
                     <MenuItem Key="plugins" OnClick="@(() => activeTab = "plugins")">
                         <Icon Type="@IconType.Outline.Build" />
@@ -179,7 +179,7 @@ else
                 {
                     <div style="padding: 24px; height: 100%; overflow-y: auto;">
                         <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 24px;">
-                            <Title Level="4" Style="margin: 0;">历史存档与记忆检查</Title>
+                            <Title Level="4" Style="margin: 0;">完整历史与记忆检查</Title>
                             <Checkbox @bind-Checked="onlyShowKeyMemory">仅看关键记忆存档</Checkbox>
                         </Flex>
 
@@ -188,16 +188,19 @@ else
                             <AntList DataSource="@(GetFilteredHistory())" TItem="ChatMessageContent">
                                 <ListItem>
                                     <ChildContent>
-                                        <ListItemMeta
-                                            Description="@($"{context.Role} @{context.AuthorName}")">
-                                        </ListItemMeta>
-                                        <Paragraph Style="@($"white-space: pre-wrap; padding: 12px; border-radius: 4px; border: 1px solid #f0f0f0; {(IsKeyMemory(context) ? "background: #fffbe6; border-color: #ffe58f;" : "background: #f9f9f9;")}")">
-                                            @if (IsKeyMemory(context))
-                                            {
-                                                <Tag Color="@("gold")" Style="margin-bottom: 8px;">记忆归档</Tag>
-                                            }
-                                            @context.Content
-                                        </Paragraph>
+                                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                                            <div style="font-size: 13px; color: rgba(0,0,0,0.45); font-weight: 500;">
+                                                <AntDesign.Text Strong>@context.Role</AntDesign.Text> 
+                                                @if (!string.IsNullOrWhiteSpace(context.AuthorName)) { <span>@@@context.AuthorName</span> }
+                                            </div>
+                                            <Paragraph Style="@($"margin: 0; white-space: pre-wrap; padding: 12px; border-radius: 4px; border: 1px solid #f0f0f0; {(IsKeyMemory(context) ? "background: #fffbe6; border-color: #ffe58f;" : "background: #f9f9f9;")}")">
+                                                @if (IsKeyMemory(context))
+                                                {
+                                                    <Tag Color="@("gold")" Style="margin-bottom: 8px;">记忆归档</Tag>
+                                                }
+                                                @context.Content
+                                            </Paragraph>
+                                        </div>
                                     </ChildContent>
                                 </ListItem>
                             </AntList>
@@ -269,7 +272,7 @@ else
             pluginIDs.Clear();
             foreach (var plugin in character.Plugins)
             {
-                pluginIDs.Add(PluginSystem.GetPluginID(plugin));
+                pluginIDs.Add(plugin);
             }
         }
     }
@@ -292,9 +295,7 @@ else
     bool IsKeyMemory(ChatMessageContent content)
     {
         if (string.IsNullOrEmpty(content.Content)) return false;
-        return content.Content.Contains("MemoryService") || 
-               content.Content.Contains("触发上下文压缩") ||
-               content.Content.Contains("记忆记录");
+        return content.Content.StartsWith("[记忆存档");
     }
 
     string GetPluginName(string fullName)
@@ -374,10 +375,7 @@ else
         isSaving = true;
         try 
         {
-            character.Plugins = pluginIDs
-                .Select(PluginSystem.GetPlugin)
-                .Where(p => p != null)
-                .ToHashSet()!;
+            character.Plugins = pluginIDs.ToHashSet();
             CharacterSystem.SaveCharacter(character);
             
             _ = NotificationService.Success(new NotificationConfig { Message = "角色配置已成功保存！" });

@@ -78,7 +78,7 @@
         foreach (var id in coreFolder.Strings)
         {
             var p = PluginSystem.GetPlugin(id);
-            if (p != null) character.Plugins.Add(p);
+            if (p != null) character.Plugins.Add(id);
         }
         
         CharacterSystem.SaveCharacter(character);

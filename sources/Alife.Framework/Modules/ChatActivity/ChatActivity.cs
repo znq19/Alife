@@ -11,6 +11,7 @@ public class ChatActivity : IAsyncDisposable
     public static async Task<ChatActivity> Create(
         Character character,
         ConfigurationSystem configurationSystem,
+        PluginSystem pluginSystem,
         IProgress<(string, float)>? progress = null,
         object[]? appendServices = null)
     {
@@ -23,7 +24,8 @@ public class ChatActivity : IAsyncDisposable
                 extensionServiceBuilder.AddSingleton(appendService.GetType(), appendService);
         }
         //添加插件服务
-        foreach (Type pluginType in character.Plugins.OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder))
+        var pluginTypes = character.Plugins.Select(pluginSystem.GetPlugin).Where(t => t != null).Cast<Type>();
+        foreach (Type pluginType in pluginTypes.OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder))
             extensionServiceBuilder.AddSingleton(pluginType);
         ServiceProvider extensionService = extensionServiceBuilder.BuildServiceProvider();
 
