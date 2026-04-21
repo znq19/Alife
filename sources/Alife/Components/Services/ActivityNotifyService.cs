@@ -10,7 +10,7 @@ public class ActivityNotifyService
 {
     public event Action? OnChanged;
 
-    public void Initialize(ChatActivitySystem system)
+    public ActivityNotifyService(ChatActivitySystem system)
     {
         system.Created += _ => OnChanged?.Invoke();
         system.Destroyed += _ => OnChanged?.Invoke();

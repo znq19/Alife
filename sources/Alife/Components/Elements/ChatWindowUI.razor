@@ -47,22 +47,25 @@
     </div>
 
     <!-- 输入区域 -->
-    <div style="padding: 16px; background: #fff; border-top: 1px solid #f0f0f0;">
-        <Flex Gap="@("middle")" Align="@AntDesign.FlexAlign.End">
-            <TextArea @bind-Value="inputText"
-                      Placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-                      AutoSize="true"
-                      MinRows="1"
-                      MaxRows="6"
-                      OnPressEnter="OnPressEnter"
-                      Style="flex: 1; border-radius: 8px; border: 1px solid #d9d9d9; padding: 8px 12px;"></TextArea>
-            <Button Type="@AntDesign.ButtonType.Primary"
-                    Icon="@IconType.Outline.Send"
-                    OnClick="OnSend"
-                    Style="height: 38px; border-radius: 8px; padding: 0 20px;">发送
-            </Button>
-        </Flex>
-    </div>
+    @if (ChatMessageService.GetChatBot(CharacterName) != null)
+    {
+        <div style="padding: 16px; background: #fff; border-top: 1px solid #f0f0f0;">
+            <Flex Gap="@("middle")" Align="@AntDesign.FlexAlign.End">
+                <TextArea @bind-Value="inputText"
+                          Placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+                          AutoSize="true"
+                          MinRows="1"
+                          MaxRows="6"
+                          OnPressEnter="OnPressEnter"
+                          Style="flex: 1; border-radius: 8px; border: 1px solid #d9d9d9; padding: 8px 12px;"></TextArea>
+                <Button Type="@AntDesign.ButtonType.Primary"
+                        Icon="@IconType.Outline.Send"
+                        OnClick="OnSend"
+                        Style="height: 38px; border-radius: 8px; padding: 0 20px;">发送
+                </Button>
+            </Flex>
+        </div>
+    }
 </Flex>
 
 <script type="text/javascript">
@@ -105,8 +108,7 @@
 @using Alife.Components.Services
 
 @code {
-    [Parameter] public string Name { get; set; } = "";
-    [Parameter] public ChatActivity? Activity { get; set; }
+    [Parameter] public string CharacterName { get; set; } = "";
 
     string inputText = "";
     List<ChatMessage> messages = default!;
@@ -115,14 +117,14 @@
     {
         base.OnInitialized();
 
-        messages = ChatMessageService.GetMessagesByName(Name);
+        messages = ChatMessageService.GetMessages(CharacterName);
         ChatMessageService.OnUIMessageChanged += OnUIMessageChanged;
         ChatMessageService.OnUIMessageSent += OnUIMessageSent;
     }
 
     protected override void OnParametersSet()
     {
-        messages = ChatMessageService.GetMessagesByName(Name);
+        messages = ChatMessageService.GetMessages(CharacterName);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -141,13 +143,13 @@
 
     void OnUIMessageChanged(string name)
     {
-        if (name == Name)
+        if (name == CharacterName)
             InvokeAsync(StateHasChanged);
     }
 
     void OnUIMessageSent(string name)
     {
-        if (name == Name)
+        if (name == CharacterName)
             InvokeAsync(() => {
                 StateHasChanged();
                 JsRuntime.InvokeVoidAsync("forceScrollBottom");
@@ -156,10 +158,7 @@
 
     void OnClear()
     {
-        if (Activity != null)
-            ChatMessageService.ClearMessages(Activity);
-        else
-            ChatMessageService.GetMessagesByName(Name).Clear();
+        ChatMessageService.ClearMessages(CharacterName);
 
         StateHasChanged();
     }
@@ -174,14 +173,13 @@
 
     async Task OnSend()
     {
-        if (Activity == null) return;
-
         string text = inputText;
         if (string.IsNullOrWhiteSpace(text)) return;
 
         inputText = "";
         await InvokeAsync(StateHasChanged);
 
-        Activity.ChatBot.Chat(text.TrimEnd('\r', '\n'));
+        ChatBot? chatBot = ChatMessageService.GetChatBot(CharacterName);
+        chatBot?.Chat(text.TrimEnd('\r', '\n'));
     }
 }

@@ -13,3 +13,19 @@ public class InteractivePlugin : Plugin
 
     ChatBot chatBot = null!;
 }
+
+public class InteractivePlugin<T> : InteractivePlugin
+{
+    protected void Poke(string message)
+    {
+        ChatBot.Poke($"[{nameof(T)}] {message}");
+    }
+    protected void Chat(string message)
+    {
+        ChatBot.Chat($"[{nameof(T)}] {message}");
+    }
+    protected Task ChatAsync(string message)
+    {
+        return ChatBot.ChatAsync($"[{nameof(T)}] {message}");
+    }
+}

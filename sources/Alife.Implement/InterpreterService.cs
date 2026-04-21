@@ -1,3 +1,4 @@
+using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.Interpreter;
 using Microsoft.SemanticKernel;
@@ -110,6 +111,6 @@ print('Hello World!')
                       2. 调用时是否满足文档的使用要求。
                       """);
 
-        Console.WriteLine(exception);
+        Terminal.LogInfo(exception.Message);
     }
 }

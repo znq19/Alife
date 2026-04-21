@@ -18,26 +18,37 @@ public class ChatMessageService
     public event Action<string>? OnUIMessageChanged;
     public event Action<string>? OnUIMessageSent;
 
-    public List<ChatMessage> GetMessagesByName(string name)
+    public ChatBot? GetChatBot(string name)
     {
-        return BotMessages.GetOrAdd(name, _ => new List<ChatMessage>());
+        return chatbots.GetValueOrDefault(name);
+    }
+    public List<ChatMessage> GetMessages(string name)
+    {
+        return messages[name];
     }
 
-    public void ClearMessages(ChatActivity activity)
+    public void ClearMessages(string name)
     {
-        if (BotMessages.TryGetValue(activity.Character.Name, out List<ChatMessage>? list))
+        if (messages.TryGetValue(name, out List<ChatMessage>? list))
         {
             list.Clear();
         }
     }
 
+
+    Dictionary<string, List<ChatMessage>> messages = new();
+    Dictionary<string, ChatBot> chatbots = new();
+
     public ChatMessageService(ChatActivitySystem system)
     {
         system.Created += OnActivityCreated;
+        system.Destroyed += OnActivityDestroyed;
     }
-
-    static readonly ConcurrentDictionary<string, List<ChatMessage>> BotMessages = new();
-    static readonly HashSet<string> HookedActivityNames = new();
+    void OnActivityDestroyed(ChatActivity activity)
+    {
+        string name = activity.Character.Name;
+        chatbots.Remove(name);
+    }
 
     /// <summary>
     /// 确保指定Activity的ChatBot事件已挂接到UI消息列表。
@@ -46,10 +57,13 @@ public class ChatMessageService
     void OnActivityCreated(ChatActivity activity)
     {
         string name = activity.Character.Name;
-        List<ChatMessage> list = BotMessages.GetOrAdd(name, _ => new List<ChatMessage>());
-
-        if (!HookedActivityNames.Add(name))
-            return;
+        
+        if (messages.TryGetValue(name, out List<ChatMessage>? list) == false)
+        {
+            list = new List<ChatMessage>();
+            messages.Add(name, list);
+        }
+        chatbots.Add(name, activity.ChatBot);
 
         activity.ChatBot.ChatSent += (obj) => {
             list.Add(new ChatMessage { Content = obj, IsUser = true });
