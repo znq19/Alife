@@ -1,4 +1,4 @@
-<Tree TItem="object" Checkable OnCheck="OnCheck" DefaultExpandedKeys="@([Context.Name])"
+<Tree TItem="object" Checkable="@(!IsReadOnly)" OnCheck="OnCheck" DefaultExpandedKeys="@([Context.Name])"
       DefaultCheckedKeys="@(IsChecking.ToArray())">
     <TitleTemplate>
         <Text>@(context.DataItem is StringFolder ? context.Title : ItemTitleFilter(context.Title))</Text>
@@ -13,6 +13,8 @@
     [Parameter] public HashSet<string> IsChecking { get; set; } = null!;
     [Parameter] public EventCallback<HashSet<string>> IsCheckingChanged { get; set; }
     [Parameter] public Func<string, string> ItemTitleFilter { get; set; } = title => title;
+    [Parameter] public bool IsReadOnly { get; set; }
+
 
     RenderFragment<StringFolder> folderFragmentUI = null!;
 

@@ -72,6 +72,7 @@ else
             </div>
 
             <div style="padding: 16px; border-top: 1px solid #f0f0f0">
+                <Button Block Style="margin-bottom: 12px;" Icon="@IconType.Outline.FolderOpen" OnClick="OpenStorageDirectory">打开存储目录</Button>
                 @if (activity == null)
                 {
                     <Button Type="@AntDesign.ButtonType.Primary" Block Loading="isStarting" OnClick="OnStart">激活角色</Button>
@@ -133,6 +134,7 @@ else
                                             Context="@(PluginSystem.GetPluginFolder())"
                                             ItemTitleFilter="@(fullName => GetPluginName(fullName))"
                                             IsChecking="pluginIDs"
+                                            IsReadOnly="@(activity != null)"
                                             IsCheckingChanged="OnPluginCheckingChanged">
                                         </StringFolderSelectorUI>
                                     </div>
@@ -273,9 +275,10 @@ else
             
             // 初始化插件勾选状态
             pluginIDs.Clear();
-            foreach (var plugin in character.Plugins)
+            foreach (Type plugin in character.Plugins)
             {
-                pluginIDs.Add(plugin);
+                if (plugin != null && plugin.FullName != null) 
+                    pluginIDs.Add(plugin.FullName);
             }
         }
     }
@@ -293,7 +296,7 @@ else
         
         return historyRoleFilter switch
         {
-            "Chat" => history.Where(c => c.Role.ToString().Equals("user", StringComparison.OrdinalIgnoreCase) || c.Role.ToString().Equals("assistant", StringComparison.OrdinalIgnoreCase)),
+            "Chat" => history.Where(c => !IsKeyMemory(c) && (c.Role.ToString().Equals("user", StringComparison.OrdinalIgnoreCase) || c.Role.ToString().Equals("assistant", StringComparison.OrdinalIgnoreCase))),
             "System" => history.Where(c => c.Role.ToString().Equals("system", StringComparison.OrdinalIgnoreCase)),
             "Memory" => history.Where(IsKeyMemory),
             _ => history
@@ -395,7 +398,7 @@ else
         isSaving = true;
         try 
         {
-            character.Plugins = pluginIDs.ToHashSet();
+            character.Plugins = pluginIDs.Select(id => PluginSystem.GetPlugin(id)).Where(t => t != null).Cast<Type>().ToHashSet();
             CharacterSystem.SaveCharacter(character);
             
             _ = NotificationService.Success(new NotificationConfig { Message = "角色配置已成功保存！" });
@@ -404,6 +407,25 @@ else
         finally
         {
             isSaving = false;
+        }
+    }
+
+    void OpenStorageDirectory()
+    {
+        if (character == null) return;
+        string path = System.IO.Path.GetFullPath($"{Alife.Basic.AlifePath.StorageFolderPath}/{character.StorageKey}");
+        if (!System.IO.Directory.Exists(path))
+        {
+            System.IO.Directory.CreateDirectory(path);
+        }
+        
+        try 
+        {
+            System.Diagnostics.Process.Start("explorer.exe", path);
+        }
+        catch (Exception ex)
+        {
+            _ = NotificationService.Error(new NotificationConfig { Message = $"无法打开目录喵：{ex.Message}" });
         }
     }
 

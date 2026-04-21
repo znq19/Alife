@@ -47,11 +47,11 @@
     <div style="padding: 16px; background: #fff; border-top: 1px solid #f0f0f0;">
         <Flex Gap="@("middle")" Align="@AntDesign.FlexAlign.End">
             <TextArea @bind-Value="inputText" 
-                     Placeholder="输入消息... (Enter 发送)" 
+                     Placeholder="输入消息... (Enter 发送, Shift+Enter 换行)" 
                      AutoSize="true"
                      MinRows="1"
                      MaxRows="6"
-                     OnPressEnter="OnSend" 
+                     OnKeyDown="HandleKeyDown" 
                      Style="flex: 1; border-radius: 8px; border: 1px solid #d9d9d9; padding: 8px 12px;"></TextArea>
             <Button Type="@AntDesign.ButtonType.Primary" 
                     Icon="@IconType.Outline.Send"
@@ -62,7 +62,34 @@
 </Flex>
 
 <script type="text/javascript">
-    window.scrollMessageArea = () => {
+    window.setupChatScroll = () => {
+        const element = document.getElementById("messageArea");
+        if (!element || element.dataset.scrollSetup) return;
+        element.dataset.scrollSetup = "true";
+
+        let isAtBottom = true;
+        element.addEventListener('scroll', () => {
+            isAtBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 50;
+        });
+
+        const observer = new MutationObserver(() => {
+            if (isAtBottom) {
+                setTimeout(() => {
+                    if (isAtBottom) element.scrollTop = element.scrollHeight;
+                }, 10);
+            }
+        });
+        observer.observe(element, { childList: true, subtree: true, characterData: true });
+        
+        const visibilityObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                setTimeout(() => element.scrollTop = element.scrollHeight, 10);
+            }
+        });
+        visibilityObserver.observe(element);
+    }
+    
+    window.forceScrollBottom = () => {
         const element = document.getElementById("messageArea");
         if (element) {
             setTimeout(() => {
@@ -71,7 +98,6 @@
         }
     }
 </script>
-
 @code {
     [Parameter] public ChatActivity Activity { get; set; } = null!;
 
@@ -100,6 +126,14 @@
         Activity.ChatBot.ChatOver += OnChatOver;
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JsRuntime.InvokeVoidAsync("setupChatScroll");
+        }
+    }
+
     public void Dispose()
     {
         Activity.ChatBot.ChatSent -= OnChatSent;
@@ -121,7 +155,7 @@
 
         InvokeAsync(() => {
             StateHasChanged();
-            JsRuntime.InvokeVoidAsync("scrollMessageArea");
+            JsRuntime.InvokeVoidAsync("forceScrollBottom");
         });
     }
 
@@ -146,6 +180,14 @@
         StateHasChanged();
     }
 
+    async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await OnSend();
+        }
+    }
+
     async Task OnSend()
     {
         string text = inputText;
@@ -154,6 +196,6 @@
         inputText = "";
         await InvokeAsync(StateHasChanged); // 强制强制清空界面上的输入框内容喵
         
-        Activity.ChatBot.Chat(text);
+        Activity.ChatBot.Chat(text.TrimEnd('\r', '\n'));
     }
 }

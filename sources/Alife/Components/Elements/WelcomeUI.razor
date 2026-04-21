@@ -4,6 +4,7 @@
 @inject PluginSystem PluginSystem
 @inject ConfigurationSystem ConfigurationSystem
 @inject NavigationManager Navigation
+@inject INotificationService NotificationService
 
 <div class="welcome-container">
     <div class="welcome-card">
@@ -26,7 +27,16 @@
             </Button>
         </Flex>
 
-        <div style="margin-top: 60px; color: rgba(0,0,0,0.25); font-size: 12px;">
+        <div style="margin-top: 40px; text-align: left; background: rgba(0,0,0,0.02); border-radius: 12px; padding: 16px; border: 1px solid rgba(0,0,0,0.05);">
+            <Text Strong style="display: block; margin-bottom: 8px;">全局数据存储目录 (StorageFolderPath)</Text>
+            <Flex Gap="@("small")">
+                <Input @bind-Value="storageFolderPath" Placeholder="默认为 我的文档\Alife 目录" Style="flex: 1;" />
+                <Button Type="@AntDesign.ButtonType.Default" OnClick="SaveStoragePath">保存修定</Button>
+            </Flex>
+            <Text Type="@AntDesign.TextElementType.Secondary" Style="font-size: 12px; margin-top: 8px; display: block;">提示：将其定位到 OneDrive / 坚果云等跨设备目录，即可实现多端无缝同步喵！(重启生效)</Text>
+        </div>
+
+        <div style="margin-top: 40px; color: rgba(0,0,0,0.25); font-size: 12px;">
             <p>Alife Project - Advanced Agentic Coding Framework</p>
         </div>
     </div>
@@ -55,10 +65,23 @@
 @code {
     bool isQuickSetupVisible;
     OpenAIChatServiceConfig quickConfig = new() { endpoint = "https://api.deepseek.com/v1", modelId = "deepseek-chat", apiKey = "" };
+    string storageFolderPath = Alife.Basic.AlifePath.StorageFolderPath;
+
+    void SaveStoragePath()
+    {
+        if (!string.IsNullOrWhiteSpace(storageFolderPath))
+        {
+            Alife.Basic.AlifePath.SetStorageFolderPath(storageFolderPath);
+            _ = NotificationService.Success(new NotificationConfig() { Message = "存储路径已保存！重启将启用新路径的数据喵~" });
+        }
+    }
 
     void OnQuickSetupConfirm()
     {
         if (string.IsNullOrWhiteSpace(quickConfig.apiKey) || string.IsNullOrWhiteSpace(quickConfig.endpoint)) return;
+        
+        if (!string.IsNullOrWhiteSpace(storageFolderPath))
+            Alife.Basic.AlifePath.SetStorageFolderPath(storageFolderPath);
 
         // 覆盖保存全局组态
         ConfigurationSystem.SetConfiguration(typeof(OpenAIChatService), quickConfig);
@@ -78,7 +101,7 @@
         foreach (var id in coreFolder.Strings)
         {
             var p = PluginSystem.GetPlugin(id);
-            if (p != null) character.Plugins.Add(id);
+            if (p != null) character.Plugins.Add(p);
         }
         
         CharacterSystem.SaveCharacter(character);

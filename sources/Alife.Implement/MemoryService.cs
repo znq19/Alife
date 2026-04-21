@@ -90,7 +90,7 @@ public class MemoryService : Plugin, IConfigurable<MemoryConfig>
         context.contextBuilder.ChatHistory.AddSystemMessage(
             $"""
              [{nameof(MemoryService)}] 
-      
+
              ## 上下文压缩
 
              有时你会收到关于上下文压缩的提示，它会给予你一段过往时间的聊天记录或记忆存档。这些内容是即将移出上下文的内容，所以需要你用第一人称简述一下发生的事情，方便日后回忆。
@@ -99,7 +99,7 @@ public class MemoryService : Plugin, IConfigurable<MemoryConfig>
              1. 按重要程度进行信息舍取，注意简洁。
              2. 多事件时注意按时间段区分。
              3. 保持对一些关键数据的记录。
-             4. 不要记录系统信息，直接口语化描述。
+             4. 系统会自动生成存档信息，所以你不用负责添加系统信息，直接像讲故事一样描述概述内容即可。
              5. 分清事件中的具体人物，不要用‘你’这种代词。
              6. 不要回复无关事件描述的内容，如不要开头回复‘好的’。
              """);
@@ -161,7 +161,7 @@ public class MemoryService : Plugin, IConfigurable<MemoryConfig>
                  ```
 
                  压缩要点：
-                 1. 不要混淆其他聊天记录，仅需描述上述包裹的内容即可。
+                 1. 不要混淆其他记录，不要记录存档信息，仅直接描述上述内容中的事件即可。
                  2. 注意学会反复记忆关键性的内容，以形成核心记忆。
                  现在请直接开始概述上述内容描述的事情。
                  """);

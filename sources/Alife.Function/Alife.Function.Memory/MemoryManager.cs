@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Newtonsoft.Json;
@@ -67,6 +68,8 @@ public class MemoryManager
                 DateTime startTime = GetMemoryMetaData(chatHistory[areaStart]).StartTime;
                 DateTime endTime = currentMemoryMeta.EndTime;
                 string content = PickContent(chatHistory, areaStart, areaStart + areaCompressionCount);
+                content = Regex.Replace(content, "^\\[记忆存档.*$", "", RegexOptions.Multiline);
+                content = Regex.Replace(content, "^完整内容索引.*$", "", RegexOptions.Multiline);
                 string summary = await compressor.Compress(content);
 
                 //提取并保存旧的记录
@@ -77,11 +80,11 @@ public class MemoryManager
 
                 //增加新的记录
                 summary = $"""
-                              [记忆存档(L{areaLevel})]
-                              完整内容索引：{name}
-                              发生时间：{startTime}到{endTime}
-                              事件概述：{summary}
-                              """;
+                           [记忆存档(L{areaLevel})]
+                           完整内容索引：{name}
+                           发生时间：{startTime}到{endTime}
+                           事件概述：{summary}
+                           """;
                 ChatMessageContent compressedContent = new(AuthorRole.Assistant, summary);
                 chatHistory.Insert(areaStart, compressedContent);
                 memoryMetaDatas[compressedContent] = new MemoryMeta(areaLevel + 1, startTime, endTime);

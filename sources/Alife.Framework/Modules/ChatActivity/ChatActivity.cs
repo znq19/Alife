@@ -24,8 +24,7 @@ public class ChatActivity : IAsyncDisposable
                 extensionServiceBuilder.AddSingleton(appendService.GetType(), appendService);
         }
         //添加插件服务
-        var pluginTypes = character.Plugins.Select(pluginSystem.GetPlugin).Where(t => t != null).Cast<Type>();
-        foreach (Type pluginType in pluginTypes.OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder))
+        foreach (Type pluginType in character.Plugins.OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder))
             extensionServiceBuilder.AddSingleton(pluginType);
         ServiceProvider extensionService = extensionServiceBuilder.BuildServiceProvider();
 
