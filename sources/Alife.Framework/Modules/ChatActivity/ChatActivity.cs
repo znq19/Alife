@@ -14,6 +14,8 @@ public class ChatActivity : IAsyncDisposable
         IProgress<(string, float)>? progress = null,
         object[]? appendServices = null)
     {
+        await Task.Yield(); // 强制让步，确保不阻塞调用线程（尤其是 UI 线程）
+
         //创建服务容器
         ServiceCollection extensionServiceBuilder = new();
         //添加系统服务

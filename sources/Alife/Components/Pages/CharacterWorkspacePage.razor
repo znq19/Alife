@@ -16,18 +16,10 @@
 @inject ModalService ModalService
 @implements IDisposable
 
-<Modal Visible="@isActivating"
-       Title="@("正在激活角色环境...")"
-       Footer="null"
-       Closable="false"
-       MaskClosable="false"
-       Centered="true">
-    <Flex Direction="@AntDesign.FlexDirection.Vertical" Align="@AntDesign.FlexAlign.Center"
-          Gap="@AntDesign.FlexGap.Large">
-        <Spin Size="@AntDesign.SpinSize.Large" Tip="正在初始化环境，请稍候喵..."/>
-        <Text Type="@AntDesign.TextElementType.Secondary">涉及环境较多，请勿关闭页面或进行其他操作</Text>
-    </Flex>
-</Modal>
+<CharacterLoadingUI Visible="@isActivating" 
+                    Title="正在激活角色环境..." 
+                    TaskDescription="@currentTask" 
+                    Progress="@currentProgress" />
 
 @if (character == null)
 {
@@ -379,24 +371,29 @@ else
         isActivating = true;
         try
         {
-            await ChatActivitySystem.Play(character);
-            LoadData();
-            activeTab = "chat";
+            var progress = new Progress<(string, float)>(tuple => {
+                currentTask = tuple.Item1;
+                currentProgress = tuple.Item2;
+                InvokeAsync(StateHasChanged);
+            });
+
+            await Task.Run(async () => {
+                await ChatActivitySystem.Play(character, progress);
+                await InvokeAsync(() => {
+                    LoadData();
+                    activeTab = "chat";
+                });
+            });
         }
         catch (Exception ex)
         {
             RenderFragment content = (builder) => {
-                builder.OpenElement(0, "div");
-                builder.OpenElement(1, "Text");
-                builder.AddContent(2, "错误详情：" + ex.Message);
-                builder.CloseElement();
-                builder.OpenElement(3, "br");
-                builder.CloseElement();
-                builder.OpenElement(4, "pre");
-                builder.AddAttribute(5, "style", "max-height: 300px; overflow-y: auto; margin-top: 12px; font-size: 12px; color: #ff4d4f; background: #fff1f0; padding: 12px; border: 1px solid #ffccc7; border-radius: 4px;");
-                builder.AddContent(6, ex.StackTrace);
-                builder.CloseElement();
-                builder.CloseElement();
+                builder.OpenComponent<AlifeErrorDisplayUI>(0);
+                builder.AddAttribute(1, "Title", "激活失败喵！");
+                builder.AddAttribute(2, "Message", ex.Message);
+                builder.AddAttribute(3, "InnerMessage", ex.InnerException?.Message);
+                builder.AddAttribute(4, "StackTrace", ex.StackTrace);
+                builder.CloseComponent();
             };
 
             _ = ModalService.Error(new ConfirmOptions {
@@ -421,6 +418,9 @@ else
     }
 
     bool isSaving;
+    string currentTask = "正在初始化环境喵...";
+    float currentProgress = 0;
+
     async Task SaveSettings()
     {
         if (isSaving || character == null || activity != null) return;

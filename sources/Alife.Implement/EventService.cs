@@ -58,6 +58,9 @@ public class EventService : InteractivePlugin<EventService>, IConfigurable<Event
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
+        SetTimer(null);
+        timeTask[1].Item1 = DateTime.MaxValue;
+
         await base.StartAsync(kernel, chatActivity);
 
         ChatBot.ChatSent += message => {
@@ -68,9 +71,6 @@ public class EventService : InteractivePlugin<EventService>, IConfigurable<Event
         };
 
         await ChatAsync($"系统报点：程序已重启（所有系统状态，如功能开关、桌宠位置，定时器等已全部重置）。\n({Configuration!.AppendStartPrompt})");
-
-        SetTimer(null);
-        timeTask[1].Item1 = DateTime.MaxValue;
     }
     public override async Task DestroyAsync()
     {

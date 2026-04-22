@@ -1,3 +1,118 @@
 @page "/welcome"
+@using Alife.Components.Elements.Utility
+@inject CharacterSystem CharacterSystem
+@inject ChatActivitySystem ChatActivitySystem
+@inject NavigationManager Navigation
 
-<WelcomeUI />
+<CharacterLoadingUI Visible="@isLoading" 
+                    Title="正在唤醒自动启动的角色..." 
+                    TaskDescription="@currentTask" 
+                    Progress="@currentProgress" />
+
+<!-- 自启异常报告 -->
+<Modal Visible="@(startupErrors.Any())"
+       Title="系统自启异常报告"
+       OnOk="ProceedToSystem"
+       OnCancel="ProceedToSystem"
+       Width="800"
+       Centered="true">
+    <div style="max-height: 500px; overflow-y: auto;">
+        @foreach (var error in startupErrors)
+        {
+            <AlifeErrorDisplayUI Title="@($"角色 [{error.Name}] 唤醒失败喵！")"
+                                 Message="@error.Ex.Message"
+                                 InnerMessage="@error.Ex.InnerException?.Message"
+                                 StackTrace="@error.Ex.StackTrace" />
+        }
+    </div>
+</Modal>
+
+@if (!isLoading)
+{
+    <WelcomeUI />
+}
+
+@code {
+    static bool hasBootstrapped = false;
+    bool isLoading = false;
+    string currentTask = "正在初始化环境...";
+    float currentProgress = 0;
+    readonly List<(string Name, Exception Ex)> startupErrors = new();
+
+    protected override void OnInitialized()
+    {
+        if (hasBootstrapped) return;
+        hasBootstrapped = true;
+
+        _ = Task.Run(async () => {
+            // 给 UI 线程留出渲染第一帧的时间
+            await Task.Delay(100);
+
+            var startingCharacters = CharacterSystem.GetAllCharacters()
+                .Where(c => c.AutoActivate && !ChatActivitySystem.IsActivated(c))
+                .ToList();
+
+            if (startingCharacters.Any())
+            {
+                await InvokeAsync(() => {
+                    isLoading = true;
+                    StateHasChanged();
+                });
+
+                foreach (var character in startingCharacters)
+                {
+                    try
+                    {
+                        var progress = new Progress<(string, float)>(tuple => {
+                            currentTask = $"[{character.Name}] {tuple.Item1}";
+                            currentProgress = tuple.Item2;
+                            InvokeAsync(StateHasChanged);
+                        });
+                        await ChatActivitySystem.Play(character, progress);
+                    }
+                    catch (Exception ex)
+                    {
+                        await InvokeAsync(() => {
+                            startupErrors.Add((character.Name, ex));
+                            StateHasChanged();
+                        });
+                    }
+                }
+
+                await InvokeAsync(() => {
+                    isLoading = false;
+                    
+                    // 如果没有错误，且有角色，自动进入系统
+                    if (!startupErrors.Any() && CharacterSystem.GetAllCharacters().Any())
+                    {
+                        Navigation.NavigateTo("/system", replace: true);
+                    }
+                    else
+                    {
+                        StateHasChanged();
+                    }
+                });
+            }
+            else
+            {
+                await InvokeAsync(() => {
+                    // 无自启角色，如果已经有角色了，直接跳到系统页，否则留在欢迎页（展示 WelcomeUI）
+                    if (CharacterSystem.GetAllCharacters().Any())
+                    {
+                        Navigation.NavigateTo("/system", replace: true);
+                    }
+                    else
+                    {
+                        StateHasChanged();
+                    }
+                });
+            }
+        });
+    }
+
+    void ProceedToSystem()
+    {
+        startupErrors.Clear();
+        Navigation.NavigateTo("/system", replace: true);
+    }
+}

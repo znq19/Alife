@@ -19,11 +19,10 @@ display: grid;grid-template-columns: repeat(4, 1fr);gap: 10px;align-content: sta
     }
 </div>
 
-<Modal Title="创建活动中..." Header="null" Footer="null" Visible="isCreating">
-    <Progress Percent=@((int)(creatingInfo.Item2 * 100)) Type=ProgressType.Circle></Progress>
-    <Text>@(creatingInfo.Item1)</Text>
-    <Icon Type="@IconType.Outline.Loading"/>
-</Modal>
+<CharacterLoadingUI Visible="@isCreating" 
+                    Title="创建活动中..." 
+                    TaskDescription="@creatingInfo.Item1" 
+                    Progress="@creatingInfo.Item2" />
 
 @code {
     Dictionary<string, Character> options = new();
@@ -53,22 +52,19 @@ display: grid;grid-template-columns: repeat(4, 1fr);gap: 10px;align-content: sta
                 creatingInfo = tuple;
                 StateHasChanged();
             });
-            await ChatActivitySystem.Play(character, progress);
+            await Task.Run(async () => {
+                await ChatActivitySystem.Play(character, progress);
+            });
         }
         catch (Exception ex)
         {
             RenderFragment content = (builder) => {
-                builder.OpenElement(0, "div");
-                builder.OpenElement(1, "Text");
-                builder.AddContent(2, "错误详情：" + ex.Message);
-                builder.CloseElement();
-                builder.OpenElement(3, "br");
-                builder.CloseElement();
-                builder.OpenElement(4, "pre");
-                builder.AddAttribute(5, "style", "max-height: 300px; overflow-y: auto; margin-top: 12px; font-size: 12px; color: #ff4d4f; background: #fff1f0; padding: 12px; border: 1px solid #ffccc7; border-radius: 4px;");
-                builder.AddContent(6, ex.StackTrace);
-                builder.CloseElement();
-                builder.CloseElement();
+                builder.OpenComponent<AlifeErrorDisplayUI>(0);
+                builder.AddAttribute(1, "Title", "创建活动失败喵！");
+                builder.AddAttribute(2, "Message", ex.Message);
+                builder.AddAttribute(3, "InnerMessage", ex.InnerException?.Message);
+                builder.AddAttribute(4, "StackTrace", ex.StackTrace);
+                builder.CloseComponent();
             };
 
             _ = ModalService.Error(new ConfirmOptions {
