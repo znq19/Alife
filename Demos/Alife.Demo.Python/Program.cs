@@ -14,7 +14,7 @@ var character = new Character {
              "你拥有运行 Python 脚本的能力。你可以通过调用 PythonService 来解决数学问题、处理文件或获取系统信息。\n" +
              "在对话中，如果你发现需要进行复杂计算或系统操作，请主动使用 Python 脚本喵！",
     Plugins = new HashSet<Type> {
-        typeof(OpenAIChatService),
+        typeof(ChatService),
         typeof(InterpreterService),
         typeof(PythonService),
     }

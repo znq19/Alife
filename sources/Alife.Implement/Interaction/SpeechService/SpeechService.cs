@@ -111,12 +111,10 @@ public class SpeechService : InteractivePlugin<SpeechService>, IAsyncDisposable,
     public SpeechService(InterpreterService interpreterService)
     {
         interpreterService.RegisterHandler(this);
-        Recognizer.Recognized += OnRecognized;
     }
     public async ValueTask DisposeAsync()
     {
-        Recognizer.Recognized -= OnRecognized;
-        if (Synthesizer.IsSpeaking) //等待语音说完
+        if (Synthesizer.IsSpeaking)
             await Synthesizer.LastSpeaking;
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
@@ -126,6 +124,14 @@ public class SpeechService : InteractivePlugin<SpeechService>, IAsyncDisposable,
         //打开语音识别
         if (Recognizer.IsRecognizing == false)
             Recognizer.Start();
+        
+        Recognizer.Recognized += OnRecognized;
+    }
+    public override async Task DestroyAsync()
+    {
+        Recognizer.Recognized -= OnRecognized;
+
+        await base.DestroyAsync();
     }
     public void Update(ref int time)
     {

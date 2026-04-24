@@ -5,6 +5,7 @@ namespace Alife.Components.Services;
 public class ChatMessage
 {
     public string? Content { get; set; }
+    public string? Reasoning { get; set; }
     public bool IsUser { get; set; }
     public bool IsInputting { get; set; }
 }
@@ -37,8 +38,8 @@ public class ChatMessageService
     }
 
 
-    Dictionary<string, List<ChatMessage>> messages = new();
-    Dictionary<string, ChatBot> chatbots = new();
+    readonly Dictionary<string, List<ChatMessage>> messages = new();
+    readonly Dictionary<string, ChatBot> chatbots = new();
 
     public ChatMessageService(ChatActivitySystem system)
     {
@@ -71,6 +72,14 @@ public class ChatMessageService
             if (aiMessage != null)
             {
                 aiMessage.Content += obj;
+                OnUIMessageChanged?.Invoke(name);
+            }
+        };
+        activity.ChatBot.ReasoningReceived += (obj) => {
+            ChatMessage? aiMessage = messages.LastOrDefault(m => m is { IsUser: false, IsInputting: true });
+            if (aiMessage != null)
+            {
+                aiMessage.Reasoning += obj;
                 OnUIMessageChanged?.Invoke(name);
             }
         };

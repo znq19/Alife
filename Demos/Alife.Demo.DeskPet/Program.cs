@@ -15,7 +15,7 @@ var character = new Character {
     Plugins = new HashSet<Type> {
         typeof(InterpreterService),
         typeof(DeskPetService),
-        typeof(OpenAIChatService),
+        typeof(ChatService),
     }
 };
 

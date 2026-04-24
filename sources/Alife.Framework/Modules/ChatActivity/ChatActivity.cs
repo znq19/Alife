@@ -2,10 +2,13 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+
+using Microsoft.SemanticKernel.ChatCompletion;
 using Newtonsoft.Json.Linq;
 using System.Text;
+
+
 
 namespace Alife.Framework;
 
@@ -108,15 +111,20 @@ public class ChatActivity : IAsyncDisposable
         //创建最核心的大语言服务功能
         if (kernelService.Services.GetService<IChatCompletionService>() == null)
             throw new NotSupportedException("必须至少提供一个支持对话能力的模型！");
+
+        // 收集所有插件提供的执行参数（如思考模式）
+        OpenAIPromptExecutionSettings executionSettings = new();
+        foreach (var plugin in plugins.OfType<IProvideExecutionSettings>())
+            plugin.ProvideSettings(executionSettings);
+
         ChatCompletionAgent llmAgent = new() {
             Name = character.Name,
             Instructions = character.Prompt,
             InstructionsRole = AuthorRole.System,
             Kernel = kernelService,
-            Arguments = new KernelArguments(
-                new PromptExecutionSettings()
-            ),
+            Arguments = new KernelArguments(executionSettings),
         };
+
         chatBot = new(llmAgent, context);
     }
 

@@ -12,7 +12,9 @@ public class ChatBot : IAsyncDisposable
 {
     public event Action<string>? ChatSent;
     public event Action<string>? ChatReceived;
+    public event Action<string>? ReasoningReceived;
     public event Action? ChatOver;
+
     public event Action<ChatMessageContent>? ChatHistoryAdd;
     public event Action<ChatTokenUsage>? TokenUsed;
     public ChatHistory ChatHistory => llmAgentThread.ChatHistory;
@@ -59,22 +61,51 @@ public class ChatBot : IAsyncDisposable
                 }
 
                 string? content = enumerator.Current.Message.Content;
-                if (content != null) //只要不是空都要接受，包括空白符，因为会有回车之类的符号
+                if (content != null)
                 {
-                    yield return content;
-                    ChatReceived?.Invoke(content);
-                }
-                var metaData = enumerator.Current.Message.Metadata;
-                if (metaData != null && metaData.TryGetValue("Usage", out object? usage))
-                {
-                    if (usage is ChatTokenUsage chatTokenUsage)
+                    // 检查是否是通过 DeepSeekReasoningHandler 注入的思考过程
+                    if (content.StartsWith("__THINK__"))
                     {
-                        Console.WriteLine(
-                            $"[Token消耗] total:{chatTokenUsage.TotalTokenCount} input:{chatTokenUsage.InputTokenCount}({chatTokenUsage.InputTokenDetails.CachedTokenCount}) output:{chatTokenUsage.OutputTokenCount} ");
-                        TokenUsed?.Invoke(chatTokenUsage);
+                        string reasoningPart = content.Substring(9);
+                        if (!string.IsNullOrEmpty(reasoningPart))
+                        {
+                            ReasoningReceived?.Invoke(reasoningPart);
+                        }
+                    }
+                    else
+                    {
+                        yield return content;
+                        ChatReceived?.Invoke(content);
+                    }
+                }
+
+                var metaData = enumerator.Current.Message.Metadata;
+                if (metaData != null)
+                {
+                    // 尝试从元数据中提取思考过程 (支持原生支持此字段的 SDK)
+                    if (metaData.TryGetValue("ReasoningContent", out object? reasoning) || 
+                        metaData.TryGetValue("reasoning_content", out reasoning))
+                    {
+                        string? reasoningStr = reasoning?.ToString();
+                        if (!string.IsNullOrEmpty(reasoningStr))
+                        {
+                            ReasoningReceived?.Invoke(reasoningStr);
+                        }
+                    }
+
+
+                    if (metaData.TryGetValue("Usage", out object? usage))
+                    {
+                        if (usage is ChatTokenUsage chatTokenUsage)
+                        {
+                            Console.WriteLine(
+                                $"[Token消耗] total:{chatTokenUsage.TotalTokenCount} input:{chatTokenUsage.InputTokenCount}({chatTokenUsage.InputTokenDetails.CachedTokenCount}) output:{chatTokenUsage.OutputTokenCount} ");
+                            TokenUsed?.Invoke(chatTokenUsage);
+                        }
                     }
                 }
             }
+
             ChatOver?.Invoke();
 
             ChaseChatHistory();
@@ -119,10 +150,9 @@ public class ChatBot : IAsyncDisposable
     {
         lastContentIndex = ChatHistory.Count;
     }
-
     public bool IsPokeMessage(string message)
     {
-        return message.Contains("[非用户消息]");
+        return message.Contains("[系统缓存消息]");
     }
 
     readonly ChatCompletionAgent llmAgent;
@@ -190,7 +220,7 @@ public class ChatBot : IAsyncDisposable
         {
             //组合消息
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("[非用户消息](请 think 后再回复，回复后停止 think)");
+            stringBuilder.AppendLine("[系统缓存消息](非用户消息，请思考后再回复)");
             foreach (string message in messageCache)
                 stringBuilder.AppendLine(message);
             messageCache.Clear();

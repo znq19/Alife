@@ -45,4 +45,31 @@ public static class OneBotSegment
         if (string.IsNullOrEmpty(content)) return false;
         return content.Contains($"[CQ:at,qq={selfId}]") || content.Contains($"[CQ:at,qq={selfId},");
     }
+
+    /// <summary>
+    /// 从消息中提取所有图片 URL
+    /// </summary>
+    public static List<string> ExtractImageUrls(string message)
+    {
+        var urls = new List<string>();
+        if (string.IsNullOrEmpty(message)) return urls;
+
+        var matches = Regex.Matches(message, @"\[CQ:image,.*?url=(?<url>http[s]?://[^,\]]+)");
+        foreach (Match match in matches)
+        {
+            urls.Add(match.Groups["url"].Value);
+        }
+        return urls;
+    }
+
+    /// <summary>
+    /// 转换为纯文本（移除或替换 CQ 码）
+    /// </summary>
+    public static string ToPlainText(string message)
+    {
+        if (string.IsNullOrEmpty(message)) return string.Empty;
+        // 移除所有 CQ 码，保留文本部分
+        return Regex.Replace(message, @"\[CQ:.*?\]", "").Trim();
+    }
 }
+

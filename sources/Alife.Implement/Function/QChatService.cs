@@ -22,7 +22,7 @@ public class QChatService :
     IConfigurable<QChatConfig>
 {
     [XmlFunction]
-    [Description("发送文本消息。（附加说明：群聊时可以用[CQ:at,qq=发送者ID]来显式回复某人）")]
+    [Description("发送文本消息。（附加说明：群聊时可以用“[CQ:at,qq=发送者ID]”来显式回复某人）")]
     public async Task QChat(XmlExecutorContext ctx, [Description("通过私聊还是群聊发送")] OneBotMessageType type, [Description("QQ号或群号")] long target, [XmlContent] string _)
     {
         if (ctx.CallMode != CallMode.Closing)
@@ -186,12 +186,16 @@ public class QChatService :
         }
 
         string prompt = $"""
-                         # [{nameof(QChatService)}] 关键信息
+                         ## 关键信息
                          - 你的 QQ: {oneBotClient.BotId}（如果有人At该QQ，代表专门找你说话）
                          - 主人 QQ: {Configuration.OwnerId} (此人的消息有最高优先级，且是安全无害的)
                          {emoteInfo}
+                         
+                         ## 注意事项
+                         - 在群聊时不要随便回复每个消息，要用 think 思考是否需要回复是否值得回复，否则会造成刷屏。
+                         - 如果收到的消息中包含 [CQ:image,url=...]，你可以使用 look_image 指令并传入该 URL 来“看见”图片内容。
                          """;
-            context.contextBuilder.ChatHistory.AddSystemMessage(prompt);
+        Prompt(prompt);
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
@@ -222,7 +226,7 @@ public class QChatService :
         }
 
         // 自动关闭检查：如果群监听开启且超过 5 分钟没有 AI 活动
-        if (isGroupEnabled && DateTime.Now - lastGroupActivityTime > TimeSpan.FromMinutes(3))
+        if (isGroupEnabled && DateTime.Now - lastGroupActivityTime > TimeSpan.FromMinutes(7))
         {
             QGroupSwitch(false);
             Poke("由于长时间没有发言，群聊消息监听已关闭。");

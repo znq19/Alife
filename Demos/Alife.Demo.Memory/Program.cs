@@ -22,7 +22,7 @@ public class Program
                 typeof(InterpreterService),
                 typeof(MemoryService),
                 typeof(EventService),
-                typeof(OpenAIChatService),
+                typeof(ChatService),
             }
         };
 

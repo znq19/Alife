@@ -31,9 +31,23 @@
                         style="display: flex; margin-bottom: 16px; width: 100%; @(message.IsUser ? "flex-direction: row-reverse" : "flex-direction: row")">
                         <div class="chat-bubble @(message.IsUser ? "chat-bubble-user" : "chat-bubble-ai")">
                             <Flex Direction="@FlexDirection.Vertical" Gap="@("small")">
-                                <AntDesign.Text Style="white-space: pre-wrap; font-size: 15px;">
-                                    @message.Content
-                                </AntDesign.Text>
+                                <div class="chat-message-content">
+                                    @if (!string.IsNullOrEmpty(message.Reasoning))
+                                    {
+                                        <div class="chat-reasoning">
+                                            <div class="chat-reasoning-title">
+                                                <Icon Type="bulb" Theme="IconThemeType.Outline"/> 思考过程
+                                            </div>
+                                            <div class="chat-reasoning-content">
+                                                @message.Reasoning
+                                            </div>
+                                        </div>
+                                    }
+                                    <AntDesign.Text Style="white-space: pre-wrap; font-size: 15px;">
+                                        @message.Content
+                                    </AntDesign.Text>
+                                </div>
+
                                 @if (message.IsInputting)
                                 {
                                     <AntDesign.Text Style="color: rgba(0,0,0,0.45); font-size: 12px">
@@ -60,12 +74,12 @@
             <Flex Gap="@("12")" Align="@FlexAlign.End" Style="width: 100%;">
                 <div style="flex: 1; position: relative;">
                     <textarea id="chatInput"
-                              class="native-chat-input"
-                              placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-                              @bind="inputText"
-                              @bind:event="oninput"
-                              @onkeydown="HandleNativeKeyDown"
-                              @onkeydown:preventDefault="shouldPreventDefault"></textarea>
+                               class="native-chat-input"
+                               placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+                               @bind="inputText"
+                               @bind:event="oninput"
+                               @onkeydown="HandleNativeKeyDown"
+                               @onkeydown:preventDefault="shouldPreventDefault"></textarea>
                 </div>
                 <Button Type="@ButtonType.Primary"
                         Icon="@IconType.Outline.Send"
@@ -146,6 +160,30 @@
     .status-online {
         background: #52c41a;
         box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+    }
+
+    .chat-reasoning {
+        margin-bottom: 12px;
+        padding: 8px 12px;
+        background: rgba(0,0,0,0.03);
+        border-left: 3px solid #d9d9d9;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+
+    .chat-reasoning-title {
+        color: rgba(0,0,0,0.45);
+        font-weight: 500;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .chat-reasoning-content {
+        color: rgba(0,0,0,0.65);
+        white-space: pre-wrap;
+        font-style: italic;
     }
 </style>
 
@@ -255,7 +293,7 @@
     {
         // 关键：在 keydown 阶段判断是否需要拦截换行
         shouldPreventDefault = (e.Key == "Enter" && !e.ShiftKey);
-        
+
         if (shouldPreventDefault && !e.IsComposing)
         {
             _ = OnSend();
@@ -266,8 +304,8 @@
     {
         // 彻底绕过不同步的 C# 变量，直接从 DOM 获取最新值并清空
         string text = await JsRuntime.InvokeAsync<string>("eval", "var el = document.getElementById('chatInput'); var val = el.value; if(el) el.value = ''; val;");
-        
-        // 同步清空 C# 变量，防止下次逻辑干扰
+
+        // 同步清空 C# 变量，防止下次 logic 干扰
         inputText = string.Empty;
 
         if (string.IsNullOrWhiteSpace(text))
@@ -282,3 +320,4 @@
         }
     }
 }
+
