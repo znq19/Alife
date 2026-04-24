@@ -250,10 +250,6 @@ public class XmlHandlerTable
         {
             sb.AppendLine($"> {handler.Description}");
         }
-        if (string.IsNullOrEmpty(handler.Prompt) == false)
-        {
-            sb.AppendLine($"注意：{handler.Prompt}");
-        }
 
         foreach (XmlFunction function in handler.Functions)
         {
@@ -280,6 +276,9 @@ public class XmlHandlerTable
 
             sb.AppendLine();
         }
+
+        if (string.IsNullOrEmpty(handler.Prompt) == false)
+            sb.AppendLine($"{handler.Prompt}");
 
         return sb.ToString().TrimEnd();
     }

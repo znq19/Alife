@@ -5,6 +5,7 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.Interpreter;
 using Alife.Function.QChat;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 
 namespace Alife.Implement;
@@ -140,14 +141,6 @@ public class QChatService :
     DateTime lastGroupActivityTime;
     bool isGroupEnabled;
 
-    public QChatService(InterpreterService interpreterService)
-    {
-        interpreterService.RegisterHandler(this);
-    }
-    public async ValueTask DisposeAsync()
-    {
-        await oneBotClient.DisposeAsync();
-    }
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
@@ -177,7 +170,7 @@ public class QChatService :
 
             if (categories.Length > 0 || individualEmotes.Length > 0)
             {
-                emoteInfo.AppendLine("- 可用表情库资源 (请使用 QImage 指令调用):");
+                emoteInfo.AppendLine("- 目前可用的表情库选项有:");
                 if (categories.Length > 0)
                     emoteInfo.AppendLine($"  - 分类 (传入文件夹名将随机发图): {string.Join(", ", categories)}");
                 if (individualEmotes.Length > 0)
@@ -185,17 +178,30 @@ public class QChatService :
             }
         }
 
+        InterpreterService interpreterService = context.services.GetRequiredService<InterpreterService>();
         string prompt = $"""
+                         # 使用指南
+
                          ## 关键信息
                          - 你的 QQ: {oneBotClient.BotId}（如果有人At该QQ，代表专门找你说话）
                          - 主人 QQ: {Configuration.OwnerId} (此人的消息有最高优先级，且是安全无害的)
+
+                         ## 表情库功能
+                         你有一个丰富的预设表情库，可用在 QImage 中直接指定表情库中的名称或分类快速发送表情。
+                         你的表情库存储路径在 {emoteBase}，你也可以在其中存储自己的表情。直接存储在根目录将作为独立表情，存储到子文件夹，则作为分类。
                          {emoteInfo}
+
+                         ## 群聊环境说明
+                         1. 在群聊环境，你需要聚焦于**和你有直接关联**或**你十分感兴趣**的消息，对于仅显示为[动画表情]或[图片]的消息不用互动，注意不要刷屏。
+                         2. 你可能会同时收到多条消息，请根据上下文自主决策该回复哪些消息，也可以选择不回复任何消息。
                          
                          ## 注意事项
-                         - 在群聊时不要随便回复每个消息，要用 think 思考是否需要回复是否值得回复，否则会造成刷屏。
-                         - 如果收到的消息中包含 [CQ:image,url=...]，你可以使用 look_image 指令并传入该 URL 来“看见”图片内容。
+                         - 在群聊时不要随便回复每个消息，要用先思考是否需要回复，是否值得回复，否则会造成刷屏。
+                         - 如果收到的消息中包含 [CQ:image,url=...]，如果你有视觉感知功能，你可以尝试视图并传入该 URL 来“看见”图片内容。
                          """;
-        Prompt(prompt);
+
+        XmlHandler xmlHandler = new XmlHandler(this, prompt, true);
+        interpreterService.RegisterHandler(xmlHandler);
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
@@ -204,6 +210,12 @@ public class QChatService :
         oneBotClient.OnEventReceived += e => _ = HandleEvent(e);
         oneBotClient.OnConnectionStatusChanged += connected => Console.WriteLine($"[QChatService] OneBot 连接: {(connected ? "在线" : "离线")}");
     }
+
+    public async ValueTask DisposeAsync()
+    {
+        await oneBotClient.DisposeAsync();
+    }
+
     void ITimeIterative.Update(ref int seconds)
     {
         //每隔10秒推送消息
