@@ -1,6 +1,9 @@
 @namespace Alife.Implement
 @inherits Alife.Framework.PluginUIBase
 @implements IDisposable
+@using Alife.Framework
+@inject ConfigurationSystem ConfigurationSystem
+@inject IMessageService MessageService
 
 <div style="background: #fafafa; padding: 24px; border-radius: 12px; border: 1px solid #f0f0f0;">
     <Flex Direction="FlexDirection.Vertical" Gap="@("24")">
@@ -11,9 +14,9 @@
             @if (service != null)
             {
                 <GridRow Gutter="16">
-                    @foreach (var task in service.ActiveTasks)
+                    @foreach ((DateTime Time, string Name) task in service.ActiveTasks)
                     {
-                        var remaining = task.Time - DateTime.Now;
+                        TimeSpan remaining = task.Time - DateTime.Now;
                         var isFinished = remaining.TotalSeconds <= 0;
                         var isPermanent = task.Time == DateTime.MaxValue;
 
@@ -53,11 +56,11 @@
             }
             else
             {
-                <Alert Type="AlertType.Warning" Message="无法连接到运行中的事件服务喵！" ShowIcon="true"/>
+                <Alert Type="AlertType.Info" Message="当前插件未在运行中，任务监控不可用喵！" ShowIcon="true"/>
             }
         </div>
 
-        @if (service?.Configuration != null)
+        @if (config != null)
         {
             <Divider Style="margin: 8px 0;"/>
 
@@ -70,49 +73,61 @@
                             <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">报点基础间隔
                                 (秒)
                             </Text>
-                            <InputNumber @bind-Value="@service.Configuration.UpdateInterval" Min="1"
+                            <InputNumber @bind-Value="@config.UpdateInterval" Min="1"
                                          Style="width: 100%; border-radius: 6px;"/>
                         </div>
                     </GridCol>
                     <GridCol Span="12">
                         <div style="margin-bottom: 16px;">
-                            <Text Type=TextElementType.Secondary Style="display: block; margin-bottom: 8px;">随机偏移范围
+                            <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">随机偏移范围
                                 (秒)
                             </Text>
-                            <InputNumber @bind-Value="@service.Configuration.UpdateRandomOffset" Min="0"
+                            <InputNumber @bind-Value="@config.UpdateRandomOffset" Min="0"
                                          Style="width: 100%; border-radius: 6px;"/>
                         </div>
                     </GridCol>
 
                     <GridCol Span="24">
                         <div style="margin-bottom: 16px;">
-                            <Text Type=TextElementType.Secondary Style="display: block; margin-bottom: 8px;">
+                            <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
                                 程序启动附加提示
                             </Text>
-                            <TextArea @bind-Value="@service.Configuration.AppendStartPrompt" Rows="2"
+                            <TextArea @bind-Value="@config.AppendStartPrompt" Rows="2"
                                       Placeholder="例如：'今天是重要的一天喵！'" Style="border-radius: 6px;"></TextArea>
                         </div>
                     </GridCol>
 
                     <GridCol Span="24">
                         <div style="margin-bottom: 16px;">
-                            <Text Type=TextElementType.Secondary Style="display: block; margin-bottom: 8px;">
+                            <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
                                 自动报点附加提示
                             </Text>
-                            <TextArea @bind-Value="@service.Configuration.AppendUpdatePrompt" Rows="2"
-                                      Placeholder="赋予AI报点时的特殊指令或背景..."
-                                      Style="border-radius: 6px;"></TextArea>
+                            <TextArea @bind-Value="@config.AppendUpdatePrompt" Rows="2"
+                                      Placeholder="赋予AI报点时的特殊指令或背景..." Style="border-radius: 6px;"></TextArea>
                         </div>
                     </GridCol>
 
                     <GridCol Span="24">
-                        <div style="margin-bottom: 8px;">
-                            <Text Type=TextElementType.Secondary Style="display: block; margin-bottom: 8px;">
+                        <div style="margin-bottom: 24px;">
+                            <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
                                 程序关闭附加提示
                             </Text>
-                            <TextArea @bind-Value="@service.Configuration.AppendDestroyPrompt" Rows="2"
-                                      Placeholder="临别赠言..." Style="border-radius: 6px;"></TextArea>
+                            <TextArea @bind-Value="@config.AppendDestroyPrompt" Rows="2" Placeholder="临别赠言..."
+                                      Style="border-radius: 6px;"></TextArea>
                         </div>
+                    </GridCol>
+
+                    <!-- 保存按钮 -->
+                    <GridCol Span="24">
+                        <Flex Justify="FlexJustify.End">
+                            <Button Type="@ButtonType.Primary"
+                                    Icon="@IconType.Outline.Save"
+                                    Size="@ButtonSize.Large"
+                                    OnClick="@OnSave"
+                                    Style="border-radius: 8px; padding: 0 32px;">
+                                @(Character != null ? "保存到角色配置" : "保存到全局配置")
+                            </Button>
+                        </Flex>
                     </GridCol>
                 </GridRow>
             </div>
@@ -123,6 +138,7 @@
 
 @code {
     EventService? service;
+    EventServiceData? config;
     private System.Timers.Timer? refreshTimer;
 
     protected override void OnInitialized()
@@ -136,6 +152,34 @@
     {
         base.OnParametersSet();
         service = Plugin as EventService;
+
+        if (service != null)
+        {
+            config = service.Configuration;
+        }
+        else
+        {
+            // 优先从角色特定目录加载，没有则加载全局
+            config = ConfigurationSystem.GetConfiguration(PluginType, Character?.StorageKey ?? "") as EventServiceData;
+        }
+    }
+
+    private void OnSave()
+    {
+        if (config == null) return;
+
+        string storageRoot = Character?.StorageKey ?? "";
+
+        // 1. 持久化到本地文件
+        ConfigurationSystem.SetConfiguration(PluginType, config, storageRoot);
+
+        // 2. 如果正在运行，同步更新实例
+        if (service != null)
+        {
+            service.Configuration = config;
+        }
+
+        MessageService.Success($"配置已成功同步至{(Character != null ? "角色目录" : "全局目录")}！");
     }
 
     private string FormatRemaining(TimeSpan ts)

@@ -3,12 +3,12 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.DeskPet;
 using Alife.Function.Interpreter;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 
 namespace Alife.Implement;
 
 [Plugin("Live2D桌宠", "将Live2D桌宠接入AI系统，实现表现力同步和互动反馈。")]
-[Description("此服务让你获得控制Live2D桌宠以及接收其交互的能力")]
 public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposable
 {
     [XmlFunction("say")]
@@ -92,20 +92,9 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         }
     }
 
-    readonly InterpreterService interpreterService;
     PetServer client = null!;
     long lastBubbleEndTime;
 
-    public DeskPetService(InterpreterService interpreterService)
-    {
-        this.interpreterService = interpreterService;
-        this.interpreterService.RegisterHandler(this);
-    }
-    public async ValueTask DisposeAsync()
-    {
-        interpreterService.UnregisterHandler(this);
-        await client.DisposeAsync();
-    }
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
@@ -114,17 +103,22 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         string supportedExpressionsDescription = string.Join(", ", client.SupportedExpressions);
         string supportedMotionsDescription = string.Join(", ", client.SupportedMotions.Keys);
 
-        Prompt($"""
-                补充信息：
-                ## 表情动作
-                   - 支持的 exp（表情）：{supportedExpressionsDescription}
-                   - 支持的 mtn（动作）：{supportedMotionsDescription}
-                   - 注意：如果要发送表情动作，一定要在说话之前，因为说话时会阻塞线程！
-                ## 位置移动
-                   - 当前屏幕分辨率：{AlifeDevice.GetResolution()}
-                   - 注意：移动是相对移动，如果要进行绝对移动，必须先确认自身位置！
-                   - 提示：可以用随机的相对移动，模拟出一些特殊反馈，比如假装跳舞。
-                """);
+
+        InterpreterService interpreterService = context.services.GetRequiredService<InterpreterService>();
+        XmlHandler xmlHandler = new(this);
+        xmlHandler.Description = "此服务让你获得控制Live2D桌宠以及接收其交互的能力";
+        xmlHandler.Explain = $"""
+                              补充信息：
+                              ## 表情动作
+                                 - 支持的 exp（表情）：{supportedExpressionsDescription}
+                                 - 支持的 mtn（动作）：{supportedMotionsDescription}
+                                 - 注意：如果要发送表情动作，一定要在说话之前，因为说话时会阻塞线程！
+                              ## 位置移动
+                                 - 当前屏幕分辨率：{AlifeDevice.GetResolution()}
+                                 - 注意：移动是相对移动，如果要进行绝对移动，必须先确认自身位置！
+                                 - 提示：可以用随机的相对移动，模拟出一些特殊反馈，比如假装跳舞。
+                              """;
+        interpreterService.RegisterHandler(xmlHandler);
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
@@ -133,5 +127,10 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         await client.WaitReadyAsync();
         client.OnInput += text => Chat(text);
         client.OnInteracted += text => Poke("交互：" + text);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await client.DisposeAsync();
     }
 }
