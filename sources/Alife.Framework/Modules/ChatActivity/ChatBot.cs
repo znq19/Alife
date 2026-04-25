@@ -12,6 +12,8 @@ public class ChatBot : IAsyncDisposable
 {
     public const string ThinkContentPrefix = "__THINK__";
 
+    public event Func<string, string>? ChatSend;
+    public event Func<string, string>? PokeSend;
     public event Action<string>? ChatSent;
     public event Action<string>? ChatReceived;
     public event Action<string>? ReasoningReceived;
@@ -34,7 +36,15 @@ public class ChatBot : IAsyncDisposable
         await chatSemaphore.WaitAsync();
         try
         {
-            message = $"[当前时间：{DateTime.Now}]{message}\n（请简短回复，不要加旁白，符合桌宠身份，选择正确通讯方式）";
+            if (ChatSend != null)
+            {
+                foreach (Delegate @delegate in ChatSend.GetInvocationList())
+                {
+                    Func<string, string> chatSend = (Func<string, string>)@delegate;
+                    message = chatSend.Invoke(message);
+                }
+            }
+
             llmAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
             cancelChatSource = new CancellationTokenSource();
 
@@ -232,14 +242,23 @@ public class ChatBot : IAsyncDisposable
         if (messageCache.Count != 0)
         {
             //组合消息
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("[系统缓存消息](非用户消息，请思考后再回复)");
+            StringBuilder stringBuilder = new();
             foreach (string message in messageCache)
                 stringBuilder.AppendLine(message);
+            string poke = stringBuilder.ToString();
             messageCache.Clear();
 
+            if (PokeSend != null)
+            {
+                foreach (Delegate @delegate in PokeSend.GetInvocationList())
+                {
+                    Func<string, string> pokeSend = (Func<string, string>)@delegate;
+                    poke = pokeSend.Invoke(poke);
+                }
+            }
+
             //发送消息
-            Chat(stringBuilder.ToString());
+            Chat(poke);
         }
     }
 

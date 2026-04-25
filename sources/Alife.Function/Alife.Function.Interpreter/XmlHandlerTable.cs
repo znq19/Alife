@@ -49,7 +49,7 @@ public class XmlHandlerTable
         if (string.IsNullOrEmpty(handler.Description) == false)
             sb.AppendLine($"服务描述：{handler.Description}");
 
-        sb.AppendLine($"提供标签：{handler.Description}");
+        sb.AppendLine("提供的标签：");
         foreach (XmlFunction function in handler.Functions)
         {
             sb.Append($"- <{function.Name}");

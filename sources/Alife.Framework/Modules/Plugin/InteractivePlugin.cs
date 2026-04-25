@@ -44,7 +44,7 @@ public abstract class InteractivePlugin : Plugin
             {
                 await Task.Delay(1000, token);
                 int seconds = (int)(DateTime.Now - startTime).TotalSeconds;
-                handler.Update(ref seconds);
+                handler.OnUpdate(ref seconds);
                 startTime = DateTime.Now - TimeSpan.FromSeconds(seconds);
             }
         }

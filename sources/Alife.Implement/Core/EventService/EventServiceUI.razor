@@ -92,8 +92,8 @@
                             <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
                                 程序启动附加提示
                             </Text>
-                            <TextArea @bind-Value="@config.AppendStartPrompt" Rows="2"
-                                      Placeholder="例如：'今天是重要的一天喵！'" Style="border-radius: 6px;"></TextArea>
+                            <TextArea @bind-Value="@config.StartPrompt" Rows="2"
+                                      Style="border-radius: 6px;"></TextArea>
                         </div>
                     </GridCol>
 
@@ -102,8 +102,8 @@
                             <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
                                 自动报点附加提示
                             </Text>
-                            <TextArea @bind-Value="@config.AppendUpdatePrompt" Rows="2"
-                                      Placeholder="赋予AI报点时的特殊指令或背景..." Style="border-radius: 6px;"></TextArea>
+                            <TextArea @bind-Value="@config.UpdatePrompt" Rows="2"
+                                      Style="border-radius: 6px;"></TextArea>
                         </div>
                     </GridCol>
 
@@ -112,7 +112,17 @@
                             <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
                                 程序关闭附加提示
                             </Text>
-                            <TextArea @bind-Value="@config.AppendDestroyPrompt" Rows="2" Placeholder="临别赠言..."
+                            <TextArea @bind-Value="@config.DestroyPrompt" Rows="2"
+                                      Style="border-radius: 6px;"></TextArea>
+                        </div>
+                    </GridCol>
+
+                    <GridCol Span="24">
+                        <div style="margin-bottom: 24px;">
+                            <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 8px;">
+                                每条消息附加提示
+                            </Text>
+                            <TextArea @bind-Value="@config.MessagePrompt" Rows="2"
                                       Style="border-radius: 6px;"></TextArea>
                         </div>
                     </GridCol>

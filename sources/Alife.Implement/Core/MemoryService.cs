@@ -5,6 +5,7 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.Interpreter;
 using Alife.Function.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 
@@ -23,12 +24,12 @@ public record MemoryConfig
     public int Threshold { get; init; } = 64;
     public int BatchSize { get; init; } = 32;
 }
-[Plugin("记忆服务", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。", LaunchOrder = -100)]
+[Plugin("持久记忆", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。", LaunchOrder = -100)]
 public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>
 {
     [XmlFunction]
-    [Description("读取记忆存档的完整内容。")]
-    public async Task Recall(XmlExecutorContext ctx, [Description("内容索引（如：0-20240101120000-20240101130000）")] string index)
+    [Description("读取记忆存档的完整内容。（注意存档可能嵌套，根据情况你可以需要多次调用）")]
+    public async Task Recall(XmlExecutorContext ctx, [Description("存档的完整内容索引（如：0-20240101120000-20240101130000）")] string index)
     {
         if (ctx.CallMode != CallMode.OneShot)
             return;
@@ -39,7 +40,7 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
             : "未找到记忆记录");
     }
     [XmlFunction]
-    [Description($"在归档的记忆记录中搜索内容（搜索到的结果是存储索引，你需要用 {nameof(Recall)} 打开）。")]
+    [Description($"在归档的记忆存档中搜索内容（搜索到的结果是内容索引，你需要用 {nameof(Recall)} 打开）。")]
     public async Task Search(XmlExecutorContext ctx,
         [Description("搜索的问题")] string query,
         [Description("格式为ISO-8601")] DateTime? startTime = null,
@@ -75,26 +76,27 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
     public MemoryConfig? Configuration { get; set; }
     MemoryManager memoryManager = null!;
 
-    public MemoryService(InterpreterService interpreterService)
-    {
-        interpreterService.RegisterHandler(this);
-    }
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
 
-        Prompt($"""
-                上下文压缩说明：
-                有时你会收到关于上下文压缩的提示，它会给予你一段过往时间的聊天记录或记忆存档。这些内容是即将移出上下文的内容，所以需要你用第一人称简述一下发生的事情，方便日后回忆。
+        InterpreterService interpreterService = context.services.GetRequiredService<InterpreterService>();
+        XmlHandler handler = new(this);
+        handler.Description = "提供一系列让你可以回忆过往的工具，你甚至可以借此查到所有最原始的聊天记录，所以记忆是不会丢的，只可能你不愿意回忆。";
+        interpreterService.RegisterHandler(this);
 
-                注意！描述事情时，你要遵守如下规则：
-                1. 按重要程度进行信息舍取，注意简洁。
-                2. 多事件时注意按时间段区分。
-                3. 保持对一些关键数据的记录。
-                4. 系统会自动生成存档信息，所以你不用负责添加系统信息，直接像讲故事一样描述概述内容即可。
-                5. 分清事件中的具体人物，不要用‘你’这种代词。
-                6. 不要回复无关事件描述的内容，如不要开头回复‘好的’。
-                """);
+        Prompt("""
+               上下文压缩说明：
+               有时你会收到关于上下文压缩的提示，它会给予你一段过往时间的聊天记录或记忆存档。这些内容是即将移出上下文的内容，所以需要你用第一人称简述一下发生的事情，方便日后回忆。
+
+               注意！描述事情时，你要遵守如下规则：
+               1. 按重要程度进行信息舍取，注意简洁。
+               2. 多事件时注意按时间段区分。
+               3. 保持对一些关键数据的记录。
+               4. 系统会自动生成存档信息，所以你不用负责添加系统信息，直接像讲故事一样描述概述内容即可。
+               5. 分清事件中的具体人物，不要用‘你’这种代词。
+               6. 不要回复无关事件描述的内容，如不要开头回复‘好的’。
+               """);
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {

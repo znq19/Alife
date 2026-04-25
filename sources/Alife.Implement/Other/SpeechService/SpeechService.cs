@@ -130,7 +130,7 @@ public partial class SpeechService : InteractivePlugin<SpeechService>, IAsyncDis
 
         await base.DestroyAsync();
     }
-    public void Update(ref int time)
+    public void OnUpdate(ref int time)
     {
         MMDevice? device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
         hasHeadphones = device.FriendlyName.Contains("耳机") ||

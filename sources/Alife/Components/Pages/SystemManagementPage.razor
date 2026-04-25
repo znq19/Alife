@@ -58,7 +58,7 @@
                     </div>
                 </TabTemplate>
                 <ChildContent>
-                    <div style="height: 100%; overflow: hidden; background: #fafafa;">
+                    <div style="height: 100%; overflow: hidden; display: flex; flex-direction: column; background: #fafafa;">
                         <PluginManagementView IsReadOnly="false"></PluginManagementView>
                     </div>
                 </ChildContent>
@@ -110,6 +110,23 @@
     .character-card-new:hover {
         border-color: #1890ff !important;
         background: rgba(24, 144, 255, 0.05) !important;
+    }
+
+    /* 修复 AntDesign Tabs 在 Left 模式下的高度塌陷问题 */
+    .ant-tabs-content-holder {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .ant-tabs-content {
+        height: 100%;
+    }
+
+    .ant-tabs-tabpane {
+        height: 100%;
+        overflow: hidden;
     }
 </style>
 

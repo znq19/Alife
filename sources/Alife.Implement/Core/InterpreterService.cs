@@ -6,7 +6,7 @@ using Microsoft.SemanticKernel;
 
 namespace Alife.Implement;
 
-[Plugin("XML执行器", "为AI增加一种基于Xml的流式函数执行功能，实现快速实时的交互能力。", launchOrder: -1000)]
+[Plugin("函数调用", "为AI增加一种基于Xml的流式函数执行功能，实现快速实时的交互能力。", launchOrder: -1000)]
 public class InterpreterService : InteractivePlugin<InterpreterService>
 {
     // [XmlFunction("help", order: 1000)]
@@ -57,7 +57,7 @@ public class InterpreterService : InteractivePlugin<InterpreterService>
         string prompt = $"""
                          你可以通过输出特定的xml标签来实现功能调用
 
-                         ## 支持的标签
+                         ## 支持的功能
                          {handlerTable.Document()}
 
                          ## 注意事项
