@@ -20,8 +20,8 @@ public partial class MemoryService
 }
 public record MemoryConfig
 {
-    public int Threshold { get; init; } = 40;
-    public int BatchSize { get; init; } = 20;
+    public int Threshold { get; init; } = 64;
+    public int BatchSize { get; init; } = 32;
 }
 [Plugin("记忆服务", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。", LaunchOrder = -100)]
 public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>

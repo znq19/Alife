@@ -15,8 +15,8 @@ public class ChatMessage
 /// </summary>
 public class ChatMessageService
 {
-    public event Action<string>? OnUIMessageChanged;
-    public event Action<string>? OnUIMessageSent;
+    public event Action<string>? OnMessageChanged;
+    public event Action<string>? OnUserMessageSent;
 
     public ChatBot? GetChatBot(string name)
     {
@@ -61,18 +61,19 @@ public class ChatMessageService
         string name = activity.Character.Name;
         List<ChatMessage> messages = GetMessages(name);
         chatbots.Add(name, activity.ChatBot);
-        activity.ChatBot.ChatSent += (obj) => {
-            messages.Add(new ChatMessage { Content = obj, IsUser = true });
+        activity.ChatBot.ChatSent += (message) => {
+            messages.Add(new ChatMessage { Content = message, IsUser = true });
             messages.Add(new ChatMessage { IsUser = false, IsInputting = true });
-            OnUIMessageSent?.Invoke(name);
-            OnUIMessageChanged?.Invoke(name);
+            OnMessageChanged?.Invoke(name);
+            if (activity.ChatBot.IsSystemMessage(message) == false)
+                OnUserMessageSent?.Invoke(name);
         };
         activity.ChatBot.ChatReceived += (obj) => {
             ChatMessage? aiMessage = messages.LastOrDefault(m => m is { IsUser: false, IsInputting: true });
             if (aiMessage != null)
             {
                 aiMessage.Content += obj;
-                OnUIMessageChanged?.Invoke(name);
+                OnMessageChanged?.Invoke(name);
             }
         };
         activity.ChatBot.ReasoningReceived += (obj) => {
@@ -80,7 +81,7 @@ public class ChatMessageService
             if (aiMessage != null)
             {
                 aiMessage.Reasoning += obj;
-                OnUIMessageChanged?.Invoke(name);
+                OnMessageChanged?.Invoke(name);
             }
         };
         activity.ChatBot.ChatOver += () => {
@@ -88,7 +89,7 @@ public class ChatMessageService
             if (aiMessage != null)
             {
                 aiMessage.IsInputting = false;
-                OnUIMessageChanged?.Invoke(name);
+                OnMessageChanged?.Invoke(name);
             }
         };
     }

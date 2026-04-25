@@ -242,8 +242,8 @@
         base.OnInitialized();
 
         messages = ChatMessageService.GetMessages(CharacterName);
-        ChatMessageService.OnUIMessageChanged += OnUIMessageChanged;
-        ChatMessageService.OnUIMessageSent += OnUIMessageSent;
+        ChatMessageService.OnMessageChanged += OnMessageChanged;
+        ChatMessageService.OnUserMessageSent += OnUserMessageSent;
     }
 
     protected override void OnParametersSet()
@@ -261,17 +261,17 @@
 
     public void Dispose()
     {
-        ChatMessageService.OnUIMessageChanged -= OnUIMessageChanged;
-        ChatMessageService.OnUIMessageSent -= OnUIMessageSent;
+        ChatMessageService.OnMessageChanged -= OnMessageChanged;
+        ChatMessageService.OnUserMessageSent -= OnUserMessageSent;
     }
 
-    void OnUIMessageChanged(string name)
+    void OnMessageChanged(string name)
     {
         if (name == CharacterName)
             InvokeAsync(StateHasChanged);
     }
 
-    void OnUIMessageSent(string name)
+    void OnUserMessageSent(string name)
     {
         if (name == CharacterName)
             InvokeAsync(() => {

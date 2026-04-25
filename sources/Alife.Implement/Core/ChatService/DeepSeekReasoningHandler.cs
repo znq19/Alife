@@ -1,5 +1,6 @@
 using System.Text;
 using Alife.Framework;
+using Newtonsoft.Json.Linq;
 
 namespace Alife.Implement;
 
@@ -31,32 +32,66 @@ public class DeepSeekReasoningHandler : DelegatingHandler
     class ReasoningStreamWrapper : Stream
     {
         readonly Stream innerStream;
+        readonly StreamReader reader;
+        readonly MemoryStream outputBuffer = new();
 
         public ReasoningStreamWrapper(Stream innerStream)
         {
             this.innerStream = innerStream;
+            this.reader = new StreamReader(innerStream, Encoding.UTF8);
         }
-
 
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-
         {
-            int bytesRead = await innerStream.ReadAsync(buffer, cancellationToken);
-            if (bytesRead <= 0) return bytesRead;
+            // 如果缓冲区空了，读取下一行并处理
+            if (outputBuffer.Position >= outputBuffer.Length)
+            {
+                outputBuffer.SetLength(0);
+                outputBuffer.Position = 0;
 
-            // 将读取到的字节转为字符串进行处理
-            string text = Encoding.UTF8.GetString(buffer.Span.Slice(0, bytesRead));
+                string? line = await reader.ReadLineAsync(cancellationToken);
+                if (line == null) return 0;
 
-            //废物 SemanticKernel，连思考过程都不支持显示
-            if (text.Contains("\"reasoning_content\":\""))
-                text = text.Replace("\"reasoning_content\":\"", $"\"content\":\"{ChatBot.ThinkContentPrefix}");
+                string processedLine = ProcessLine(line) + "\n";
+                byte[] bytes = Encoding.UTF8.GetBytes(processedLine);
+                outputBuffer.Write(bytes);
+                outputBuffer.Position = 0;
+            }
 
-            byte[] newBytes = Encoding.UTF8.GetBytes(text);
-            newBytes.CopyTo(buffer);
-            return newBytes.Length;
+            int count = await outputBuffer.ReadAsync(buffer, cancellationToken);
+            return count;
         }
 
-        // 必须实现的其他 Stream 成员
+        private string ProcessLine(string line)
+        {
+            if (!line.StartsWith("data: ")) return line;
+
+            string jsonPart = line.Substring(6).Trim();
+            if (string.IsNullOrWhiteSpace(jsonPart) || jsonPart == "[DONE]") return line;
+
+            try
+            {
+                JObject obj = JObject.Parse(jsonPart);
+                JToken? delta = obj["choices"]?[0]?["delta"];
+                if (delta is JObject deltaObj)
+                {
+                    JToken? reasoning = deltaObj["reasoning_content"];
+                    if (reasoning != null && reasoning.Type != JTokenType.Null)
+                    {
+                        // 发现思考内容，将其转移到 content 并加上前缀
+                        deltaObj["content"] = $"{ChatBot.ThinkContentPrefix}{reasoning}";
+                        deltaObj.Remove("reasoning_content");
+                    }
+                }
+                return "data: " + obj.ToString(Newtonsoft.Json.Formatting.None);
+            }
+            catch
+            {
+                // 如果解析失败，原样返回，避免破坏流
+                return line;
+            }
+        }
+
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -67,5 +102,16 @@ public class DeepSeekReasoningHandler : DelegatingHandler
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                reader.Dispose();
+                innerStream.Dispose();
+                outputBuffer.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }

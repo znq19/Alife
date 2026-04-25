@@ -200,7 +200,7 @@ public class QChatService :
                          - 如果收到的消息中包含 [CQ:image,url=...]，如果你有视觉感知功能，你可以尝试视图并传入该 URL 来“看见”图片内容。
                          """;
 
-        XmlHandler xmlHandler = new XmlHandler(this, prompt, true);
+        XmlHandler xmlHandler = new XmlHandler(this, prompt, false);
         interpreterService.RegisterHandler(xmlHandler);
     }
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)

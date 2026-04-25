@@ -34,7 +34,7 @@ public class ChatBot : IAsyncDisposable
         await chatSemaphore.WaitAsync();
         try
         {
-            message = $"[当前时间：{DateTime.Now}]{message}\n（请简短回复，一个say解决）";
+            message = $"[当前时间：{DateTime.Now}]{message}\n（请简短回复，不要加旁白，符合桌宠身份，选择正确通讯方式）";
             llmAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
             cancelChatSource = new CancellationTokenSource();
 
@@ -42,6 +42,8 @@ public class ChatBot : IAsyncDisposable
 
             ChatSent?.Invoke(message);
             string? error = null;
+            StringBuilder cleanResponseBuilder = new(); // 用于存储不含思考过程的最终回复
+
             await using IAsyncEnumerator<AgentResponseItem<StreamingChatMessageContent>> enumerator = llmAgent
                 .InvokeStreamingAsync(llmAgentThread, cancellationToken: cancelChatSource.Token)
                 .GetAsyncEnumerator();
@@ -68,7 +70,7 @@ public class ChatBot : IAsyncDisposable
                     //前置报文会对思考内容进行特殊处理，以便兼容思考模式
                     if (content.StartsWith(ThinkContentPrefix))
                     {
-                        string reasoningPart = content.Substring(9);
+                        string reasoningPart = content.Substring(ThinkContentPrefix.Length);
                         if (!string.IsNullOrEmpty(reasoningPart))
                         {
                             ReasoningReceived?.Invoke(reasoningPart);
@@ -78,6 +80,7 @@ public class ChatBot : IAsyncDisposable
                     {
                         yield return content;
                         ChatReceived?.Invoke(content);
+                        cleanResponseBuilder.Append(content);
                     }
                 }
 
@@ -106,6 +109,14 @@ public class ChatBot : IAsyncDisposable
                         }
                     }
                 }
+            }
+
+            // 在同步历史记录前，清洗掉可能存入 ChatHistory 的思考内容（防止污染上下文）
+            if (llmAgentThread.ChatHistory.Count > 0)
+            {
+                ChatMessageContent lastMsg = llmAgentThread.ChatHistory[^1];
+                if (lastMsg.Role == AuthorRole.Assistant && (lastMsg.Content?.Contains(ThinkContentPrefix) ?? false))
+                    lastMsg.Content = cleanResponseBuilder.ToString();
             }
 
             ChatOver?.Invoke();
@@ -152,7 +163,7 @@ public class ChatBot : IAsyncDisposable
     {
         lastContentIndex = ChatHistory.Count;
     }
-    public bool IsPokeMessage(string message)
+    public bool IsSystemMessage(string message)
     {
         return message.Contains("[系统缓存消息]");
     }

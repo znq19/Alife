@@ -7,13 +7,7 @@ namespace Alife.Implement;
 
 public class EventServiceData
 {
-    public string? AppendStartPrompt { get; set; } =
-        """
-        【角色沉浸要求】在你的思考过程中，请遵守以下规则：
-        1. 请以角色第一人称进行内心独白，用括号包裹内心活动，例如"（心想：……）"或"(内心OS：……)"
-        2. 用第一人称描写角色的内心感受，例如"我心想""我觉得""我暗自"等
-        3. 思考内容应沉浸在角色中，通过内心独白分析剧情和规划回复
-        """;
+    public string? AppendStartPrompt { get; set; }
     public string? AppendDestroyPrompt { get; set; }
     public string? AppendUpdatePrompt { get; set; }
     public int UpdateInterval { get; set; } = 90;
@@ -78,7 +72,7 @@ public class EventService : InteractivePlugin<EventService>, IConfigurable<Event
         await base.StartAsync(kernel, chatActivity);
 
         ChatBot.ChatSent += message => {
-            if (ChatBot.IsPokeMessage(message))
+            if (ChatBot.IsSystemMessage(message))
                 return;
             continuousTimerCount = 0;
             SetTimer(null); //重置自动报点
