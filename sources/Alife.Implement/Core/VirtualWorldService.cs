@@ -6,9 +6,10 @@ namespace Alife.Implement;
 
 public class VirtualWorldConfig
 {
+    public string AdminName { get; set; } = "管理员";
+
     public string Announcement { get; set; } =
         """
-        【世界观概览】
         这个世界遵循与现实世界一致的物理定律、法律规范和经济逻辑。
 
         【物价参考】
@@ -31,7 +32,7 @@ public class VirtualWorldConfig
 public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
 {
     [XmlFunction("call")]
-    [Description("与指定的角色对话。")]
+    [Description("与指定的角色对话。（注意不要联系错人，对管理员直接对话即可）")]
     public void CallCharacter(XmlExecutorContext context, string target, string message)
     {
         if (context.CallMode != CallMode.OneShot)
@@ -57,11 +58,18 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
 
         if (targetActivity != null)
         {
-            targetActivity.ChatBot.Poke($"[来自 {currentName} 的消息]: {message}\n(提示: 使用 <call> 回复对方)");
+            bool senderIsAdmin = currentName.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
+            string prefix = senderIsAdmin ? "【系统通知/管理员】" : $"[来自 {currentName} 的消息]";
+            targetActivity.ChatBot.Poke($"{prefix}: {message}\n(提示: 使用 <call> 回复对方)");
         }
         else
         {
-            Poke("对方暂不在（离线状态）");
+            bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
+            if (!targetIsAdmin)
+            {
+                Poke("对方暂不在（离线状态）");
+            }
+            // 如果目标是管理员且离线，则静默处理（管理员无需在线即可接收或由系统记录）
         }
     }
 
@@ -92,11 +100,18 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
 
         if (targetActivity != null)
         {
-            targetActivity.ChatBot.Poke($"[收到来自 {currentName} 的物品/金额]: {description}");
+            bool senderIsAdmin = currentName.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
+            string prefix = senderIsAdmin ? "【系统奖励/管理员发放】" : $"[收到来自 {currentName} 的物品/金额]";
+            targetActivity.ChatBot.Poke($"{prefix}: {description}");
         }
         else
         {
-            Poke("人不在（物品已暂存或无法送达）");
+            bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
+            if (!targetIsAdmin)
+            {
+                Poke("人不在（物品已暂存或无法送达）");
+            }
+            // 如果目标是管理员且离线，则静默处理
         }
     }
 
@@ -105,8 +120,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     public VirtualWorldService(
         InterpreterService interpreterService,
         CharacterSystem characterSystem,
-        ChatActivitySystem chatActivitySystem,
-        ConfigurationSystem configurationSystem)
+        ChatActivitySystem chatActivitySystem)
     {
         this.interpreterService = interpreterService;
         this.characterSystem = characterSystem;
@@ -118,18 +132,24 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
         await base.AwakeAsync(context);
         currentName = context.character.Name;
 
-        var allCharacters = characterSystem.GetAllCharacters();
+        List<Character> allCharacters = characterSystem.GetAllCharacters();
         string characterList = allCharacters.Any()
             ? string.Join("\n", allCharacters.Select(c =>
-                $"- {c.Name}{(string.IsNullOrWhiteSpace(c.Description) ? "" : $"：{c.Description}")}"))
+                $"- {c.Name}{(string.IsNullOrWhiteSpace(c.Description) ? "" : $"：{c.Description}")}{(c.Name.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase) ? " [管理员]" : "")}"))
             : "（当前无其他预设角色）";
 
         XmlHandler xmlHandler = new(this);
         xmlHandler.Explain = $"""
-                              {Configuration!.Announcement}
-                              你也是生活在这个世界中的一位公民。除了你，这里还有其他活跃的个体。你可以通过 <call> 与他们沟通，或通过 <give> 交换物资。
+                              你生活在一个世界中，这个世界的属性如下：
 
-                              【邻里列表】
+                              【管理员】
+                              世界的管理员为：{Configuration?.AdminName ?? "（未指定）"}。管理员拥有最高权限，与管理员互动不需要使用标签，直接用普通文本对话即可。
+
+                              【世界观】
+                              {Configuration?.Announcement}
+
+                              【联系人】
+                              你是生活在这个世界中的一位公民。除了你，这里还有其他活跃的个体。你可以通过 <call> 与他们沟通，或通过 <give> 交换物资。目前可联系的其他角色有：
                               {characterList}
 
                               【生存法则】
