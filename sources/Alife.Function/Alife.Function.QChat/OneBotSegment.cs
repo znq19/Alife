@@ -7,6 +7,68 @@ namespace Alife.Function.QChat;
 /// </summary>
 public static class OneBotSegment
 {
+    /// <summary>
+    /// 检查消息是否提到特定的 QQ 号
+    /// </summary>
+    public static long? GetAtID(this OneBotMessageEvent message)
+    {
+        Match match = Regex.Match(message.RawMessage, @"\[CQ:at,id=(?<id>-?\d+)");
+        if (match.Success == false) return null;
+        if (long.TryParse(match.Groups["id"].Value, out long id))
+            return id;
+        return null;
+    }
+    /// <summary>
+    /// 提取消息中的回复消息 ID（如果存在）。
+    /// </summary>
+    public static long? GetReplyId(this OneBotMessageEvent message)
+    {
+        Match match = Regex.Match(message.RawMessage, @"\[CQ:reply,id=(?<id>-?\d+)");
+        if (match.Success == false) return null;
+        if (long.TryParse(match.Groups["id"].Value, out long id))
+            return id;
+        return null;
+    }
+
+    public static bool HasFile(this OneBotMessageEvent message)
+    {
+        return message.RawMessage.Contains("[CQ:file");
+    }
+    /// <summary>
+    /// 尝试从消息中提取 CQ 码中的 file_id
+    /// </summary>
+    public static string? GetFileId(this OneBotMessageEvent message)
+    {
+        Match match = Regex.Match(message.RawMessage, @"\[CQ:file,.*?file_id=(?<id>[^,\]]+)");
+        if (match.Success == false) return null;
+        return match.Groups["id"].Value;
+    }
+    public static string? GetFileName(this OneBotMessageEvent message)
+    {
+        Match match = Regex.Match(message.RawMessage, @"file=(?<name>[^,\]]+)");
+        if (match.Success == false) return null;
+        return match.Groups["name"].Value;
+    }
+    public static long? GetFileSize(this OneBotMessageEvent message)
+    {
+        Match match = Regex.Match(message.RawMessage, @"file_size=(?<size>\d+)");
+        if (match.Success == false) return null;
+        if (long.TryParse(match.Groups["size"].Value, out long result))
+            return result;
+        return null;
+    }
+    /// <summary>
+    /// 从消息中提取所有图片 URL
+    /// </summary>
+    public static List<string> GetImageUrls(this OneBotMessageEvent message)
+    {
+        List<string> urls = new();
+        MatchCollection matches = Regex.Matches(message.RawMessage, @"\[CQ:image,.*?url=(?<url>http[s]?://[^,\]]+)");
+        foreach (Match match in matches)
+            urls.Add(match.Groups["url"].Value);
+        return urls;
+    }
+
     public static string GetSourceTag(this OneBotMessageEvent message)
     {
         string groupLabel = $"{message.GroupId}({message.GroupName})";
@@ -16,126 +78,51 @@ public static class OneBotSegment
             : $"[私聊 {sayerLabel}]";
         return source;
     }
-    public static async Task<string> GetPlainMessage(this OneBotMessageEvent message, OneBotClient oneBotClient)
+    public static async Task<string> GetReadableMessage(this OneBotMessageEvent messageEvent, OneBotClient oneBotClient)
     {
         //解读引用文本
-        string rawMessage = message.RawMessage;
-        long? replyId = GetReplyId(rawMessage);
+        string message = messageEvent.RawMessage;
+        long? replyId = GetReplyId(messageEvent);
         if (replyId != null)
         {
             OneBotMessageEvent? quoted = await oneBotClient.GetMessage(replyId.Value);
             string quotedText = quoted != null
-                ? $"[回复 {quoted.UserId} 的消息: {ToPlainText(quoted.RawMessage)}]"
+                ? $"[回复 {quoted.UserId} 的消息: {GetPlainText(quoted.RawMessage)}]"
                 : "[回复其他消息]";
-            rawMessage = ReplaceReply(rawMessage, quotedText);
+            message = ReplaceReply(message, quotedText);
         }
 
         //解读@消息
-        return rawMessage;
+        long? id = GetAtID(messageEvent);
+        if (id == null)
+        {
+            message = ReplaceAt(message, oneBotClient.BotId);
+        }
+
+
+        return message;
     }
 
-    /// <summary>
-    /// 检查消息是否提到特定的 QQ 号
-    /// </summary>
-    public static bool IsAtMe(this OneBotMessageEvent message, long selfId)
-    {
-        return message.RawMessage.Contains($"[CQ:at,qq={selfId}]") || message.RawMessage.Contains($"[CQ:at,qq={selfId},");
-    }
-
-    /// <summary>
-    /// 将 [CQ:at,qq=...] 替换为可读的 @标记。
-    /// </summary>
-    public static string ReplaceAt(string message, long botId)
-    {
-        message = message.Replace($"[CQ:at,qq={botId}]", "@我");
-        return Regex.Replace(message, @"\[CQ:at,qq=(?<qq>\d+)[^\]]*\]", "@${qq}");
-    }
-    public static bool IsFile(string message)
-    {
-        return message.Contains("[CQ:file");
-    }
-
-    /// <summary>
-    /// 提取消息中的回复消息 ID（如果存在）。
-    /// </summary>
-    public static long? GetReplyId(string message)
-    {
-        Match match = Regex.Match(message, @"\[CQ:reply,id=(?<id>-?\d+)");
-        if (match.Success == false) return null;
-        if (long.TryParse(match.Groups["id"].Value, out long id))
-            return id;
-        return null;
-    }
 
     /// <summary>
     /// 将 [CQ:reply,...] 替换为可读文本。
     /// </summary>
-    public static string ReplaceReply(string message, string replacement)
+    static string ReplaceReply(string message, string replacement)
     {
         return Regex.Replace(message, @"\[CQ:reply[^\]]*\]", replacement);
     }
-
     /// <summary>
-    /// 尝试从消息中提取 CQ 码中的 file_id
+    /// 将 [CQ:at,qq=...] 替换为可读的 @标记。
     /// </summary>
-    public static string? GetFileId(string message)
+    static string ReplaceAt(string message, long botId)
     {
-        Match match = Regex.Match(message, @"\[CQ:file,.*?file_id=(?<id>[^,\]]+)");
-        if (match.Success == false) return null;
-        return match.Groups["id"].Value;
+        message = message.Replace($"[CQ:at,qq={botId}]", "@我");
+        return Regex.Replace(message, @"\[CQ:at,qq=(?<qq>\d+)[^\]]*\]", "@${qq}");
     }
-    public static string? GetFileName(string message)
-    {
-        Match match = Regex.Match(message, @"file=(?<name>[^,\]]+)");
-        if (match.Success == false) return null;
-        return match.Groups["name"].Value;
-    }
-    public static long GetFileSize(string message)
-    {
-        Match match = Regex.Match(message, @"file_size=(?<size>\d+)");
-        if (match.Success == false) return -1;
-        if (long.TryParse(match.Groups["size"].Value, out long result))
-            return result;
-        return -1;
-    }
-
-
-    /// <summary>
-    /// 构造 At 消息片段
-    /// </summary>
-    public static string At(long userId) => $"[CQ:at,qq={userId}]";
-
-    /// <summary>
-    /// 构造表情片段
-    /// </summary>
-    public static string Face(int id) => $"[CQ:face,id={id}]";
-
-    /// <summary>
-    /// 构造图片片段
-    /// </summary>
-    public static string Image(string file) => $"[CQ:image,file={file}]";
-
-
-    /// <summary>
-    /// 从消息中提取所有图片 URL
-    /// </summary>
-    public static List<string> ExtractImageUrls(string message)
-    {
-        var urls = new List<string>();
-        if (string.IsNullOrEmpty(message)) return urls;
-
-        var matches = Regex.Matches(message, @"\[CQ:image,.*?url=(?<url>http[s]?://[^,\]]+)");
-        foreach (Match match in matches)
-        {
-            urls.Add(match.Groups["url"].Value);
-        }
-        return urls;
-    }
-
     /// <summary>
     /// 转换为纯文本（移除或替换 CQ 码）
     /// </summary>
-    public static string ToPlainText(string message)
+    static string GetPlainText(string message)
     {
         if (string.IsNullOrEmpty(message)) return string.Empty;
         // 移除所有 CQ 码，保留文本部分

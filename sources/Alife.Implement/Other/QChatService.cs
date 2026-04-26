@@ -23,12 +23,6 @@ public record QChatConfig
     public bool CloseGroupAfterFlush { get; set; }
     public float AutoCloseMinutes { get; set; } = 7f;
 }
-[Plugin("QQ聊天", """
-                连接 OneBot v1 1WebSocket 服务器，实现 QQ 消息收发及文件传输。
-                可用于搭建服务器QQ机器人平台应用：
-                - https://napneko.github.io/
-                - https://luckylillia.com/
-                """, editorUI: typeof(QChatServiceUI))]
 public class GroupInfo
 {
     public bool IsEnabled { get; set; }
@@ -36,6 +30,12 @@ public class GroupInfo
     public DateTime LastBufferedTime { get; set; }
     public List<string> MessageBuffer { get; set; } = [];
 }
+[Plugin("QQ聊天", """
+                连接 OneBot v11 WebSocket 服务器，实现 QQ 消息收发及文件传输。
+                可用于搭建服务器QQ机器人平台应用：
+                - https://napneko.github.io/
+                - https://luckylillia.com/
+                """, editorUI: typeof(QChatServiceUI))]
 public class QChatService :
     InteractivePlugin<QChatService>,
     IAsyncDisposable,
@@ -158,8 +158,7 @@ public class QChatService :
     public QChatConfig? Configuration { get; set; }
 
     public bool IsConnected => oneBotClient is { IsConnected: true };
-    public IReadOnlyDictionary<long, bool> GroupStates => groupEnabled;
-    public int BufferedMessageCount => bufferedMessageCount;
+    public IReadOnlyDictionary<long, GroupInfo> GroupStates => groupInfos;
 
     public async Task ReconnectAsync()
     {
@@ -252,73 +251,71 @@ public class QChatService :
 
     void ITimeIterative.OnUpdate(ref float seconds)
     {
-        //推送缓存消息
-        bool shouldFlush = (DateTime.Now - lastBufferedTime).TotalSeconds > Configuration!.FlushInterval;
-        if (shouldFlush) FlushMessageBuffer();
-
-        //自动关闭群聊
-        foreach ((long group, bool enabled) in groupEnabled)
+        // 自动推送消息
+        foreach (GroupInfo info in groupInfos.Values)
         {
-            if (enabled && DateTime.Now - groupActivityTime.GetValueOrDefault(group) > TimeSpan.FromMinutes(Configuration.AutoCloseMinutes))
+            if (info.MessageBuffer.Count == 0)
+                continue;
+            if ((DateTime.Now - info.LastBufferedTime).TotalSeconds < Configuration!.FlushInterval)
+                return; // 防抖：距上次缓存时间超过间隔才推送
+
+            FlushGroupBuffer(info);
+        }
+
+        // 自动关闭群聊
+        foreach ((long groupId, GroupInfo info) in groupInfos)
+        {
+            if (info.IsEnabled && (DateTime.Now - info.LastActivityTime).TotalMinutes > Configuration!.AutoCloseMinutes)
             {
-                QGroup(group, false);
-                Poke($"由于长时间没有发言，群 {group} 消息已关闭。");
+                info.IsEnabled = false;
+                Poke($"由于长时间没有发言，群 {groupId} 消息已关闭。");
             }
         }
     }
 
     async Task HandleEvent(OneBotBaseEvent e)
     {
-        if (e is not OneBotMessageEvent msg)
+        if (e is not OneBotMessageEvent messageEvent)
             return;
 
-        string rawMessage = msg.RawMessage;
-
-
-        // 单独处理文件消息
-        if (OneBotSegment.IsFile(rawMessage))
-        {
-            await HandleFileMessage(msg);
-        }
-        else { }
-    }
-    async Task HandleFileMessage(OneBotMessageEvent messageEvent)
-    {
-        string message = messageEvent.RawMessage;
-        long groupId = messageEvent.GroupId;
-        long userId = messageEvent.UserId;
-        string? fileId = OneBotSegment.GetFileId(message);
-        if (fileId == null) return;
-        string? fileName = OneBotSegment.GetFileName(message);
-        if (fileName == null) return;
-        long fileSize = OneBotSegment.GetFileSize(message);
-        if (fileSize == -1) return;
-
-        string source = groupId != 0 ? $"[群聊 {groupId}, 发言人 {userId}]" : $"[私聊 {userId}]";
-
-        if (groupId != 0)
-        {
-            OneBotFile? info = await oneBotClient.GetGroupFileUrl(groupId, fileId);
-            string? downloadUrl = info?.Url;
-            Poke($"收到来自 {source} 的文件通知: {fileName} (大小: {fileSize} 字节)。" +
-                 $"URL 为: {downloadUrl}");
-        }
+        string formatted;
+        if (messageEvent.HasFile())
+            formatted = await ParseFileMessage(messageEvent);
         else
-        {
-            OneBotFile? info = await oneBotClient.GetPrivateFile(fileId);
-            if (info != null)
-            {
-                Poke($"收到来自 {source} 的文件通知: {fileName} (大小: {fileSize} 字节)。" +
-                     $"已保存到: {info.Path}");
-            }
-        }
+            formatted = await ParseNormalMessage(messageEvent);
+
+        await HandleFormattedMessage(messageEvent, formatted);
     }
-    async Task HandleNormalMessage(OneBotMessageEvent messageEvent)
+    async Task<string> ParseFileMessage(OneBotMessageEvent messageEvent)
+    {
+        string formatted = await ParseNormalMessage(messageEvent);
+
+        string? fileId = messageEvent.GetFileId();
+        if (fileId == null) return formatted;
+        string? fileName = messageEvent.GetFileName();
+        if (fileName == null) return formatted;
+        long? fileSize = messageEvent.GetFileSize();
+        if (fileSize == null) return formatted;
+
+        long groupId = messageEvent.GroupId;
+        OneBotFile? fileInfo = groupId != 0
+            ? await oneBotClient.GetGroupFileUrl(groupId, fileId)
+            : await oneBotClient.GetPrivateFile(fileId);
+        if (fileInfo == null)
+            return formatted;
+
+        string downloadUrl = fileInfo.Url;
+        return $"{formatted} 附带文件：{fileName} (大小：{fileSize} 字节；地址：{downloadUrl})";
+    }
+    async Task<string> ParseNormalMessage(OneBotMessageEvent messageEvent)
     {
         string source = messageEvent.GetSourceTag();
-        string message = await messageEvent.GetPlainMessage(oneBotClient);
+        string message = await messageEvent.GetReadableMessage(oneBotClient);
         string formatted = $"{source} {message}";
-
+        return formatted;
+    }
+    async Task HandleFormattedMessage(OneBotMessageEvent messageEvent, string formatted)
+    {
         if (messageEvent.MessageType == OneBotMessageType.Private) //私聊消息
         {
             if (messageEvent.UserId == Configuration!.OwnerId)
@@ -328,77 +325,70 @@ public class QChatService :
         }
         else //群聊消息
         {
+            GroupInfo info = GetGroupInfo(messageEvent.GroupId);
+
             // 检查是否被 @ 或匹配唤醒词
-            bool isAwakening = messageEvent.IsAtMe(oneBotClient.BotId) ||
-                               groupAwakingWords.Any(word => messageEvent.RawMessage.Contains(word));
-            if (isAwakening && groupEnabled.GetValueOrDefault(messageEvent.GroupId) == false)
+            bool isAwakening = messageEvent.GetAtID() == oneBotClient.BotId ||
+                               groupAwakingWords.Any(word => messageEvent.RawMessage.Contains(word, StringComparison.OrdinalIgnoreCase));
+            if (isAwakening && info.IsEnabled == false)
             {
-                QGroup(messageEvent.GroupId, true);
+                info.IsEnabled = true;
+                info.LastActivityTime = DateTime.Now;
                 Poke($"由 @ 引发的群 {messageEvent.GroupId} 消息已开启");
             }
 
-            if (groupEnabled.GetValueOrDefault(messageEvent.GroupId)) //群聊已激活时
+            if (info.IsEnabled) //群聊已激活时
             {
-                BufferMessage(formatted);
+                BufferMessage(info, formatted);
             }
             else //群聊未激活时
             {
                 if (Random.Shared.NextSingle() < Configuration!.ProactiveChatProbability)
                 {
-                    BufferMessage(formatted);
-                    FlushMessageBuffer();
+                    BufferMessage(info, formatted);
+                    FlushGroupBuffer(info);
                 }
             }
         }
     }
 
-    void BufferMessage(string formatted)
+    void BufferMessage(GroupInfo info, string formatted)
     {
-        bool shouldFlush;
-        lock (messageBuffers)
-        {
-            messageBuffers.AppendLine(formatted);
-            bufferedMessageCount++;
-            lastBufferedTime = DateTime.Now;
-            shouldFlush = Configuration!.MaxBufferMessages > 0 && bufferedMessageCount >= Configuration.MaxBufferMessages;
-        }
-        if (shouldFlush)
-            FlushMessageBuffer();
+        info.MessageBuffer.Add(formatted);
+        info.LastBufferedTime = DateTime.Now;
+        if (Configuration!.MaxBufferMessages > 0 && info.MessageBuffer.Count >= Configuration.MaxBufferMessages)
+            FlushGroupBuffer(info);
     }
-    void FlushMessageBuffer()
+    void FlushGroupBuffer(GroupInfo info)
     {
-        string? cachedMessage;
-        lock (messageBuffers)
-        {
-            cachedMessage = messageBuffers.ToString();
-            messageBuffers.Clear();
-            bufferedMessageCount = 0;
-        }
-        if (string.IsNullOrEmpty(cachedMessage))
+        if (info.MessageBuffer.Count == 0)
             return;
+        string cachedMessage = string.Join("\n", info.MessageBuffer);
+        info.MessageBuffer.Clear();
         if (string.IsNullOrWhiteSpace(Configuration?.GroupChatPrompt) == false)
             cachedMessage += $"\n({Configuration.GroupChatPrompt})";
+
         Poke(cachedMessage);
 
         if (Configuration?.CloseGroupAfterFlush == true)
-        {
-            foreach (long group in groupEnabled.Keys.ToList())
-                groupEnabled[group] = false;
-        }
+            info.IsEnabled = false;
     }
     void OnAIGroupActivity(long groupID)
     {
-        if (groupEnabled.GetValueOrDefault(groupID) == false)
-            QGroup(groupID, true);
-        else
-            groupActivityTime[groupID] = DateTime.Now;
+        GroupInfo info = GetGroupInfo(groupID);
+        info.LastActivityTime = DateTime.Now;
+        if (info.IsEnabled == false)
+        {
+            info.IsEnabled = true;
+            Poke($"群 {groupID} 消息已开启");
+        }
     }
     void QGroup(long groupID, bool enabled)
     {
+        GroupInfo info = GetGroupInfo(groupID);
+        info.IsEnabled = enabled;
         if (enabled)
-            groupActivityTime[groupID] = DateTime.Now;
-
-        groupEnabled[groupID] = enabled;
+            info.LastActivityTime = DateTime.Now;
         Poke($"群 {groupID} 消息已{(enabled ? "开启" : "关闭")}");
     }
 
