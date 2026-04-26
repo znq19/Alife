@@ -1,12 +1,12 @@
 using System.ComponentModel;
 using Alife.Framework;
 using Alife.Function.Interpreter;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Alife.Implement;
 
 public class VirtualWorldConfig
 {
+    public string AdminName { get; set; } = "管理员";
     public string Announcement { get; set; } =
         """
         这个世界遵循与现实世界一致的物理定律、法律规范 and 经济逻辑。
@@ -27,7 +27,7 @@ public class VirtualWorldConfig
         如果这个世界有 银行/福利机构 等公共设施，可以每天申请 20 元的经济补贴。
         """;
 }
-[Plugin("世界服务", "提供世界观说明以及角色间的通讯交互功能。")]
+[Plugin("世界全局设定", "定义整个运行环境的基础世界观、物理定律与全局公告。此配置通常作为所有角色的通用背景。")]
 public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
 {
     [XmlFunction("call")]
@@ -126,7 +126,6 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     {
         await base.AwakeAsync(context);
         currentName = context.character.Name;
-        adminName = (GlobalConfig)context.services.GetRequiredService<ConfigurationSystem>().GetConfiguration(typeof(GlobalConfig));
 
         List<Character> allCharacters = characterSystem.GetAllCharacters();
         string characterList = allCharacters.Any()
@@ -159,6 +158,5 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     readonly InterpreterService interpreterService;
     readonly CharacterSystem characterSystem;
     readonly ChatActivitySystem chatActivitySystem;
-    string adminName;
     string currentName = "";
 }
