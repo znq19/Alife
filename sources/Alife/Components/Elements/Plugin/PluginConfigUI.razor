@@ -3,7 +3,7 @@
 @inject ConfigurationSystem ConfigurationSystem
 
 <div style="display: flex; flex-direction: column; gap: 16px;">
-    @if (customUIType != null)
+    @if (customUIType != null && customUIParameters.Count > 0)
     {
         <DynamicComponent Type="customUIType" Parameters="customUIParameters"/>
     }
@@ -46,7 +46,7 @@
         }
     }
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
         var attr = PluginType.GetCustomAttribute<PluginAttribute>();
         pluginConfiguration = ConfigurationSystem.GetConfigurationJson(PluginType)?.ToString(Formatting.Indented) ?? "{}";
@@ -61,6 +61,9 @@
                 { "ConfigSaveUI", CreateConfigSaveUI() }
             };
         }
-    }
+        else
+        {
+            customUIType = null;
+        }
     }
 }

@@ -13,6 +13,6 @@ public abstract class PluginUIBase : ComponentBase
     [Parameter] public ChatActivity? ChatActivity { get; set; } //当前关联的运行活动（如果有）。
     [Parameter] public Plugin? Plugin { get; set; }
 
-    [Parameter] public RenderFragment DefaultUI { get; set; } = null!;
-    [Parameter] public RenderFragment<(object Config, Action<object> OnChanged)> ConfigSaveUI { get; set; } = null!;
+    [Parameter] public RenderFragment DefaultUI { get; set; } = _ => { };
+    [Parameter] public RenderFragment<(object Config, Action<object> OnChanged)> ConfigSaveUI { get; set; } = _ => _ => { };
 }

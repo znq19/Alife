@@ -25,9 +25,9 @@
 
         <GridRow Gutter="16">
             <GridCol Span="12">
-                <FormItem Label="记忆留存概率 (Probability)">
+                <FormItem Label="压缩触发率 (Probability)">
                     <AntDesign.InputNumber @bind-Value="@config.Probability" Min="0f" Max="1f" Step="0.1f" Style="width: 100%;"/>
-                    <Text Type="TextElementType.Secondary" Style="font-size: 11px;">数值越高，记忆越细致（但也更占空间）</Text>
+                    <Text Type="TextElementType.Secondary" Style="font-size: 11px;">扰动压缩时机，避免连续压缩过于影响互动感</Text>
                 </FormItem>
             </GridCol>
             <GridCol Span="12">

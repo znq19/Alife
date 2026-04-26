@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Alife.Implement;
 
 [Plugin("角色通讯", "允许 AI 在多个角色之间进行实时对话。你可以联系任何系统内的角色，即便对方暂未开启，系统也会告知状态。")]
-public class CharacterCommunicationService : InteractivePlugin<CharacterCommunicationService>
+public class LiaisonService : InteractivePlugin<LiaisonService>
 {
     [XmlFunction("call")]
     [Description("与指定的角色对话。")]
@@ -86,7 +86,7 @@ public class CharacterCommunicationService : InteractivePlugin<CharacterCommunic
         }
     }
 
-    public CharacterCommunicationService(
+    public LiaisonService(
         InterpreterService interpreterService,
         CharacterSystem characterSystem,
         ChatActivitySystem chatActivitySystem)
@@ -110,7 +110,7 @@ public class CharacterCommunicationService : InteractivePlugin<CharacterCommunic
 
         XmlHandler xmlHandler = new(this);
         xmlHandler.Explain = $"""
-                              你生活的世界除了你还有些其他人，可以通过 <call> 与他们对话，或使用 <give> 交换东西。
+                              你也是生活在世界中的一位公民，这个世界除了你还有些其他人。你可以通过 <call> 与他们对话，或使用 <give> 交换东西。
 
                               你当前可以联系其他人有：
                               {characterList}
