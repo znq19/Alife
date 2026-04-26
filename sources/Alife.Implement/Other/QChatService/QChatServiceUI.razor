@@ -93,7 +93,9 @@
                                                     }
                                                     <Tag Color="TagColor.Orange">
                                                         <Icon Type="@IconType.Outline.ClockCircle"/>
-                                                        @(state.IsEnabled ? $"下次推送: {remaining:F1}s" : "休眠中")
+                                                        @(state.IsEnabled || state.MessageBuffer.Count != 0
+                                                            ? $"下次推送: {Math.Ceiling(Math.Max(0, remaining))}s"
+                                                            : "休眠中")
                                                     </Tag>
                                                 </SpaceItem>
                                             </Space>
@@ -226,7 +228,7 @@
                 </GridCol>
                 <GridCol Span="12">
                     <FormItem Label="回复后自动停用">
-                        <Switch @bind-Value="@config.CloseGroupAfterFlush"/>
+                        <Switch @bind-Value="@config.CloseGroupAfterReply"/>
                         <br/>
                         <Text Type="TextElementType.Secondary" Style="font-size: 11px;">
                             单次回复后自动进入非激活状态（适合低频互动）
@@ -286,16 +288,16 @@
         config.FlushInterval = 15f;
         config.MaxBufferMessages = 0;
         config.ProactiveChatProbability = 0;
-        config.CloseGroupAfterFlush = false;
+        config.CloseGroupAfterReply = false;
     }
 
     void ApplyGroupChatPreset()
     {
         config.DebounceEnabled = true;
-        config.FlushInterval = 2f;
+        config.FlushInterval = 3f;
         config.MaxBufferMessages = 5;
         config.ProactiveChatProbability = 0.1f;
-        config.CloseGroupAfterFlush = true;
+        config.CloseGroupAfterReply = true;
     }
 
     async Task Reconnect()

@@ -63,8 +63,7 @@
 
     protected override void OnParametersSet()
     {
-        if (ChatActivity != null)
-            Plugin = ChatActivity.PluginService.GetService(PluginType) as Plugin;
+        Plugin = ChatActivity?.PluginService.GetService(PluginType) as Plugin;
 
         LoadConfiguration();
     }

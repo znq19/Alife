@@ -20,11 +20,12 @@ public record QChatConfig
     public string WakingWords { get; set; } = "";
     public float ProactiveChatProbability { get; set; }
     public string GroupChatPrompt { get; set; } = "注意不要刷屏，选择性回复重要消息，保持简洁随性口语化。";
-    public bool CloseGroupAfterFlush { get; set; }
+    public bool CloseGroupAfterReply { get; set; }
     public float AutoCloseMinutes { get; set; } = 7f;
 }
 public class GroupState
 {
+    public long Id { get; set; }
     public bool IsEnabled { get; set; }
     public DateTime LastActivityTime { get; set; }
     public DateTime LastFlushedTime { get; set; }
@@ -264,7 +265,7 @@ public class QChatService :
         {
             if (info.IsEnabled && (DateTime.Now - info.LastActivityTime).TotalMinutes > Configuration!.AutoCloseMinutes)
             {
-                info.IsEnabled = false;
+                QGroup(groupId, false);
                 Poke($"由于长时间没有发言，群 {groupId} 消息已关闭。");
             }
         }
@@ -296,23 +297,16 @@ public class QChatService :
                 bool isAwakening = messageEvent.GetAtID() == oneBotClient.BotId ||
                                    groupAwakingWords.Any(word => messageEvent.RawMessage.Contains(word, StringComparison.OrdinalIgnoreCase));
                 if (isAwakening && state.IsEnabled == false)
-                {
-                    state.IsEnabled = true;
-                    state.LastActivityTime = DateTime.Now;
-                    Poke($"由 @ 引发的群 {messageEvent.GroupId} 消息已开启");
-                }
+                    QGroup(messageEvent.GroupId, true);
 
-                if (state.IsEnabled) //群聊已激活时
+                if (state.IsEnabled) //群聊已激活时（直接接收）
                 {
                     BufferGroupMessage(state, formatted);
                 }
-                else //群聊未激活时
+                else if (Random.Shared.NextSingle() < Configuration!.ProactiveChatProbability) //群聊未激活时（概率接收）
                 {
-                    if (Random.Shared.NextSingle() < Configuration!.ProactiveChatProbability)
-                    {
-                        BufferGroupMessage(state, formatted);
-                        FlushGroupBuffer(state);
-                    }
+                    BufferGroupMessage(state, formatted);
+                    state.LastFlushedTime = DateTime.Now;
                 }
             }
         }
@@ -338,19 +332,16 @@ public class QChatService :
             cachedMessage += $"\n({Configuration.GroupChatPrompt})";
 
         Poke(cachedMessage);
-
-        if (Configuration?.CloseGroupAfterFlush == true)
-            state.IsEnabled = false;
     }
     void OnAIGroupActivity(long groupID)
     {
         GroupState state = GetGroupInfo(groupID);
         state.LastActivityTime = DateTime.Now;
-        if (state.IsEnabled == false)
-        {
-            state.IsEnabled = true;
-            Poke($"群 {groupID} 消息已开启");
-        }
+
+        if (Configuration!.CloseGroupAfterReply)
+            QGroup(groupID, false);
+        else if (state.IsEnabled == false)
+            QGroup(groupID, true);
     }
     public void QGroup(long groupID, bool enabled)
     {
@@ -366,14 +357,17 @@ public class QChatService :
             state.MessageBuffer.Clear();
         }
 
-        Poke($"系统通知：群 {groupID} 消息已{(enabled ? "开启" : "关闭（本条消息不要回复）")}");
+        if (Configuration!.CloseGroupAfterReply == false) //即使关闭模式
+            Poke($"系统通知：群 {groupID} 消息已{(enabled ? "开启" : "关闭")}（不要回复此消息）");
     }
 
     GroupState GetGroupInfo(long groupID)
     {
         if (groupStates.TryGetValue(groupID, out GroupState? groupInfo) == false)
         {
-            groupInfo = new GroupState();
+            groupInfo = new GroupState() {
+                Id = groupID,
+            };
             groupStates[groupID] = groupInfo;
         }
         return groupInfo;

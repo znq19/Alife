@@ -42,7 +42,7 @@ public abstract class InteractivePlugin : Plugin
             DateTime startTime = DateTime.Now;
             while (!token.IsCancellationRequested)
             {
-                await Task.Delay(1000, token);
+                await Task.Delay((int)(handler.DeltaTime * 1000), token);
                 float seconds = (float)(DateTime.Now - startTime).TotalSeconds;
                 handler.OnUpdate(ref seconds);
                 startTime = DateTime.Now - TimeSpan.FromSeconds(seconds);
