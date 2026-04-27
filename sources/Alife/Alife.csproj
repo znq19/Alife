@@ -1,12 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
@@ -17,9 +16,9 @@
 
   <ItemGroup>
     <PackageReference Include="AntDesign" Version="1.6.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,10 +26,4 @@
     <ProjectReference Include="..\Alife.Implement\Alife.Implement.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Remove="guess_qq1.png" />
-    <None Remove="guess1.png" />
-    <None Remove="cat.png" />
-  </ItemGroup>
-  
 </Project>
