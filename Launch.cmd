@@ -21,7 +21,7 @@ if /i "!install!" neq "y" (
 )
 
 echo [Info] Downloading Python...
-powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe' -OutFile '%TEMP%\python_installer.exe'"
+powershell -Command "Invoke-WebRequest -Uri 'https://repo.huaweicloud.com/python/3.12.10/python-3.12.10-amd64.exe' -OutFile '%TEMP%\python_installer.exe'"
 
 echo [Info] Installing Python...
 start /wait "" "%TEMP%\python_installer.exe" /quiet PrependPath=1

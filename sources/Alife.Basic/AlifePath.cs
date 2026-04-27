@@ -49,12 +49,12 @@ public static class AlifePath
 
     static AlifePath()
     {
-        OutputsFolderPath = AppContext.BaseDirectory;
+        OutputsFolderPath = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
-        string configPath = Path.Combine(AppContext.BaseDirectory, "storage_path.txt");
+        string configPath = Path.Combine(OutputsFolderPath, "storage_path.txt");
         StorageFolderPath = File.Exists(configPath)
             ? File.ReadAllText(configPath).Trim()
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Alife").Replace(Path.DirectorySeparatorChar, '/');
+            : Path.Combine(Path.GetDirectoryName(OutputsFolderPath)!, "Storage");
         Directory.CreateDirectory(StorageFolderPath);
 
         TempFolderPath = Path.Combine(Path.GetTempPath(), "Alife");
