@@ -51,11 +51,6 @@ public partial class PythonService
                 process.Kill();
         }
     }
-
-    static PythonService()
-    {
-        AlifeCommand.EnsureInitialized();
-    }
 }
 [Plugin("Python工具", "借助Python，让AI几乎可以执行任何任务！")]
 [Description(@"此服务能让你获得执行python的能力，可用于文件管理、设备控制、网页爬取等各自复杂的自定义需求。

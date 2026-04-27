@@ -15,7 +15,8 @@ public partial class App
     {
         base.OnStartup(e);
 
-        AlifeCommand.EnsureInitialized();
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
 
         // Alife官方插件
         Assembly.Load("Alife.Implement");

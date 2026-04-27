@@ -30,7 +30,7 @@ public class SpeechRecognizer : IDisposable
     {
         //下载语音识别模型
         const string SenseVoiceId = "pengzhendong/sherpa-onnx-sense-voice-zh-en-ja-ko-yue";
-        string senseVoicePath = ModelDownloader.EnsureModel(SenseVoiceId);
+        string senseVoicePath = AlifeModel.EnsureModelExisting(SenseVoiceId);
         OfflineRecognizerConfig config = new();
         config.ModelConfig.SenseVoice.Model = Path.Combine(senseVoicePath, "model.int8.onnx");
         config.ModelConfig.SenseVoice.Language = "zh";
@@ -42,7 +42,7 @@ public class SpeechRecognizer : IDisposable
 
         //下载语音检测模型
         const string VadId = "pengzhendong/silero-vad";
-        string vadModelPath = ModelDownloader.EnsureModel(VadId, "silero_vad.onnx");
+        string vadModelPath = AlifeModel.EnsureModelExisting(VadId, "silero_vad.onnx");
         VadModelConfig vadConfig = new();
         vadConfig.SileroVad.Model = vadModelPath;
         vadConfig.SileroVad.Threshold = 0.5f;

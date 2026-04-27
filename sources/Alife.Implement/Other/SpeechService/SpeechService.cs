@@ -29,12 +29,12 @@ public partial class SpeechService : InteractivePlugin<SpeechService>, IAsyncDis
     [Description("使用语音的方式向用户发送消息。")]
     public async Task Say(XmlExecutorContext context, [XmlContent] string content)
     {
-        if (context.CallMode == CallMode.Opening)
-        {
-            //模拟断句说话
-            await Synthesizer.LastSpeaking;
-            return;
-        }
+        // if (context.CallMode == CallMode.Opening)
+        // {
+        //     //模拟断句说话
+        //     await Synthesizer.LastSpeaking;
+        //     return;
+        // }
 
         if (context.CallMode != CallMode.Content)
             return;

@@ -55,17 +55,7 @@ public class InterpreterService : InteractivePlugin<InterpreterService>
 
         //注入使用说明
         string prompt = $"""
-                         你可以通过输出特定的xml标签来实现功能调用。
-                         （注意，这些功能都是可选的，你需要根据情况判断要不要使用，默认情况下，你是可以将文本直接输出的）
-
-                         ## 支持的功能
-                         {handlerTable.Document()}
-
-                         ## 注意事项
-                         1. 分清开闭标签和自闭合标签，必须按文档的方式调用。
-                         2. 每次回复时，每种开闭标签只能调用一次，所以要把所有内容都放到一个区域中。
-                         3. 自闭合标签允许嵌套在开闭标签中，借此可以实现同时执行两种指令。
-                         4. 除非是需要调用指令，否则不能再使用xml符号，比如<,>，要用需要使用其他代词或转义。
+                         一般情况下你可以直接输出文本，但有时你也可以通过输出特定的xml标签来实现功能调用（有些特殊场景你也必须要使用标签回复）。
 
                          ## 示例用法
                          <say> <!-- 将说话内容放在的say区域中以实现说话输出。 -->
@@ -78,6 +68,15 @@ public class InterpreterService : InteractivePlugin<InterpreterService>
                          <python> <!-- 因为python执行需要时间，在结尾调用比较合适。 -->
                          print('Hello World!')
                          <python>
+
+                         ## 注意事项
+                         1. 分清开闭标签和自闭合标签，必须按文档的方式调用。
+                         2. 每次回复时，每种开闭标签只能调用一次，所以要把所有内容都放到一个区域中。
+                         3. 自闭合标签允许嵌套在开闭标签中，借此可以实现同时执行两种指令。
+                         4. 除非是需要调用指令，否则不能再使用xml符号，比如<,>，要用需要使用其他代词或转义。
+
+                         ## 目前支持的标签和说明文档
+                         {handlerTable.Document()}
                          """;
 
         chatActivity.ChatBot.ChatHistory.AddSystemMessage(prompt);

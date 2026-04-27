@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Alife.Basic;
 
 public static class AlifePath

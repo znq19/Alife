@@ -14,7 +14,7 @@ public class EventServiceData
     public int UpdateInterval { get; set; } = 90;
     public int UpdateRandomOffset { get; set; } = 30;
 }
-[Plugin("事件注入", "让AI可以获取到各种系统事件的提醒。", LaunchOrder = 1000, EditorUI = typeof(EventServiceUI))]
+[Plugin("主动事件", "让AI可以获取到各种系统事件的提醒。", LaunchOrder = 1000, EditorUI = typeof(EventServiceUI))]
 public class EventService : InteractivePlugin<EventService>, IConfigurable<EventServiceData>, ITimeIterative
 {
     [XmlFunction]
@@ -100,7 +100,7 @@ public class EventService : InteractivePlugin<EventService>, IConfigurable<Event
     }
     void OnChatSent(string message)
     {
-        if (message.Contains($"[{nameof(EventService)}]") == false)
+        if (message.Contains(ChatBot.PokeMessageTag) == false)
         {
             continuousTimerCount = 0;
             SetTimer(null); //重置自动报点

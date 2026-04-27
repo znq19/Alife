@@ -114,7 +114,7 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
                                  - 支持的 mtn（动作）：{supportedMotionsDescription}
                                  - 注意：如果要发送表情动作，一定要在说话之前，因为说话时会阻塞线程！
                               ## 位置移动
-                                 - 当前屏幕分辨率：{AlifeDevice.GetResolution()}
+                                 - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
                                  - 注意：移动是相对移动，如果要进行绝对移动，必须先确认自身位置！
                                  - 提示：可以用随机的相对移动，模拟出一些特殊反馈，比如假装跳舞。
                               """;

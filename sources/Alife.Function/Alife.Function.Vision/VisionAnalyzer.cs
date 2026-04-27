@@ -19,11 +19,11 @@ public class VisionAnalyzer : IDisposable
 
     public VisionAnalyzer(int timeoutSeconds = 120, Action<string>? onLog = null)
     {
-        AlifeCommand.Command("pip", "install torch torchvision --index-url https://download.pytorch.org/whl/cu121");
-        AlifeCommand.Command("pip", "install Pillow transformers timm einops");
+        AlifePlatform.Command("pip", "install torch torchvision --index-url https://download.pytorch.org/whl/cu121");
+        AlifePlatform.Command("pip", "install Pillow transformers timm einops");
 
         const string ModelId = "OpenGVLab/InternVL2_5-1B";
-        string modelPath = ModelDownloader.EnsureModel(ModelId);
+        string modelPath = AlifeModel.EnsureModelExisting(ModelId);
         string script = Path.Combine(AppContext.BaseDirectory, "vision_bridge.py");
         string arguments = $"\"{script}\" --model_path \"{modelPath}\"";
 

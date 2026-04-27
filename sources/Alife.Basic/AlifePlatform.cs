@@ -3,15 +3,15 @@ using System.Runtime.InteropServices;
 
 namespace Alife.Basic;
 
-public static class AlifeDevice
+public static class AlifePlatform
 {
     public static (int Width, int Height) GetResolution()
     {
         IntPtr hdc = GetDC(IntPtr.Zero); // 获取屏幕设备上下文
         try
         {
-            int width = GetDeviceCaps(hdc, DESKTOPHORZRES);
-            int height = GetDeviceCaps(hdc, DESKTOPVERTRES);
+            int width = GetDeviceCaps(hdc, Desktophorzres);
+            int height = GetDeviceCaps(hdc, Desktopvertres);
             return (width, height);
         }
         finally
@@ -57,13 +57,13 @@ public static class AlifeDevice
         process?.WaitForExit();
     }
 
-    const int DESKTOPHORZRES = 118;
-    const int DESKTOPVERTRES = 117;
+    const int Desktophorzres = 118;
+    const int Desktopvertres = 117;
 
     [DllImport("user32.dll")]
     static extern IntPtr GetDC(IntPtr hWnd);
     [DllImport("user32.dll")]
-    static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    static extern int ReleaseDC(IntPtr hWnd, IntPtr hDc);
     [DllImport("gdi32.dll")]
     static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
 }

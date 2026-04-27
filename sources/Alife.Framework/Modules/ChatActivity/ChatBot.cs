@@ -11,6 +11,7 @@ namespace Alife.Framework;
 public class ChatBot : IAsyncDisposable
 {
     public const string ThinkContentPrefix = "__THINK__";
+    public const string PokeMessageTag = "[系统通知]";
 
     public event Func<string, string>? ChatSend;
     public event Func<string, string>? PokeSend;
@@ -255,7 +256,7 @@ public class ChatBot : IAsyncDisposable
             }
 
             //发送消息
-            Chat(poke);
+            Chat(PokeMessageTag + poke);
         }
     }
 

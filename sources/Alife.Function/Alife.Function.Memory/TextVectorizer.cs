@@ -12,12 +12,12 @@ public class TextVectorizer
 {
     public TextVectorizer()
     {
-        string modelDir = ModelDownloader.EnsureModel("BAAI/bge-small-zh-v1.5");
+        string modelDir = AlifeModel.EnsureModelExisting("BAAI/bge-small-zh-v1.5");
         string modelPath = Path.Combine(modelDir, "model.onnx");
         string vocabPath = Path.Combine(modelDir, "vocab.txt");
 
         if (File.Exists(modelPath) == false && File.Exists(Path.Combine(modelDir, "model.safetensors")))
-            ModelDownloader.ConvertSafetensorsToOnnx(modelDir);
+            AlifeModel.ConvertSafetensorsToOnnx(modelDir);
 
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"ONNX 模型转换失败或未找到：{modelPath}");
