@@ -3,9 +3,9 @@ using Alife.Framework;
 using Alife.Implement;
 
 
-Terminal.Log("========================================", ConsoleColor.Magenta);
-Terminal.Log("   真央桌宠 AI 交互集成验证 Demo", ConsoleColor.Magenta);
-Terminal.Log("========================================", ConsoleColor.Magenta);
+AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
+AlifeTerminal.Log("   真央桌宠 AI 交互集成验证 Demo", ConsoleColor.Magenta);
+AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
 
 // 1. 配置演示角色
 var character = new Character {
@@ -22,10 +22,10 @@ var character = new Character {
 // 2. 初始化标准演示套件
 var suite = await DemoSuite.InitializeAsync(character);
 
-Terminal.LogInfo("提示：输入文字开始与真央交流，输入 'exit' 退出。所有的表情/动作指令将在日志中高亮显示。");
-Terminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
+AlifeTerminal.LogInfo("提示：输入文字开始与真央交流，输入 'exit' 退出。所有的表情/动作指令将在日志中高亮显示。");
+AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
 // 3. 运行交互循环
 await suite.RunAsync();
 
-Terminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
+AlifeTerminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);

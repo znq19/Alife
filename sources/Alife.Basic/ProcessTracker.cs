@@ -16,7 +16,7 @@ public static class ProcessTracker
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) == false) return;
         if (JobHandle == IntPtr.Zero) return;
 
-        AssignProcessToJobObject(JobHandle, process.Handle);
+        WindowsNative.AssignProcessToJobObject(JobHandle, process.Handle);
     }
 
     static readonly IntPtr JobHandle;
@@ -25,22 +25,22 @@ public static class ProcessTracker
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) == false) return;
 
-        JobHandle = CreateJobObject(IntPtr.Zero, null);
+        JobHandle = WindowsNative.CreateJobObject(IntPtr.Zero, null);
 
-        JobObjectBasicLimitInformation info = new() {
-            LimitFlags = 0x2000 // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        WindowsNative.JobObjectBasicLimitInformation info = new() {
+            LimitFlags = WindowsNative.JobObjectLimitKillOnJobClose
         };
 
-        JobObjectExtendedLimitInformation extendedInfo = new() {
+        WindowsNative.JobObjectExtendedLimitInformation extendedInfo = new() {
             BasicLimitInformation = info
         };
 
-        int length = Marshal.SizeOf(typeof(JobObjectExtendedLimitInformation));
+        int length = Marshal.SizeOf(typeof(WindowsNative.JobObjectExtendedLimitInformation));
         IntPtr extendedInfoPtr = Marshal.AllocHGlobal(length);
         try
         {
             Marshal.StructureToPtr(extendedInfo, extendedInfoPtr, false);
-            if (SetInformationJobObject(JobHandle, 9, extendedInfoPtr, (uint)length) == false)
+            if (WindowsNative.SetInformationJobObject(JobHandle, 9, extendedInfoPtr, (uint)length) == false)
             {
                 throw new Exception($"无法设置 Job Object 信息。错误代码: {Marshal.GetLastWin32Error()}");
             }
@@ -50,49 +50,4 @@ public static class ProcessTracker
             Marshal.FreeHGlobal(extendedInfoPtr);
         }
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct JobObjectBasicLimitInformation
-    {
-        public long PerProcessUserTimeLimit;
-        public long PerJobUserTimeLimit;
-        public uint LimitFlags;
-        public UIntPtr MinimumWorkingSetSize;
-        public UIntPtr MaximumWorkingSetSize;
-        public uint ActiveProcessLimit;
-        public long Affinitiy;
-        public uint PriorityClass;
-        public uint SchedulingClass;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct IoCounters
-    {
-        public ulong ReadOperationCount;
-        public ulong WriteOperationCount;
-        public ulong OtherOperationCount;
-        public ulong ReadTransferCount;
-        public ulong WriteTransferCount;
-        public ulong OtherTransferCount;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct JobObjectExtendedLimitInformation
-    {
-        public JobObjectBasicLimitInformation BasicLimitInformation;
-        public IoCounters IoCounters;
-        public UIntPtr ProcessMemoryLimit;
-        public UIntPtr JobMemoryLimit;
-        public UIntPtr PeakProcessMemoryLimit;
-        public UIntPtr PeakJobMemoryLimit;
-    }
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string? lpName);
-
-    [DllImport("kernel32.dll")]
-    static extern bool SetInformationJobObject(IntPtr hJob, int jobObjectInfoClass, IntPtr lpJobObjectInfo, uint cbJobObjectInfoLength);
-
-    [DllImport("kernel32.dll")]
-    static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
 }

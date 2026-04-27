@@ -1,4 +1,5 @@
 using System.IO;
+using Alife.Basic;
 
 namespace Alife.Function.DeskPet;
 

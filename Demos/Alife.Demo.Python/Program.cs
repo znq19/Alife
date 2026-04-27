@@ -3,9 +3,9 @@ using Alife.Framework;
 using Alife.Implement;
 
 
-Terminal.Log("========================================", ConsoleColor.Magenta);
-Terminal.Log("   真央 Python 脚本集成验证 Demo", ConsoleColor.Magenta);
-Terminal.Log("========================================", ConsoleColor.Magenta);
+AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
+AlifeTerminal.Log("   真央 Python 脚本集成验证 Demo", ConsoleColor.Magenta);
+AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
 
 // 1. 配置角色
 var character = new Character {
@@ -23,10 +23,10 @@ var character = new Character {
 // 2. 初始化套件
 var suite = await DemoSuite.InitializeAsync(character);
 
-Terminal.LogInfo("提示：您可以让真央为你写一段 Python 代码并执行。输入 'exit' 退出。");
-Terminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
+AlifeTerminal.LogInfo("提示：您可以让真央为你写一段 Python 代码并执行。输入 'exit' 退出。");
+AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
 // 3. 开启文字输入循环
 await suite.RunAsync();
 
-Terminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
+AlifeTerminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);

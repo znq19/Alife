@@ -32,88 +32,12 @@ public partial class VisionService : InteractivePlugin<VisionService>
         if (context.CallMode != CallMode.OneShot)
             return;
 
-        string screenshotPath = CaptureScreen();
+        string screenshotPath = AlifePlatform.Screenshot();
         Task<string> visionTask = Analyzer.QueryAsync(screenshotPath, query);
-        string windowInfo = GetRunningWindowTitles();
+        string windowInfo = AlifePlatform.GetRunningWindowTitles();
         string visionInfo = await visionTask;
 
         Poke($"窗口信息：{windowInfo}\n视觉分析结果：{visionInfo}");
-
-        string GetRunningWindowTitles()
-        {
-            List<string> titles = new();
-            IntPtr foregroundWnd = GetForegroundWindow();
-
-            EnumWindows((hWnd, _) => {
-                if (IsWindowVisible(hWnd))
-                {
-                    int length = GetWindowTextLength(hWnd);
-                    if (length > 0)
-                    {
-                        StringBuilder sb = new(length + 1);
-                        GetWindowText(hWnd, sb, sb.Capacity);
-                        string title = sb.ToString();
-                        if (string.IsNullOrWhiteSpace(title) == false && title != "Program Manager")
-                        {
-                            if (hWnd == foregroundWnd)
-                            {
-                                title = $"(聚焦) {title}";
-                            }
-                            titles.Add(title);
-                        }
-                    }
-                }
-                return true;
-            }, IntPtr.Zero);
-
-            return titles.Count > 0 ? string.Join(", ", titles) : "无可见窗口";
-        }
-        string CaptureScreen()
-        {
-            // 获取虚拟屏幕总尺寸（多显示器支持）
-            int left = GetSystemMetrics(SM_XVIRTUALSCREEN);
-            int top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-            int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-            int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-
-            if (width <= 0 || height <= 0)
-            {
-                // 回退到主屏幕
-                left = 0;
-                top = 0;
-                width = GetSystemMetrics(SM_CXSCREEN);
-                height = GetSystemMetrics(SM_CYSCREEN);
-            }
-
-            using Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-            using Graphics graphics = Graphics.FromImage(bitmap);
-            graphics.CopyFromScreen(left, top, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
-
-            // --- 压缩图片分辨率 (优化：限制最大边长为 512) ---
-            const int MaxSide = 512;
-            string path = $"{AlifePath.TempFolderPath}/vision_screen.png";
-
-            if (width > MaxSide || height > MaxSide)
-            {
-                float scale = Math.Min((float)MaxSide / width, (float)MaxSide / height);
-                int newWidth = (int)(width * scale);
-                int newHeight = (int)(height * scale);
-
-                using Bitmap resized = new Bitmap(newWidth, newHeight);
-                using (Graphics g = Graphics.FromImage(resized))
-                {
-                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    g.DrawImage(bitmap, 0, 0, newWidth, newHeight);
-                }
-                resized.Save(path, ImageFormat.Png);
-            }
-            else
-            {
-                bitmap.Save(path, ImageFormat.Png);
-            }
-
-            return path;
-        }
     }
 
     /// <summary>
@@ -166,32 +90,4 @@ public partial class VisionService : InteractivePlugin<VisionService>
         interpreterService.RegisterHandler(this);
     }
 
-    // ─────────────────────── Win32 PInvoke ───────────────────────
-
-    const int SM_CXSCREEN = 0;
-    const int SM_CYSCREEN = 1;
-    const int SM_XVIRTUALSCREEN = 76;
-    const int SM_YVIRTUALSCREEN = 77;
-    const int SM_CXVIRTUALSCREEN = 78;
-    const int SM_CYVIRTUALSCREEN = 79;
-
-    delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    static extern bool IsWindowVisible(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    static extern int GetWindowTextLength(IntPtr hWnd);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-    [DllImport("user32.dll")]
-    static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    static extern int GetSystemMetrics(int nIndex);
 }

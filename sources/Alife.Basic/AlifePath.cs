@@ -23,7 +23,7 @@ public static class AlifePath
                 current = Path.GetDirectoryName(current);
             if (current == null)
             {
-                Terminal.LogError("无法确定项目根目录位置！");
+                AlifeTerminal.LogError("无法确定项目根目录位置！");
                 throw new Exception("无法确定项目根目录位置！");
             }
 

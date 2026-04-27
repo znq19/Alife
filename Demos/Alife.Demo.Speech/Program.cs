@@ -16,7 +16,7 @@ Character character = new() {
 
 DemoSuite suite = await DemoSuite.InitializeAsync(character);
 
-Terminal.LogInfo("规则：插上耳机激活语音识别，拔掉耳机自动待机保护隐私。");
-Terminal.Log("----------------------------------------");
+AlifeTerminal.LogInfo("规则：插上耳机激活语音识别，拔掉耳机自动待机保护隐私。");
+AlifeTerminal.Log("----------------------------------------");
 
 await suite.RunAsync();

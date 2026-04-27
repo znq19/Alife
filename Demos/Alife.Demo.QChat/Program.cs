@@ -11,9 +11,9 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
-        Terminal.Log("========================================", ConsoleColor.Magenta);
-        Terminal.Log("   Alife OneBot AI Plugin 集成验证 Demo", ConsoleColor.Magenta);
-        Terminal.Log("========================================", ConsoleColor.Magenta);
+        AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
+        AlifeTerminal.Log("   Alife OneBot AI Plugin 集成验证 Demo", ConsoleColor.Magenta);
+        AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
 
         // 1. 配置角色 (真央)
         Character character = new Character {
@@ -39,12 +39,12 @@ public class Program
             });
         });
 
-        Terminal.LogInfo("提示：OneBot 插件已加载。您可以直接在此输入消息模拟 QQ 互动。");
-        Terminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
+        AlifeTerminal.LogInfo("提示：OneBot 插件已加载。您可以直接在此输入消息模拟 QQ 互动。");
+        AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
         // 4. 开启交互循环
         await suite.RunAsync();
 
-        Terminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
+        AlifeTerminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
     }
 }

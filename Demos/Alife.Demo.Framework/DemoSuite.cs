@@ -12,25 +12,25 @@ public class DemoSuite : IAsyncDisposable
     public static async Task<DemoSuite> InitializeAsync(Character character, Action<ConfigurationSystem>? configure = null)
     {
         Console.OutputEncoding = Encoding.UTF8;
-        Terminal.Log("========================================", ConsoleColor.Magenta);
-        Terminal.Log($"   Alife Demo 套件: {character.Name}", ConsoleColor.Magenta);
-        Terminal.Log("========================================", ConsoleColor.Magenta);
+        AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
+        AlifeTerminal.Log($"   Alife Demo 套件: {character.Name}", ConsoleColor.Magenta);
+        AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
 
-        Terminal.LogInfo("正在初始化系统环境 (Storage, Config)...");
+        AlifeTerminal.LogInfo("正在初始化系统环境 (Storage, Config)...");
         StorageSystem storage = new();
         ConfigurationSystem config = new(storage);
         PluginSystem plugins = new(storage);
         configure?.Invoke(config);
 
-        Terminal.LogInfo("正在创建 ChatActivity 并注入插件...");
+        AlifeTerminal.LogInfo("正在创建 ChatActivity 并注入插件...");
         ChatActivity activity = await ChatActivity.Create(character, config, plugins, null, [config, storage]);
 
-        Terminal.LogInfo($"[插件加载完毕]: {string.Join(", ", activity.Plugins.Select(p => p.GetType().Name))}");
+        AlifeTerminal.LogInfo($"[插件加载完毕]: {string.Join(", ", activity.Plugins.Select(p => p.GetType().Name))}");
 
         DemoSuite suite = new(activity);
 
         LogSystem($"[角色系统提示词]:\n{character.Prompt}");
-        Terminal.LogHint("环境构建完成喵！✨");
+        AlifeTerminal.LogHint("环境构建完成喵！✨");
 
         await activity.Start();
 
@@ -40,7 +40,7 @@ public class DemoSuite : IAsyncDisposable
     public ChatBot ChatBot => chatActivity.ChatBot;
     public async Task RunAsync()
     {
-        Terminal.LogInfo("文字输入已就绪，可直接在下方输入文字与 AI 交流。输入 'exit' 退出。");
+        AlifeTerminal.LogInfo("文字输入已就绪，可直接在下方输入文字与 AI 交流。输入 'exit' 退出。");
 
         while (isRunning)
         {
@@ -54,7 +54,7 @@ public class DemoSuite : IAsyncDisposable
             await ChatBot.ChatAsync(input);
             Console.WriteLine();
         }
-        Terminal.LogInfo("正在退出套件...");
+        AlifeTerminal.LogInfo("正在退出套件...");
     }
 
     readonly ChatActivity chatActivity;
@@ -90,7 +90,7 @@ public class DemoSuite : IAsyncDisposable
             else if (msg.Role == AuthorRole.Tool)
                 LogSystem($"[TOOL_USED] {content}");
             else
-                Terminal.Log($"[{msg.Role.ToString().ToUpper()}] {content}", ConsoleColor.DarkGray);
+                AlifeTerminal.Log($"[{msg.Role.ToString().ToUpper()}] {content}", ConsoleColor.DarkGray);
         }
 
         ChatBot.ChatHistoryAdd += OnChatHistoryAdd;
@@ -104,10 +104,10 @@ public class DemoSuite : IAsyncDisposable
         GC.SuppressFinalize(this);
     }
 
-    static void LogSystem(string message) => Terminal.Log($"[System] {message}", ConsoleColor.DarkYellow);
+    static void LogSystem(string message) => AlifeTerminal.Log($"[System] {message}", ConsoleColor.DarkYellow);
     static void LogSent(string sender, string message)
     {
-        lock (Terminal.ConsoleLock)
+        lock (AlifeTerminal.ConsoleLock)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write($"[{DateTime.Now:HH:mm:ss}] ");
@@ -120,7 +120,7 @@ public class DemoSuite : IAsyncDisposable
     }
     static void LogReceivedStart(string receiver)
     {
-        lock (Terminal.ConsoleLock)
+        lock (AlifeTerminal.ConsoleLock)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.Write($"[{DateTime.Now:HH:mm:ss}] ");
@@ -131,7 +131,7 @@ public class DemoSuite : IAsyncDisposable
     }
     static void LogReceivedContent(string content)
     {
-        lock (Terminal.ConsoleLock)
+        lock (AlifeTerminal.ConsoleLock)
         {
             Console.Write(content);
         }

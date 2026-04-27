@@ -68,7 +68,7 @@ public partial class SpeechService : InteractivePlugin<SpeechService>, IAsyncDis
         catch (Exception e)
         {
             //因为输入文本和网络原因，合成并不一定成功，但基本稳定，大部分错误都是难以处理的，所以直接忽略即可
-            Terminal.LogWarning(e.ToString());
+            AlifeTerminal.LogWarning(e.ToString());
         }
 
         if (audioFile == null)
@@ -83,7 +83,7 @@ public partial class SpeechService : InteractivePlugin<SpeechService>, IAsyncDis
             }
             catch (Exception e)
             {
-                Terminal.LogWarning(e.ToString());
+                AlifeTerminal.LogWarning(e.ToString());
             }
         });
     }

@@ -2,9 +2,9 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Implement;
 
-Terminal.Log("========================================", ConsoleColor.Magenta);
-Terminal.Log("   真央 MCP 工具集成验证 Demo", ConsoleColor.Magenta);
-Terminal.Log("========================================", ConsoleColor.Magenta);
+AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
+AlifeTerminal.Log("   真央 MCP 工具集成验证 Demo", ConsoleColor.Magenta);
+AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
 
 // 1. 配置角色
 var character = new Character {
@@ -35,11 +35,11 @@ var suite = await DemoSuite.InitializeAsync(character, config => {
     config.SetConfiguration(typeof(McpService), mcpConfig);
 });
 
-Terminal.LogInfo("提示：已自动配置 'EverythingServer'。");
-Terminal.LogInfo("你可以试着问：'请列出你的 MCP 工具' 或者 '使用 echo 工具对我说 hello'。");
-Terminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
+AlifeTerminal.LogInfo("提示：已自动配置 'EverythingServer'。");
+AlifeTerminal.LogInfo("你可以试着问：'请列出你的 MCP 工具' 或者 '使用 echo 工具对我说 hello'。");
+AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
 // 3. 开启文字输入循环
 await suite.RunAsync();
 
-Terminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
+AlifeTerminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);

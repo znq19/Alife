@@ -1,69 +1,56 @@
-﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Alife.Basic;
 
+/// <summary>
+/// 跨平台抽象层：根据当前操作系统调度不同的底层实现。
+/// </summary>
 public static class AlifePlatform
 {
     public static (int Width, int Height) GetResolution()
     {
-        IntPtr hdc = GetDC(IntPtr.Zero); // 获取屏幕设备上下文
-        try
-        {
-            int width = GetDeviceCaps(hdc, Desktophorzres);
-            int height = GetDeviceCaps(hdc, Desktopvertres);
-            return (width, height);
-        }
-        finally
-        {
-            ReleaseDC(IntPtr.Zero, hdc); // 必须释放句柄
-        }
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return WindowsPlatform.GetResolution();
+        
+        throw new PlatformNotSupportedException("当前平台不支持获取分辨率。");
     }
 
     public static void Notice(string title, string message)
     {
-        try
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            string script = $"$Title='{title}'; $Message='{message}'; " +
-                            "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; " +
-                            "$Template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); " +
-                            "$TextNodes = $Template.GetElementsByTagName('text'); " +
-                            "$TextNodes.Item(0).AppendChild($Template.CreateTextNode($Title)) | Out-Null; " +
-                            "$TextNodes.Item(1).AppendChild($Template.CreateTextNode($Message)) | Out-Null; " +
-                            "$Toast = [Windows.UI.Notifications.ToastNotification]::new($Template); " +
-                            "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('AlifeSpeechAssist').Show($Toast);";
+            WindowsPlatform.Notice(title, message);
+            return;
+        }
 
-            Process.Start(new ProcessStartInfo {
-                FileName = "powershell",
-                Arguments = $"-Command \"{script}\"",
-                CreateNoWindow = true,
-                UseShellExecute = false
-            });
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Notification failed: {ex.Message}");
-        }
+        AlifeTerminal.LogWarning($"[Notification] {title}: {message} (当前平台暂不支持弹出式通知)");
     }
+
     public static void Command(string fileName, string arguments)
     {
-        ProcessStartInfo psi = new() {
-            FileName = "cmd.exe",
-            Arguments = $"/c {fileName} {arguments}",
-            CreateNoWindow = false,
-            UseShellExecute = true,
-        };
-        using Process? process = Process.Start(psi);
-        process?.WaitForExit();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            WindowsPlatform.Command(fileName, arguments);
+            return;
+        }
+
+        // 未来可在此添加 Linux/macOS 的 Shell 调用实现 (如使用 /bin/sh)
+        throw new PlatformNotSupportedException("当前平台暂不支持执行命令行。");
     }
 
-    const int Desktophorzres = 118;
-    const int Desktopvertres = 117;
+    public static string Screenshot()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return WindowsPlatform.Screenshot();
 
-    [DllImport("user32.dll")]
-    static extern IntPtr GetDC(IntPtr hWnd);
-    [DllImport("user32.dll")]
-    static extern int ReleaseDC(IntPtr hWnd, IntPtr hDc);
-    [DllImport("gdi32.dll")]
-    static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+        throw new PlatformNotSupportedException("当前平台暂不支持截屏。");
+    }
+
+    public static string GetRunningWindowTitles()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return WindowsPlatform.GetRunningWindowTitles();
+
+        return "当前平台不支持窗口枚举";
+    }
 }

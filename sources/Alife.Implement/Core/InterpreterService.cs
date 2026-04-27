@@ -120,6 +120,6 @@ public class InterpreterService : InteractivePlugin<InterpreterService>
                       2. 调用时是否满足文档的使用要求。
                       """);
 
-        Terminal.LogInfo(exception.Message);
+        AlifeTerminal.LogInfo(exception.Message);
     }
 }

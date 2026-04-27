@@ -28,9 +28,9 @@ class Program
         // 2. 初始化 Demo 套件
         DemoSuite suite = await DemoSuite.InitializeAsync(character);
 
-        Terminal.LogInfo("提示：视觉 Demo 已重构为大模型驱动模式。");
-        Terminal.LogInfo("你可以直接对真央说：“帮我看看屏幕”、“这张图片里有什么：C:\\path\\to\\image.jpg”等。");
-        Terminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
+        AlifeTerminal.LogInfo("提示：视觉 Demo 已重构为大模型驱动模式。");
+        AlifeTerminal.LogInfo("你可以直接对真央说：“帮我看看屏幕”、“这张图片里有什么：C:\\path\\to\\image.jpg”等。");
+        AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
         // 3. 运行套件循环
         try
@@ -39,9 +39,9 @@ class Program
         }
         catch (Exception ex)
         {
-            Terminal.LogError($"Demo 运行出错：{ex.Message}");
+            AlifeTerminal.LogError($"Demo 运行出错：{ex.Message}");
         }
 
-        Terminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
+        AlifeTerminal.Log("演示结束，再见喵！", ConsoleColor.Magenta);
     }
 }

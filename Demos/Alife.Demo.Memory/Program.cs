@@ -9,10 +9,10 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
-        Terminal.Log("========================================", ConsoleColor.Cyan);
-        Terminal.Log("   分层记忆系统 (Memory System) 验证 Demo", ConsoleColor.Cyan);
-        Terminal.Log("   配置：阈值 8 条", ConsoleColor.Cyan);
-        Terminal.Log("========================================", ConsoleColor.Cyan);
+        AlifeTerminal.Log("========================================", ConsoleColor.Cyan);
+        AlifeTerminal.Log("   分层记忆系统 (Memory System) 验证 Demo", ConsoleColor.Cyan);
+        AlifeTerminal.Log("   配置：阈值 8 条", ConsoleColor.Cyan);
+        AlifeTerminal.Log("========================================", ConsoleColor.Cyan);
 
         // 1. 配置角色 (记忆助手)
         Character character = new Character {
@@ -39,19 +39,19 @@ public class Program
             PrintHistoryStructure(suite.ChatBot.ChatHistory);
         };
 
-        Terminal.LogInfo("提示：你可以连续输入多条短消息，观察上下文变长后触发的自动归档。");
-        Terminal.LogInfo("输入 'exit' 退出。");
-        Terminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
+        AlifeTerminal.LogInfo("提示：你可以连续输入多条短消息，观察上下文变长后触发的自动归档。");
+        AlifeTerminal.LogInfo("输入 'exit' 退出。");
+        AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
         // 5. 运行交互循环
         await suite.RunAsync();
 
-        Terminal.Log("演示结束。", ConsoleColor.Cyan);
+        AlifeTerminal.Log("演示结束。", ConsoleColor.Cyan);
     }
 
     static void PrintHistoryStructure(ChatHistory history)
     {
-        lock (Terminal.ConsoleLock)
+        lock (AlifeTerminal.ConsoleLock)
         {
             Console.WriteLine("\n[探测器] 当前上下文物理结构监控:");
             Console.WriteLine("----------------------------------------------------------------------");
