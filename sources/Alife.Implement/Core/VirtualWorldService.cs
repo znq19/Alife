@@ -48,7 +48,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
 
         if (targetCharacter == null)
         {
-            Poke("目标不存在");
+            Poke($"目标 '{target}' 不存在");
             return;
         }
 
@@ -64,7 +64,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
             bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
             if (!targetIsAdmin)
             {
-                Poke("对方暂不在（离线状态）");
+                Poke($"对方 '{target}' 暂不在");
             }
             // 如果目标是管理员且离线，则直接忽略（静默处理），不提示“不在”
         }
@@ -88,7 +88,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
 
         if (targetCharacter == null)
         {
-            Poke("角色不存在");
+            Poke($"角色 '{target}' 不存在");
             return;
         }
 
@@ -104,7 +104,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
             bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
             if (!targetIsAdmin)
             {
-                Poke("人不在");
+                Poke($"对方 '{target}' 暂不在");
             }
             // 如果目标是管理员且离线，则直接忽略（静默处理）
         }
