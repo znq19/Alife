@@ -7,6 +7,7 @@ namespace Alife.Implement;
 public class VirtualWorldConfig
 {
     public string AdminName { get; set; } = "管理员";
+
     public string Announcement { get; set; } =
         """
         这个世界遵循与现实世界一致的物理定律、法律规范、经济逻辑。
@@ -27,6 +28,7 @@ public class VirtualWorldConfig
         如果这个世界有 银行/福利机构 等公共设施，可以每天申请 20 元的经济补贴。
         """;
 }
+
 [Plugin("世界背景", "定义整个运行环境的基础世界观、物理定律与全局公告。此配置通常作为所有角色的通用背景。")]
 public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
 {
@@ -35,7 +37,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     public void CallCharacter(XmlExecutorContext context, string target, string message)
     {
         if (context.CallMode != CallMode.OneShot)
-            return;
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         if (string.IsNullOrWhiteSpace(target))
         {
@@ -75,7 +77,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     public void TransferItem(XmlExecutorContext context, string target, string description)
     {
         if (context.CallMode != CallMode.OneShot)
-            return;
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         if (string.IsNullOrWhiteSpace(target))
         {
@@ -113,11 +115,11 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     public VirtualWorldConfig? Configuration { get; set; }
 
     public VirtualWorldService(
-        InterpreterService interpreterService,
+        FunctionService functionService,
         CharacterSystem characterSystem,
         ChatActivitySystem chatActivitySystem)
     {
-        this.interpreterService = interpreterService;
+        this.functionService = functionService;
         this.characterSystem = characterSystem;
         this.chatActivitySystem = chatActivitySystem;
     }
@@ -125,7 +127,7 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
-        currentName = context.character.Name;
+        currentName = context.Character.Name;
 
         List<Character> allCharacters = characterSystem.GetAllCharacters();
         string characterList = allCharacters.Any()
@@ -152,10 +154,10 @@ public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConf
                               2. 经济常识：遵循物价常识，大额交易应先沟通确认，小心骗子 and 假币，优先用银行等公共设施交易。
                               """;
 
-        interpreterService.RegisterHandler(xmlHandler);
+        functionService.RegisterHandler(xmlHandler);
     }
 
-    readonly InterpreterService interpreterService;
+    readonly FunctionService functionService;
     readonly CharacterSystem characterSystem;
     readonly ChatActivitySystem chatActivitySystem;
     string currentName = "";

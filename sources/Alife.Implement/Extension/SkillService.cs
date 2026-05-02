@@ -13,7 +13,7 @@ public class SkillService : InteractivePlugin<SkillService>
     public void ReadSkill(XmlExecutorContext context, string skillName)
     {
         if (context.CallMode != CallMode.OneShot)
-            return;
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         string skillDocPath = Path.Combine(skillsPath, skillName, "SKILL.md");
         if (File.Exists(skillDocPath) == false)
@@ -38,7 +38,7 @@ public class SkillService : InteractivePlugin<SkillService>
              ```
              """);
     }
-    
+
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
@@ -47,7 +47,7 @@ public class SkillService : InteractivePlugin<SkillService>
             ? Directory.GetDirectories(skillsPath).Select(directory => Path.GetFileName(directory)).ToArray()
             : [];
 
-        InterpreterService interpreterService = context.services.GetRequiredService<InterpreterService>();
+        FunctionService functionService = context.Services.GetRequiredService<FunctionService>();
         XmlHandler xmlHandler = new(this);
         xmlHandler.Explain =
             $"""
@@ -58,7 +58,7 @@ public class SkillService : InteractivePlugin<SkillService>
              当前 skill根目录 中已经存在的 skill 有：
              - {string.Join("\n- ", skills)}
              """;
-        interpreterService.RegisterHandler(xmlHandler);
+        functionService.RegisterHandler(xmlHandler);
     }
 
     readonly string skillsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".agents", "skills");

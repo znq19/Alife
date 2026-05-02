@@ -4,7 +4,7 @@ using NAudio.Wave;
 
 namespace Alife.Function.Speech;
 
-public class SpeechSynthesizer
+public  class SpeechSynthesizer
 {
     public bool IsSpeaking => currentTask is { IsCompleted: false };
     public Task LastSpeaking => currentTask;
@@ -16,12 +16,12 @@ public class SpeechSynthesizer
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        cancellationToken = new CancellationTokenSource();
+        speakCancellation = new CancellationTokenSource();
         currentTask = Task.Run(async () => {
-            string? outputFile = await GenerateSpeechFileAsync(text, cancellationToken.Token);
+            string? outputFile = await GenerateSpeechFileAsync(text, speakCancellation.Token);
             if (outputFile == null)
                 return; //计算后发现没有可朗读的文本
-            await PlayAudioAsync(outputFile, cancellationToken.Token);
+            await PlayAudioAsync(outputFile, speakCancellation.Token);
         });
 
         await currentTask;
@@ -34,8 +34,8 @@ public class SpeechSynthesizer
         if (IsSpeaking)
             await StopSpeakAsync();
 
-        cancellationToken = new CancellationTokenSource();
-        currentTask = PlayAudioAsync(file, cancellationToken.Token);
+        speakCancellation = new CancellationTokenSource();
+        currentTask = PlayAudioAsync(file, speakCancellation.Token);
 
         await currentTask;
     }
@@ -44,9 +44,8 @@ public class SpeechSynthesizer
         if (IsSpeaking == false)
             throw new InvalidOperationException("当前没有语音中。");
 
-        return cancellationToken!.CancelAsync();
+        return speakCancellation!.CancelAsync();
     }
-
     /// <summary>
     /// 通过edge-tts生成音频文件
     /// </summary>
@@ -160,7 +159,7 @@ public class SpeechSynthesizer
     readonly char[] invalidChars;
     readonly string voiceTone;
     Task currentTask;
-    CancellationTokenSource? cancellationToken;
+    CancellationTokenSource? speakCancellation;
 
     public SpeechSynthesizer()
     {

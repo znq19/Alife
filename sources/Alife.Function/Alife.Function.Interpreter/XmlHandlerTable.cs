@@ -20,6 +20,7 @@ public class XmlHandlerTable
             xmlFunctionGroup.Add(xmlFunction);
         }
     }
+
     public void Unregister(XmlHandler handler)
     {
         xmlHandlers.Remove(handler);
@@ -29,6 +30,7 @@ public class XmlHandlerTable
                 xmlFunctionGroup.Remove(xmlHandlerFunction);
         }
     }
+
     public string Document()
     {
         StringBuilder sb = new();
@@ -39,6 +41,7 @@ public class XmlHandlerTable
             sb.AppendLine(Document(handler));
             sb.AppendLine();
         }
+
         return sb.ToString().TrimEnd();
     }
 
@@ -62,7 +65,9 @@ public class XmlHandlerTable
             if (function.ContentName != null)
             {
                 sb.Append(">");
-                string cDesc = string.IsNullOrEmpty(function.ContentDescription) ? "" : $"（{function.ContentDescription}）";
+                string cDesc = string.IsNullOrEmpty(function.ContentDescription)
+                    ? ""
+                    : $"（{function.ContentDescription}）";
                 sb.Append($"{function.ContentName}{cDesc}</{function.Name}>");
             }
             else
@@ -102,7 +107,9 @@ public class XmlHandlerTable
             if (function.ContentName != null)
             {
                 sb.Append(">");
-                string cDesc = string.IsNullOrEmpty(function.ContentDescription) ? "" : $"（{function.ContentDescription}）";
+                string cDesc = string.IsNullOrEmpty(function.ContentDescription)
+                    ? ""
+                    : $"（{function.ContentDescription}）";
                 sb.Append($"{function.ContentName}{cDesc}</{function.Name}>");
             }
             else
@@ -115,12 +122,15 @@ public class XmlHandlerTable
 
             sb.AppendLine();
         }
+
         return sb.ToString();
     }
+
     public async Task Handle(string name, XmlContext tagContext)
     {
-        if (xmlFunctions.TryGetValue(name.ToLower(), out SortedSet<XmlFunction>? xmlFunctionGroup) == false)
-            return;
+        SortedSet<XmlFunction>? xmlFunctionGroup = xmlFunctions.GetValueOrDefault(name.ToLower());
+        if (xmlFunctionGroup == null || xmlFunctionGroup.Count == 0)
+            throw new Exception($"未找到名为 {name} 的可调用函数");
         foreach (XmlFunction xmlFunction in xmlFunctionGroup)
             await xmlFunction.Invoker(tagContext);
     }

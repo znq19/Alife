@@ -54,7 +54,7 @@ public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExe
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
         };
 
-        context.kernelBuilder.AddOpenAIChatCompletion(
+        context.KernelBuilder.AddOpenAIChatCompletion(
             endpoint: new Uri(Configuration!.endpoint),
             modelId: Configuration!.modelId,
             apiKey: Configuration!.apiKey,

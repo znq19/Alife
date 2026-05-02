@@ -26,7 +26,7 @@ public class Program
                      "2. 发送图片：<QSendFile file=\"url或路径\" />",
             Plugins = new HashSet<string> {
                 typeof(ChatService).FullName!,
-                typeof(InterpreterService).FullName!,
+                typeof(FunctionService).FullName!,
                 typeof(QChatService).FullName!,
             }
         };

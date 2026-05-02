@@ -70,15 +70,15 @@ public class MemoryManager
                 //压缩记忆
                 DateTime startTime = GetMemoryMetaData(chatHistory[areaStart]).StartTime;
                 DateTime endTime = currentMemoryMeta.EndTime;
-                string content = PickContent(chatHistory, areaStart, areaStart + areaCompressionCount);
-                content = Regex.Replace(content, "^\\[记忆存档.*$", "", RegexOptions.Multiline);
-                content = Regex.Replace(content, "^存档索引.*$", "", RegexOptions.Multiline);
-                string? summary = await compressor.Compress(content);
+                string fullContent = PickContent(chatHistory, areaStart, areaStart + areaCompressionCount);
+                string plainContent = Regex.Replace(fullContent, "^\\[记忆存档.*$", "", RegexOptions.Multiline);
+                plainContent = Regex.Replace(plainContent, "^存档索引.*$", "", RegexOptions.Multiline);
+                string? summary = await compressor.Compress(plainContent);
                 if (summary == null)
                     return false;
 
                 //提取并保存旧的记录
-                string name = await SaveMemory(new MemoryMeta(areaLevel, startTime, endTime), summary, content);
+                string name = await SaveMemory(new MemoryMeta(areaLevel, startTime, endTime), summary, fullContent);
                 for (int index = areaStart + areaCompressionCount - 1; index >= areaStart; index--)
                     memoryMetaDatas.Remove(chatHistory[index]);
                 chatHistory.RemoveRange(areaStart, areaCompressionCount);
@@ -102,6 +102,7 @@ public class MemoryManager
 
         return false;
     }
+
     public async Task InsertMemory(ChatHistory chatHistory, int level, string summary, string content, DateTime startTime, DateTime endTime)
     {
         // 保存到持久化存储
@@ -155,6 +156,7 @@ public class MemoryManager
         chatHistory.Insert(insertIndex, compressedContent);
         memoryMetaDatas[compressedContent] = new MemoryMeta(level + 1, startTime, endTime);
     }
+
     public void RemoveMemory(ChatHistory chatHistory, ChatMessageContent content)
     {
         if (chatHistory.Remove(content))
@@ -162,6 +164,7 @@ public class MemoryManager
             memoryMetaDatas.Remove(content);
         }
     }
+
     public void SaveHistory(ChatHistory chatHistory)
     {
         List<HistoryRecord> history = new List<HistoryRecord>();
@@ -175,8 +178,10 @@ public class MemoryManager
                 GetMemoryMetaData(chatMessageContent)
             ));
         }
+
         File.WriteAllText(historyStoragePath, JsonConvert.SerializeObject(history, Formatting.Indented));
     }
+
     public void LoadHistory(ChatHistory chatHistory)
     {
         if (File.Exists(historyStoragePath) == false)
@@ -194,15 +199,18 @@ public class MemoryManager
             memoryMetaDatas.Add(chatMessageContent, historyRecord.MemoryMeta);
         }
     }
+
     public Task<string?> ReadMemory(string index)
     {
         int level = int.Parse(index[..index.IndexOf('-')]);
         return memoryStorage.LoadAsync(level, index);
     }
+
     public async Task<List<SearchResult>> SearchMemory(string query, int count, DateTime? startTime, DateTime? endTime)
     {
         return await memoryStorage.SearchAsync(query, count, startTime, endTime);
     }
+
     public MemoryMeta GetMemoryMetaData(ChatMessageContent content)
     {
         if (memoryMetaDatas.TryGetValue(content, out MemoryMeta? data) == false)
@@ -213,7 +221,7 @@ public class MemoryManager
 
         return data;
     }
-    
+
     record HistoryRecord(AuthorRole Role, string Content, MemoryMeta MemoryMeta);
 
     readonly int compressionThreshold;
@@ -231,6 +239,7 @@ public class MemoryManager
         await memoryStorage.SaveAsync(name, memoryMeta.Level, summary, content, memoryMeta.StartTime, memoryMeta.EndTime);
         return name;
     }
+
     string PickContent(ChatHistory chatHistory, int start, int end)
     {
         StringBuilder stringBuilder = new();

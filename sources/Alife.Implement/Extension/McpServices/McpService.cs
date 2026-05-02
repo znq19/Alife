@@ -1,5 +1,6 @@
 using Alife.Framework;
 using Alife.Function.Interpreter;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 
 namespace Alife.Implement;
@@ -11,23 +12,20 @@ public class McpServerConfig
     public string Command { get; set; } = "";
     public string[] Arguments { get; set; } = [];
 }
+
 public class McpPluginConfig
 {
     public List<McpServerConfig> Servers { get; set; } = new();
 }
+
 [Plugin("MCP服务", "让AI可以通过Model Context Protocol接入外部工具。", editorUI: typeof(McpServiceUI))]
-public class McpService : InteractivePlugin<McpService>, IConfigurable<McpPluginConfig>
+public class McpService(FunctionService functionService, ILoggerFactory loggerFactory)
+    : InteractivePlugin<McpService>, IConfigurable<McpPluginConfig>
 {
     public McpPluginConfig? Configuration { get; set; }
 
     readonly List<McpClient> mcpClients = new();
     readonly List<XmlHandler> xmlHandlers = new();
-    readonly InterpreterService interpreterService;
-
-    public McpService(InterpreterService interpreterService)
-    {
-        this.interpreterService = interpreterService;
-    }
 
     public override async Task AwakeAsync(AwakeContext context)
     {
@@ -37,17 +35,20 @@ public class McpService : InteractivePlugin<McpService>, IConfigurable<McpPlugin
         {
             (McpClient client, XmlHandler handler) = await McpXmlAdapter.CreateAsync(
                 server,
-                (name, result) => Poke($"{server.Name}.{name} 执行完成\n{result}"));
+                (name, result) => Poke($"{server.Name}.{name} 执行完成\n{result}"),
+                loggerFactory
+            );
 
             mcpClients.Add(client);
             xmlHandlers.Add(handler);
-            interpreterService.RegisterHandler(handler);
+            functionService.RegisterHandler(handler);
         }
     }
+
     public override async Task DestroyAsync()
     {
         foreach (XmlHandler handler in xmlHandlers)
-            interpreterService.UnregisterHandler(handler);
+            functionService.UnregisterHandler(handler);
         xmlHandlers.Clear();
 
         foreach (McpClient client in mcpClients)

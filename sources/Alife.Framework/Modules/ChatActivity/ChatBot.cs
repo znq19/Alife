@@ -11,7 +11,7 @@ namespace Alife.Framework;
 public class ChatBot : IAsyncDisposable
 {
     public const string ThinkContentPrefix = "__THINK__";
-    public const string PokeMessageTag = "[系统通知]";
+    public const string PokeMessageTag = "[来自系统的杂项消息推送]";
 
     public event Func<string, string>? ChatSend;
     public event Func<string, string>? PokeSend;
@@ -146,6 +146,7 @@ public class ChatBot : IAsyncDisposable
             chatSemaphore.Release();
         }
     }
+
     public async Task<string> ChatAsync(string message, AuthorRole? role = null)
     {
         StringBuilder stringBuilder = new StringBuilder();
@@ -153,6 +154,7 @@ public class ChatBot : IAsyncDisposable
             stringBuilder.Append(content);
         return stringBuilder.ToString();
     }
+
     public async void Chat(string content, AuthorRole? role = null)
     {
         try
@@ -164,13 +166,15 @@ public class ChatBot : IAsyncDisposable
             Console.WriteLine(e);
         }
     }
+
     public void Poke(string message)
     {
         while (messageCache.Count > 11)
             messageCache.TryDequeue(out _);
-        messageCache.Enqueue($"\n{message}\n");
+        messageCache.Enqueue($"{message}\n");
         lastAutoFlushTime = 0; //重新计时，防止后续还有Poke
     }
+
     public void UpdateHistoryEndIndex()
     {
         lastContentIndex = ChatHistory.Count;
@@ -181,7 +185,9 @@ public class ChatBot : IAsyncDisposable
     readonly ConcurrentQueue<string> messageCache;
     readonly SemaphoreSlim chatSemaphore;
     CancellationTokenSource? cancelChatSource;
+
     int lastContentIndex;
+
     //计时器
     CancellationTokenSource? cancelTimerSource;
     int currentTime;
@@ -201,7 +207,8 @@ public class ChatBot : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await Task.Run(() => {
+        await Task.Run(() =>
+        {
             while (IsChatting)
             {
                 while (messageCache.Count != 0)
@@ -256,7 +263,7 @@ public class ChatBot : IAsyncDisposable
             }
 
             //发送消息
-            Chat(PokeMessageTag + poke);
+            Chat($"{PokeMessageTag}\n{poke}");
         }
     }
 

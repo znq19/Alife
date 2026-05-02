@@ -10,10 +10,11 @@ public abstract class InteractivePlugin : Plugin
 
     public override Task AwakeAsync(AwakeContext context)
     {
-        ChatHistory = context.contextBuilder.ChatHistory;
+        ChatHistory = context.ContextBuilder.ChatHistory;
 
         return Task.CompletedTask;
     }
+
     public override Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
         ChatBot = chatActivity.ChatBot;
@@ -26,6 +27,7 @@ public abstract class InteractivePlugin : Plugin
 
         return Task.CompletedTask;
     }
+
     public override Task DestroyAsync()
     {
         if (updateCancellation != null)
@@ -48,32 +50,40 @@ public abstract class InteractivePlugin : Plugin
                 startTime = DateTime.Now - TimeSpan.FromSeconds(seconds);
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception e)
         {
             Console.WriteLine(e);
         }
     }
 }
+
 public class InteractivePlugin<T> : InteractivePlugin
 {
-    protected string ChatPrefixPrompt => $"[这是来自{typeof(T).Name}的消息]";
+    protected virtual string ChatPrefixPrompt => $"[来自{typeof(T).Name}的消息]";
+
     protected void Prompt(string prompt)
     {
-        ChatHistory.AddSystemMessage($"[{typeof(T).Name}] {prompt}");
+        ChatHistory.AddSystemMessage($"[{typeof(T).Name}]补充说明：\n{prompt}");
     }
+
     protected void Throw(string error)
     {
         throw new Exception($"[{typeof(T).Name}] 发生错误\n{error}");
     }
+
     protected void Poke(string message)
     {
         ChatBot.Poke($"{ChatPrefixPrompt}{message}");
     }
+
     protected void Chat(string message)
     {
         ChatBot.Chat($"{ChatPrefixPrompt}{message}");
     }
+
     protected Task ChatAsync(string message)
     {
         return ChatBot.ChatAsync($"{ChatPrefixPrompt}{message}");

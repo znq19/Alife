@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Alife.Basic;
 using Alife.Function.Interpreter;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
@@ -9,14 +11,17 @@ public static class McpXmlAdapter
 {
     public static async Task<(McpClient Client, XmlHandler Handler)> CreateAsync(
         McpServerConfig config,
-        Action<string, string>? resultCallback = null)
+        Action<string, string>? resultCallback = null,
+        ILoggerFactory? loggerFactory = null)
     {
-        StdioClientTransport clientTransport = new(new StdioClientTransportOptions {
+        StdioClientTransport clientTransport = new(new StdioClientTransportOptions
+        {
             Name = config.Name,
             Command = config.Command,
             Arguments = config.Arguments
         });
-        McpClient client = await McpClient.CreateAsync(clientTransport);
+
+        McpClient client = await McpClient.CreateAsync(clientTransport, loggerFactory: loggerFactory);
         IList<McpClientTool> tools = await client.ListToolsAsync();
 
         List<XmlFunction> functions = new();
@@ -26,7 +31,8 @@ public static class McpXmlAdapter
             functions.Add(function);
         }
 
-        XmlHandler handler = new() {
+        XmlHandler handler = new()
+        {
             Name = config.Name,
             Description = config.Description,
             Functions = functions,
@@ -71,7 +77,8 @@ public static class McpXmlAdapter
             resultCallback?.Invoke(name, resultText);
         }
 
-        return new XmlFunction {
+        return new XmlFunction
+        {
             Name = name,
             Description = description,
             Parameters = parameters,
@@ -91,13 +98,21 @@ public static class McpXmlAdapter
                 return bool.TryParse(value, out bool b) ? b : value;
             case "object":
             case "array":
-                try { return JsonSerializer.Deserialize<object>(value); } catch { return value; }
+                try
+                {
+                    return JsonSerializer.Deserialize<object>(value);
+                }
+                catch
+                {
+                    return value;
+                }
             default:
                 return value;
         }
     }
 
-    static (List<XmlParameter> Parameters, Dictionary<string, (string OriginalName, string Type)> TypeMap) ParseInputSchema(McpClientTool tool)
+    static (List<XmlParameter> Parameters, Dictionary<string, (string OriginalName, string Type)> TypeMap)
+        ParseInputSchema(McpClientTool tool)
     {
         List<XmlParameter> parameters = new();
         Dictionary<string, (string, string)> typeMap = new();
@@ -134,7 +149,8 @@ public static class McpXmlAdapter
             if (isRequired == false)
                 paramTypeLabel += "[可选]";
 
-            parameters.Add(new XmlParameter {
+            parameters.Add(new XmlParameter
+            {
                 Name = paramName,
                 Description = paramDescription,
                 Type = paramTypeLabel,

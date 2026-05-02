@@ -15,7 +15,7 @@ var character = new Character {
              "请在对话中根据需要主动使用这些工具喵！",
     Plugins = new HashSet<string> {
         typeof(ChatService).FullName!,
-        typeof(InterpreterService).FullName!,
+        typeof(FunctionService).FullName!,
         typeof(McpService).FullName!,
     }
 };

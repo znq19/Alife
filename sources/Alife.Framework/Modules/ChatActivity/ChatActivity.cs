@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -10,7 +11,7 @@ using System.Text;
 
 namespace Alife.Framework;
 
-public class ChatActivity : IAsyncDisposable
+public partial class ChatActivity
 {
     public static async Task<ChatActivity> Create(
         Character character,
@@ -20,34 +21,44 @@ public class ChatActivity : IAsyncDisposable
         object[]? appendServices = null)
     {
         //创建服务容器
-        ServiceCollection extensionServiceBuilder = new();
-        //添加系统服务
-        if (appendServices != null)
+        ServiceCollection serviceBuilder = new();
         {
-            foreach (var appendService in appendServices)
-                extensionServiceBuilder.AddSingleton(appendService.GetType(), appendService);
-        }
-        //添加插件服务
+            //添加系统服务
+            serviceBuilder.AddLogging(builder =>
+            {
+                builder.AddConsole();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
+            if (appendServices != null)
+            {
+                foreach (var appendService in appendServices)
+                    serviceBuilder.AddSingleton(appendService.GetType(), appendService);
+            }
 
-        Type[] pluginTypes = character.Plugins
-            .Select(pluginID => pluginSystem.GetPlugin(pluginID))
-            .Where(t => t != null).Cast<Type>().ToArray();
-        foreach (Type pluginType in pluginTypes.OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder))
-            extensionServiceBuilder.AddSingleton(pluginType);
-        ServiceProvider extensionService = extensionServiceBuilder.BuildServiceProvider();
+            //添加插件服务
+            Type[] pluginTypes = character.Plugins
+                .Select(pluginSystem.GetPlugin)
+                .Where(t => t != null).Cast<Type>().ToArray();
+            foreach (Type pluginType in pluginTypes)
+                serviceBuilder.AddSingleton(pluginType);
+        }
+        ServiceProvider services = serviceBuilder.BuildServiceProvider();
 
         try
         {
             //实例化所有插件
-            List<Plugin> allPlugins = new(extensionServiceBuilder.Count);
-            for (int index = 0; index < extensionServiceBuilder.Count; index++)
+            Type[] allPluginTypes = character.Plugins
+                .Select(pluginSystem.GetPlugin)
+                .Where(pluginType => pluginType != null)
+                .Cast<Type>()
+                .OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder)
+                .ToArray();
+            Plugin[] allPlugins = new Plugin[allPluginTypes.Length];
+            for (int index = 0; index < allPluginTypes.Length; index++)
             {
-                ServiceDescriptor serviceDescriptor = extensionServiceBuilder[index];
-                progress?.Report(($"创建服务 {serviceDescriptor.ServiceType.Name}", (float)index / extensionServiceBuilder.Count));
-
-                object service = extensionService.GetRequiredService(serviceDescriptor.ServiceType);
-                if (service is Plugin plugin)
-                    allPlugins.Add(plugin);
+                Type pluginType = allPluginTypes[index];
+                progress?.Report(($"创建服务 {pluginType.Name}", (float)index / serviceBuilder.Count));
+                allPlugins[index] = (Plugin)services.GetRequiredService(pluginType);
             }
 
             //赋值插件配置数据
@@ -66,33 +77,37 @@ public class ChatActivity : IAsyncDisposable
             //创建上下文构建器
             ChatHistoryAgentThread contentBuilder = new();
             //构建环境
-            Plugin.AwakeContext awakeContext = new() {
-                character = character,
-                services = extensionService,
-                kernelBuilder = kernelBuilder,
-                contextBuilder = contentBuilder
+            Plugin.AwakeContext awakeContext = new()
+            {
+                Character = character,
+                Services = services,
+                KernelBuilder = kernelBuilder,
+                ContextBuilder = contentBuilder
             };
-            for (int index = 0; index < allPlugins.Count; index++)
+            for (int index = 0; index < allPlugins.Length; index++)
             {
                 Plugin pluginInstance = allPlugins[index];
-                progress?.Report(($"初始化服务 {pluginInstance.GetType().Name}", (float)index / allPlugins.Count));
+                progress?.Report(($"初始化服务 {pluginInstance.GetType().Name}", (float)index / allPlugins.Length));
 
                 await pluginInstance.AwakeAsync(awakeContext);
             }
 
             //正式开始 AI 代理
             Kernel kernelService = kernelBuilder.Build();
-            ChatActivity chatActivity = new(character, contentBuilder, kernelService, extensionService, allPlugins);
+            ChatActivity chatActivity = new(character, contentBuilder, kernelService, services, allPlugins);
 
             return chatActivity;
         }
         catch
         {
-            await extensionService.DisposeAsync();
+            await services.DisposeAsync();
             throw;
         }
     }
+}
 
+public partial class ChatActivity : IAsyncDisposable
+{
     public ServiceProvider PluginService => pluginService;
     public Kernel KernelService => kernelService;
     public Character Character => character;
@@ -100,7 +115,7 @@ public class ChatActivity : IAsyncDisposable
     public IReadOnlyList<Plugin> Plugins => plugins;
 
     ChatActivity(Character character, ChatHistoryAgentThread context,
-        Kernel kernelService, ServiceProvider pluginService, List<Plugin> plugins)
+        Kernel kernelService, ServiceProvider pluginService, Plugin[] plugins)
     {
         this.pluginService = pluginService;
         this.kernelService = kernelService;
@@ -118,7 +133,8 @@ public class ChatActivity : IAsyncDisposable
         foreach (IProvideExecutionSettings plugin in plugins.OfType<IProvideExecutionSettings>())
             plugin.ProvideSettings(executionSettings);
 
-        ChatCompletionAgent llmAgent = new() {
+        ChatCompletionAgent llmAgent = new()
+        {
             Name = character.Name,
             Instructions = character.Prompt,
             InstructionsRole = AuthorRole.System,
@@ -131,10 +147,10 @@ public class ChatActivity : IAsyncDisposable
 
     public async Task Start(IProgress<(string, float)>? progress = null)
     {
-        for (int index = 0; index < plugins.Count; index++)
+        for (int index = 0; index < plugins.Length; index++)
         {
             Plugin pluginInstance = plugins[index];
-            progress?.Report(($"开始服务 {pluginInstance.GetType().Name}", (float)index / plugins.Count));
+            progress?.Report(($"开始服务 {pluginInstance.GetType().Name}", (float)index / plugins.Length));
 
             await pluginInstance.StartAsync(kernelService, this);
         }
@@ -144,7 +160,8 @@ public class ChatActivity : IAsyncDisposable
     {
         return kernelService.Plugins.GetFunctionsMetadata()
             .Select(metadata => metadata.ToOpenAIFunction().ToFunctionDefinition(true))
-            .Select(chatTool => new JObject() {
+            .Select(chatTool => new JObject()
+            {
                 ["kind"] = chatTool.Kind.GetHashCode(),
                 ["FunctionName"] = chatTool.FunctionName,
                 ["FunctionDescription"] = chatTool.FunctionDescription,
@@ -157,7 +174,7 @@ public class ChatActivity : IAsyncDisposable
     readonly ChatBot chatBot;
     readonly Kernel kernelService;
     readonly ServiceProvider pluginService;
-    readonly List<Plugin> plugins;
+    readonly Plugin[] plugins;
 
     public async ValueTask DisposeAsync()
     {

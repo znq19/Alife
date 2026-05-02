@@ -102,7 +102,7 @@
         Character character = CharacterSystem.GetAllCharacters().FirstOrDefault(c => c.Name == "真央") ??
                               CharacterSystem.CreateCharacter("真央");
         character.Plugins.Add(PluginSystem.GetPluginID(typeof(ChatService)));
-        character.Plugins.Add(PluginSystem.GetPluginID(typeof(InterpreterService)));
+        character.Plugins.Add(PluginSystem.GetPluginID(typeof(FunctionService)));
         character.Plugins.Add(PluginSystem.GetPluginID(typeof(EventService)));
         character.Plugins.Add(PluginSystem.GetPluginID(typeof(MemoryService)));
         character.Plugins.Add(PluginSystem.GetPluginID(typeof(McpService)));

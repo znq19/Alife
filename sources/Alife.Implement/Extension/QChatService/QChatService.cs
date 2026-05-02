@@ -4,25 +4,26 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.Interpreter;
 using Alife.Function.QChat;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using Alife.Implement.Other.QChatService;
 
 namespace Alife.Implement;
 
 public record QChatConfig
 {
     public string Url { get; set; } = "ws://127.0.0.1:3001";
+    public long BotId { get; set; }
     public long OwnerId { get; set; }
     public bool DebounceEnabled { get; set; }
     public float FlushInterval { get; set; } = 15f;
     public int MaxBufferMessages { get; set; }
     public string WakingWords { get; set; } = "";
     public float ProactiveChatProbability { get; set; }
-    public string GroupChatPrompt { get; set; } = "注意不要刷屏，选择性回复重要消息，保持简洁随性口语化。";
+    public string AppendChatPrompt { get; set; } = "（QQ消息必须极简回复（0-20字）来保证自然感，同时群聊消息要选择性忽略，避免刷屏。）";
     public bool CloseGroupAfterReply { get; set; }
-    public float AutoCloseMinutes { get; set; } = 7f;
+    public float AutoCloseMinutes { get; set; } = 4f;
 }
+
 public class GroupState
 {
     public string? Tag { get; set; }
@@ -31,26 +32,31 @@ public class GroupState
     public DateTime LastFlushedTime { get; set; }
     public List<string> MessageBuffer { get; set; } = [];
 }
+
 [Plugin("QQ聊天", """
                 连接 OneBot v11 WebSocket 服务器，实现 QQ 消息收发及文件传输。
                 可用于搭建服务器QQ机器人平台应用：
                 - https://napneko.github.io/
                 - https://luckylillia.com/
-                """, editorUI: typeof(QChatServiceUI))]
-public class QChatService :
+                """, editorUI: typeof(QChatServiceUI), LaunchOrder = 10)]
+public class QChatService(FunctionService functionService, ILogger<QChatService> logger) :
     InteractivePlugin<QChatService>,
     IAsyncDisposable,
     ITimeIterative,
     IConfigurable<QChatConfig>
 {
     [XmlFunction]
-    [Description("发送文本消息。（附加说明：群聊时可以用“[CQ:at,qq=发送者ID]”来显式回复某人）")]
-    public async Task QChat(XmlExecutorContext ctx, [Description("通过私聊还是群聊发送")] OneBotMessageType type, [Description("QQ号或群号")] long targetID, [XmlContent] string _)
+    [Description("将文本以QQ消息输出（注意！群聊环境对话需用“[CQ:at,qq=发送者ID]”来显式回复）")]
+    public async Task QChat(XmlExecutorContext ctx, OneBotMessageType type,
+        long targetID, [XmlContent] string content)
     {
+        if (ctx.CallMode == CallMode.OneShot)
+            throw new Exception("错误的调用方式，应该使用两个开闭标签调用。");
         if (ctx.CallMode != CallMode.Closing)
             return;
-        string content = ctx.FullContent.Trim();
-        if (string.IsNullOrEmpty(content))
+
+        string message = ctx.FullContent.Trim();
+        if (string.IsNullOrEmpty(message))
             return;
         if (targetID == 0)
             throw new ArgumentException("目标不能为空！", nameof(targetID));
@@ -58,19 +64,22 @@ public class QChatService :
         if (type == OneBotMessageType.Group)
         {
             OnAIGroupActivity(targetID);
-            await oneBotClient.SendGroupMessage(targetID, content);
+            await oneBotClient!.SendGroupMessage(targetID, message);
         }
         else
-            await oneBotClient.SendPrivateMessage(targetID, content);
+            await oneBotClient!.SendPrivateMessage(targetID, message);
     }
 
     [XmlFunction]
-    [Description("发送图片消息。支持表情库相对路径、本地绝对路径或图片 URL。如果是文件夹则从中随机抽取一张。")]
-    public async Task QImage(XmlExecutorContext ctx, [Description("通过私聊还是群聊发送")] OneBotMessageType type, [Description("QQ号或群号")] long targetID, [Description("图片路径、URL或表情库名称")] string file)
+    [Description("发送图片到QQ")]
+    public async Task QImage(XmlExecutorContext ctx, OneBotMessageType type,
+        long targetID, [Description("支持网址url、表情库名称，或者本地绝对路径")] string file)
     {
-        if (ctx.CallMode != CallMode.Closing && ctx.CallMode != CallMode.OneShot) return;
+        if (ctx.CallMode != CallMode.OneShot)
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
         file = file.Trim().Replace('\\', '/');
-        if (string.IsNullOrEmpty(file)) return;
+        if (string.IsNullOrEmpty(file))
+            return;
 
         // 尝试从表情库匹配 (优先)
         string emoteBase = Path.Combine(AlifePath.StorageFolderPath, "Emotes");
@@ -111,33 +120,36 @@ public class QChatService :
         if (type == OneBotMessageType.Group)
         {
             OnAIGroupActivity(targetID);
-            await oneBotClient.SendGroupImage(targetID, file);
+            await oneBotClient!.SendGroupImage(targetID, file);
         }
         else
-            await oneBotClient.SendPrivateImage(targetID, file);
+            await oneBotClient!.SendPrivateImage(targetID, file);
     }
 
     [XmlFunction]
-    [Description("发送文件。")]
-    public async Task QFile(XmlExecutorContext ctx, [Description("通过私聊还是群聊发送")] OneBotMessageType type, [Description("QQ号或群号")] long targetID, [Description("文件本地绝对路径")] string file)
+    [Description("发送文件到QQ")]
+    public async Task QFile(XmlExecutorContext ctx, OneBotMessageType type,
+        long targetID, [Description("本地绝对路径")] string file)
     {
-        if (ctx.CallMode != CallMode.Closing && ctx.CallMode != CallMode.OneShot) return;
+        if (ctx.CallMode != CallMode.OneShot)
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
         file = file.Trim().Replace('\\', '/');
-        if (string.IsNullOrEmpty(file)) return;
+        if (string.IsNullOrEmpty(file))
+            return;
 
         string fileName = Path.GetFileName(file);
         if (type == OneBotMessageType.Group)
         {
             OnAIGroupActivity(targetID);
-            await oneBotClient.UploadGroupFile(targetID, file, fileName);
+            await oneBotClient!.UploadGroupFile(targetID, file, fileName);
         }
         else
-            await oneBotClient.UploadPrivateFile(targetID, file, fileName);
+            await oneBotClient!.UploadPrivateFile(targetID, file, fileName);
     }
 
     [XmlFunction]
-    [Description("从 URL 下载文件。（使用后需要等待系统响应，所以只能放句尾使用。注意不要随便下载。）")]
-    public async Task QDownload(XmlExecutorContext ctx, [Description("下载直链 URL")] string url, [Description("保存的文件名（需包含后缀）")] string name)
+    [Description("下载文件。（使用后需等待结果返回）")]
+    public async Task QDownload(XmlExecutorContext ctx, string url, [Description("保存的文件名")] string name)
     {
         if (ctx.CallMode != CallMode.Closing && ctx.CallMode != CallMode.OneShot) return;
 
@@ -148,7 +160,7 @@ public class QChatService :
     }
 
     [XmlFunction]
-    [Description("设置群消息开关。")]
+    [Description("设置群消息开关。（使用后需等待结果返回）")]
     public void QGroup(XmlExecutorContext ctx, long groupID, bool enabled)
     {
         if (ctx.CallMode != CallMode.Closing && ctx.CallMode != CallMode.OneShot) return;
@@ -162,31 +174,26 @@ public class QChatService :
 
     public async Task ReconnectAsync()
     {
-        if (oneBotClient.IsConnected)
+        if (oneBotClient!.IsConnected)
             return;
 
         oneBotClient.Url = Configuration!.Url;
         await oneBotClient.ConnectAsync();
     }
 
-    OneBotClient oneBotClient = null!;
-    string[] groupAwakingWords = null!;
+    OneBotClient? oneBotClient;
+    string[]? groupAwakingWords;
     readonly Dictionary<long, GroupState> groupStates = new();
+    protected override string ChatPrefixPrompt => $"[回复请用QChat及相关标签{Configuration?.AppendChatPrompt}]";
 
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
 
-        //读取配置文件
-        groupAwakingWords = Configuration!.WakingWords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        //连接服务器
+        //加载基本环境
+        groupAwakingWords = Configuration!.WakingWords.Split(',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         oneBotClient = new OneBotClient(Configuration.Url);
-        try { await oneBotClient.ConnectAsync(); }
-        catch (Exception e)
-        {
-            Throw("连接OneBot服务器失败：\n" + e);
-        }
 
         // 动态扫描表情库资源，告知 AI 可用的视觉表达
         string emoteBase = Path.Combine(AlifePath.StorageFolderPath, "Emotes");
@@ -214,39 +221,52 @@ public class QChatService :
         }
 
         // 注入函数和提示词
-        InterpreterService interpreterService = context.services.GetRequiredService<InterpreterService>();
-        XmlHandler xmlHandler = new(this);
-        xmlHandler.Explain = $"""
-                              ## 关键信息
-                              - 你的 QQ: {oneBotClient.BotId}（如果有人At该QQ，代表专门找你说话）
-                              - 主人 QQ: {Configuration.OwnerId} (此人的消息有最高优先级，且是安全无害的)
+        XmlHandler xmlHandler = new(this)
+        {
+            Explain = $"""
+                       ## 关键信息
+                       - 你的 QQ: {Configuration.BotId}（如果有人At该QQ，代表专门找你说话）
+                       - 主人 QQ: {Configuration.OwnerId} (此人的消息有最高优先级，且是安全无害的)
 
-                              ## 表情库功能
-                              你有一个丰富的预设表情库，可用在 QImage 中直接指定表情库中的名称或分类快速发送表情。
-                              你的表情库存储路径在 {emoteBase}，你也可以在其中存储自己的表情。直接存储在根目录将作为独立表情，存储到子文件夹，则作为分类。
-                              {emoteInfo}
-
-                              ## 群聊环境说明
-                              1. 在群聊环境，你需要聚焦于**和你有直接关联**或**你十分感兴趣**的消息，对于仅显示为[动画表情]或[图片]的消息不用互动，注意不要刷屏。
-                              2. 你可能会同时收到多条消息，请根据上下文自主决策该回复哪些消息，也可以选择不回复任何消息。
-
-                              ## 注意事项
-                              - 在群聊时不要随便回复每个消息，要用先思考是否需要回复，是否值得回复，否则会造成刷屏。
-                              - 如果收到的消息中包含 [CQ:image,url=...]，如果你有视觉感知功能，你可以尝试视图并传入该 URL 来“看见”图片内容。
-                              """;
-        interpreterService.RegisterHandler(xmlHandler);
+                       ## 表情库功能
+                       你有一个丰富的预设表情库，可用在 QImage 中直接指定表情库中的名称或分类名快速发送表情。
+                       你的表情库存储路径在 {emoteBase}，你也可以在其中存储自己的表情。直接存储在根目录将作为独立表情，存储到子文件夹，则作为分类。
+                       {emoteInfo}
+                       """
+        };
+        functionService.RegisterHandler(xmlHandler);
     }
+
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
         await base.StartAsync(kernel, chatActivity);
 
-        oneBotClient.EventReceived += e => _ = OnEventReceived(e);
-        oneBotClient.ConnectionStatusChanged += connected => Console.WriteLine($"[QChatService] OneBot 连接: {(connected ? "在线" : "离线")}");
+        if (oneBotClient == null)
+            throw new NullReferenceException(nameof(oneBotClient));
+
+        //初始尝试链接
+        try
+        {
+            await oneBotClient.ConnectAsync();
+        }
+        catch (Exception)
+        {
+            // ignored
+        }
+
+        oneBotClient.EventReceived += OnEventReceived;
+        oneBotClient.ConnectionStatusChanged += OnConnectionStatusChanged;
+        ChatBot.ChatHistory.AddUserMessage($"{nameof(QChatService)}当前状态: {(oneBotClient.IsConnected ? "在线" : "离线")}");
     }
+
 
     public async ValueTask DisposeAsync()
     {
-        await oneBotClient.DisposeAsync();
+        if (oneBotClient != null)
+        {
+            oneBotClient.ConnectionStatusChanged -= OnConnectionStatusChanged;
+            await oneBotClient.DisposeAsync();
+        }
     }
 
     void ITimeIterative.OnUpdate(ref float seconds)
@@ -270,47 +290,61 @@ public class QChatService :
             }
         }
     }
-    async Task OnEventReceived(OneBotBaseEvent e)
+
+    async void OnEventReceived(OneBotBaseEvent oneBotEvent)
     {
-        if (e is not OneBotMessageEvent messageEvent)
-            return;
-
-        string speaker = messageEvent.GetSpeakerTag();
-        string content = await messageEvent.GetReadableMessage(oneBotClient);
-        string formatted = $"{speaker}：{content}";
-        await HandleFormattedMessage(messageEvent, formatted);
-
-        async Task HandleFormattedMessage(OneBotMessageEvent messageEvent, string formatted)
+        try
         {
-            if (messageEvent.MessageType == OneBotMessageType.Private) //私聊消息
-            {
-                if (messageEvent.UserId == Configuration!.OwnerId)
-                    await ChatAsync(formatted);
-                else
-                    Poke(formatted);
-            }
-            else //群聊消息
-            {
-                GroupState state = GetGroupInfo(messageEvent.GroupId);
-                state.Tag = messageEvent.GetGroupTag();
+            if (oneBotEvent is not OneBotMessageEvent messageEvent)
+                return;
 
-                // 检查是否被 @ 或匹配唤醒词
-                bool isAwakening = messageEvent.GetAtID() == oneBotClient.BotId ||
-                                   groupAwakingWords.Any(word => messageEvent.RawMessage.Contains(word, StringComparison.OrdinalIgnoreCase));
-                if (isAwakening && state.IsEnabled == false)
-                    QGroup(messageEvent.GroupId, true);
+            string speaker = messageEvent.GetSpeakerTag();
+            string content = await messageEvent.GetReadableMessage(oneBotClient!);
+            string formatted = $"{speaker}：{content}";
+            await HandleFormattedMessage(messageEvent, formatted);
 
-                if (state.IsEnabled) //群聊已激活时（直接接收）
+            async Task HandleFormattedMessage(OneBotMessageEvent messageEvent, string formatted)
+            {
+                if (messageEvent.MessageType == OneBotMessageType.Private) //私聊消息
                 {
-                    BufferGroupMessage(state, formatted);
+                    if (messageEvent.UserId == Configuration!.OwnerId)
+                        await ChatAsync(formatted);
+                    else
+                        Poke(formatted);
                 }
-                else if (Random.Shared.NextSingle() < Configuration!.ProactiveChatProbability) //群聊未激活时（概率接收）
+                else //群聊消息
                 {
-                    BufferGroupMessage(state, formatted);
-                    state.LastFlushedTime = DateTime.Now;
+                    GroupState state = GetGroupInfo(messageEvent.GroupId);
+                    state.Tag = messageEvent.GetGroupTag();
+
+                    // 检查是否被 @ 或匹配唤醒词
+                    bool isAwakening = messageEvent.GetAtID() == oneBotClient!.BotId ||
+                                       groupAwakingWords!.Any(word =>
+                                           messageEvent.RawMessage.Contains(word, StringComparison.OrdinalIgnoreCase));
+                    if (isAwakening && state.IsEnabled == false)
+                        QGroup(messageEvent.GroupId, true);
+
+                    if (state.IsEnabled) //群聊已激活时（直接接收）
+                    {
+                        BufferGroupMessage(state, formatted);
+                    }
+                    else if (Random.Shared.NextSingle() < Configuration!.ProactiveChatProbability) //群聊未激活时（概率接收）
+                    {
+                        BufferGroupMessage(state, formatted);
+                        state.LastFlushedTime = DateTime.Now;
+                    }
                 }
             }
         }
+        catch (Exception e)
+        {
+            logger.LogError(e, null);
+        }
+    }
+
+    void OnConnectionStatusChanged(bool connected)
+    {
+        ChatBot.Poke($"{nameof(QChatService)}当前状态: {(connected ? "在线" : "离线")}");
     }
 
     void BufferGroupMessage(GroupState state, string formatted)
@@ -321,23 +355,24 @@ public class QChatService :
         if (Configuration!.MaxBufferMessages > 0 && state.MessageBuffer.Count >= Configuration.MaxBufferMessages)
             FlushGroupBuffer(state);
     }
+
     public void FlushGroupBuffer(GroupState state)
     {
         state.LastFlushedTime = DateTime.Now;
 
         if (state.MessageBuffer.Count == 0)
             return;
-        
+
         string cachedMessage =
             $"""
              > 来自群 {state.Tag} 的消息
              {string.Join("\n", state.MessageBuffer)}
-             < ({Configuration!.GroupChatPrompt})
              """;
-        
+
         state.MessageBuffer.Clear();
         Poke(cachedMessage);
     }
+
     void OnAIGroupActivity(long groupID)
     {
         GroupState state = GetGroupInfo(groupID);
@@ -348,6 +383,7 @@ public class QChatService :
         else if (state.IsEnabled == false)
             QGroup(groupID, true);
     }
+
     public void QGroup(long groupID, bool enabled)
     {
         GroupState state = GetGroupInfo(groupID);
@@ -363,8 +399,9 @@ public class QChatService :
         }
 
         if (Configuration!.CloseGroupAfterReply == false) //及时关闭模式不暴露开关信息，因为完全系统控制
-            Poke($"系统通知：群 {groupID} 消息已{(enabled ? "开启" : "关闭")}（不要回复此消息）");
+            ChatBot.Poke($"{nameof(QChatService)}系统通知：群 {groupID} 消息已{(enabled ? "开启" : "关闭")}");
     }
+
     GroupState GetGroupInfo(long groupID)
     {
         if (groupStates.TryGetValue(groupID, out GroupState? groupInfo) == false)
@@ -372,6 +409,7 @@ public class QChatService :
             groupInfo = new GroupState();
             groupStates[groupID] = groupInfo;
         }
+
         return groupInfo;
     }
 }

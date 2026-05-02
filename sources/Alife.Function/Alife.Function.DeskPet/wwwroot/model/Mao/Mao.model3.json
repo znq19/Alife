@@ -10,7 +10,7 @@
     "DisplayInfo": "Mao.cdi3.json",
     "Expressions": [
       {
-        "Name": "微笑",
+        "Name": "通常",
         "File": "expressions/exp_01.exp3.json"
       },
       {

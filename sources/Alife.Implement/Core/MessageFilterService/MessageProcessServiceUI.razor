@@ -27,7 +27,7 @@
                               Style="font-size: 12px; display: block; margin-bottom: 8px;">
                             将附加在每条发给 AI 的消息开头，用于约束回复风格。
                         </Text>
-                        <TextArea @bind-Value="@config.MessageHeader" Rows="3" Style="border-radius: 8px;"></TextArea>
+                        <TextArea @bind-Value="@config.MessageAppend" Rows="3" Style="border-radius: 8px;"></TextArea>
                     </div>
                 </GridCol>
 
@@ -38,7 +38,7 @@
                               Style="font-size: 12px; display: block; margin-bottom: 8px;">
                             将附加在每条发给 AI 的系统缓存消息开头，用于对缓存消息进行特殊处理。
                         </Text>
-                        <TextArea @bind-Value="@config.PokeHeader" Rows="2" Style="border-radius: 8px;"></TextArea>
+                        <TextArea @bind-Value="@config.PokeAppend" Rows="2" Style="border-radius: 8px;"></TextArea>
                     </div>
                 </GridCol>
 
@@ -60,7 +60,7 @@
     {
         base.OnParametersSet();
 
-        var service = Plugin as MessageFilterService;
+        var service = Plugin as MessageProcessService;
         if (service != null)
         {
             config = service.Configuration;

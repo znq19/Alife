@@ -30,7 +30,7 @@
         </div>
 
         <Text Type="@TextElementType.Secondary" Style="font-size: 12px; margin-top: 12px;">
-            涉及模型加载，根据模型情况可能时间较长，请耐心等待喵...
+            涉及模型加载，根据情况可能时间较长，请耐心等待...（注意观察任务管理器）
         </Text>
     </Flex>
 </Modal>
@@ -45,7 +45,8 @@
     private System.Timers.Timer? tipTimer;
     private int tipIndex = 0;
 
-    private readonly string[] tips = [
+    private readonly string[] tips =
+    [
         "正在同步量子记忆纠缠...",
         "正在构建情感共鸣矩阵...",
         "正在打捞电子梦境碎片...",
@@ -59,7 +60,8 @@
     protected override void OnInitialized()
     {
         tipTimer = new System.Timers.Timer(3000);
-        tipTimer.Elapsed += (_, _) => {
+        tipTimer.Elapsed += (_, _) =>
+        {
             tipIndex = (tipIndex + 1) % tips.Length;
             currentTip = tips[tipIndex];
             InvokeAsync(StateHasChanged);
@@ -72,6 +74,7 @@
         tipTimer?.Stop();
         tipTimer?.Dispose();
     }
+
 }
 
 <style>

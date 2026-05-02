@@ -8,20 +8,22 @@ public abstract class Plugin
 {
     public struct AwakeContext
     {
-        public Character character;
-        public ServiceProvider services;
-        public IKernelBuilder kernelBuilder;
-        public ChatHistoryAgentThread contextBuilder;
+        public Character Character { get; init; }
+        public ServiceProvider Services { get; init; }
+        public IKernelBuilder KernelBuilder { get; init; }
+        public ChatHistoryAgentThread ContextBuilder { get; init; }
     }
 
     public virtual Task AwakeAsync(AwakeContext context)
     {
         return Task.CompletedTask;
     }
+
     public virtual Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
         return Task.CompletedTask;
     }
+
     public virtual Task DestroyAsync()
     {
         return Task.CompletedTask;

@@ -27,7 +27,7 @@ public class ChatActivitySystem
 
         activities.Add(character.Name, chatActivity);
         Created?.Invoke(chatActivity);
-        await chatActivity.Start();
+        await chatActivity.Start(progress);
 
         return chatActivity;
     }
@@ -40,7 +40,8 @@ public class ChatActivitySystem
         Destroyed?.Invoke(chatActivity);
     }
 
-    public ChatActivitySystem(ConfigurationSystem configuration, StorageSystem storageSystem, PluginSystem pluginSystem,CharacterSystem  characterSystem)
+    public ChatActivitySystem(ConfigurationSystem configuration, StorageSystem storageSystem, PluginSystem pluginSystem,
+        CharacterSystem characterSystem)
     {
         this.configuration = configuration;
         this.storageSystem = storageSystem;
@@ -51,6 +52,6 @@ public class ChatActivitySystem
     readonly ConfigurationSystem configuration;
     readonly StorageSystem storageSystem;
     readonly PluginSystem pluginSystem;
-    readonly CharacterSystem  characterSystem;
+    readonly CharacterSystem characterSystem;
     readonly Dictionary<string, ChatActivity> activities = new();
 }

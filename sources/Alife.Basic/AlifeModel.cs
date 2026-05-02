@@ -14,21 +14,28 @@ public static class AlifeModel
         string checkFile = Path.Combine(localPath, targetFile ?? "README.md");
 
         if (!File.Exists(checkFile))
-            AlifePlatform.Command("python", $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
+            AlifePlatform.Command("python",
+                $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
         if (!File.Exists(checkFile))
             throw new DirectoryNotFoundException($"模型下载失败，目录不存在：{localPath}");
 
         return targetFile != null ? checkFile : localPath;
     }
+
     public static void ConvertSafetensorsToOnnx(string modelDir, string taskType = "feature-extraction")
     {
-        AlifePlatform.Command("python", $"-c \"from optimum.exporters.onnx import main_export; main_export(model_name_or_path=r'{modelDir}', output=r'{modelDir}', task='{taskType}')\"");
+        AlifePlatform.Command("python",
+            $"-c \"from optimum.exporters.onnx import main_export; main_export(model_name_or_path=r'{modelDir}', output=r'{modelDir}', task='{taskType}')\"");
     }
+
     static string ModelScopeCachePath { get; }
 
     static AlifeModel()
     {
+        AlifePlatform.Command("pip", "install torch --index-url https://download.pytorch.org/whl/cu121");
         AlifePlatform.Command("pip", "install modelscope optimum[onnxruntime]");
-        ModelScopeCachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "modelscope", "hub", "models").Replace(Path.DirectorySeparatorChar, '/');
+        ModelScopeCachePath =
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "modelscope",
+                "hub", "models").Replace(Path.DirectorySeparatorChar, '/');
     }
 }

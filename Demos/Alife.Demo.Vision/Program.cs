@@ -20,7 +20,7 @@ class Program
                       "你答：好的喵！主人请稍候，我这就来看看屏幕喵！<look_screen>描述一下屏幕上的主要窗口内容</look_screen>",
             Plugins = new HashSet<string> {
                 typeof(ChatService).FullName!,   // 大模型对话支持
-                typeof(InterpreterService).FullName!,   // 标签解析支持
+                typeof(FunctionService).FullName!,   // 标签解析支持
                 typeof(VisionService).FullName!,       // 视觉服务插件
             }
         };

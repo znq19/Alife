@@ -11,6 +11,7 @@ public class XmlStreamParser
     public Func<Task>? TagShotted { get; set; }
     public Func<Task>? TagReset { get; set; }
     public Func<char, Task>? ContentGot { get; set; }
+    public event Action<string, Exception>? Error;
 
     public async Task Feed(char ch)
     {
@@ -26,6 +27,7 @@ public class XmlStreamParser
                     annotationBuffer.Append(ch);
                     break;
             }
+
             return;
         }
 
@@ -114,11 +116,13 @@ public class XmlStreamParser
                 break;
         }
     }
+
     public async Task Feed(string text)
     {
         foreach (char ch in text)
             await Feed(ch);
     }
+
     public async Task Flush()
     {
         while (tagStack.Count != 0)
@@ -153,6 +157,7 @@ public class XmlStreamParser
     string? currentTagAttributeName;
     bool isValueParsing;
     readonly Dictionary<string, string> parsedAttributes = new();
+
     /// 0：开标签；1：闭标签；2：自闭合标签
     int tagMode;
 
@@ -164,6 +169,7 @@ public class XmlStreamParser
         if (ContentGot != null && tagStack.Contains(safeArea) == false)
             await ContentGot.Invoke(ch);
     }
+
     void HandleTagChar(char ch)
     {
         tagBuffer.Append(ch);
@@ -175,7 +181,8 @@ public class XmlStreamParser
         string content = escapingBuffer.ToString();
         escapingBuffer.Clear();
 
-        char? escaping = content switch {
+        char? escaping = content switch
+        {
             "&#34;" or "&quot;" => '"',
             "&#38;" or "&amp;" => '&',
             "&#60;" or "&lt;" => '<',
@@ -212,6 +219,7 @@ public class XmlStreamParser
         tagBuffer.Clear();
         return content;
     }
+
     /// <summary>
     /// 仅用于触发名称输入完成
     /// </summary>
@@ -228,6 +236,7 @@ public class XmlStreamParser
                 currentTagAttributeName = ExtractTagContent();
         }
     }
+
     void FlashAttributeValue()
     {
         if (currentTagAttributeName == null)
@@ -238,6 +247,7 @@ public class XmlStreamParser
         currentTagAttributeName = null;
         isValueParsing = false;
     }
+
     async Task FlashTag()
     {
         if (currentTagName != null)
@@ -251,10 +261,15 @@ public class XmlStreamParser
                         if (TagOpened != null)
                             await TagOpened.Invoke();
                     }
+
                     break;
                 case 1:
                     if (tagStack.Contains(currentTagName) == false)
+                    {
+                        Error?.Invoke(currentTagName, new Exception($"检测到无效的孤儿闭标签：{currentTagName}"));
                         break; //无效的孤儿闭标签（未触发事件和入栈，直接无视即可）
+                    }
+
                     while (tagStack.Last() != currentTagName)
                     {
                         //移除无效的孤儿开标签（因为入栈且调用过函数，所以要回调）
@@ -275,6 +290,7 @@ public class XmlStreamParser
                             await TagShotted.Invoke();
                         tagStack.RemoveAt(tagStack.Count - 1);
                     }
+
                     break;
             }
         }
@@ -297,11 +313,13 @@ public class XmlStreamParser
         parsedAttributes.Clear();
         tagMode = 0;
     }
+
     void ClearEscaping()
     {
         isCharEscaping = false;
         escapingBuffer.Clear();
     }
+
     void ClearAnnotation()
     {
         isAnnotation = false;

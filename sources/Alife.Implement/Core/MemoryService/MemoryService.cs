@@ -6,7 +6,6 @@ using Alife.Framework;
 using Alife.Function.Interpreter;
 using Alife.Function.Memory;
 using Alife.Implement.Core.MemoryService;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 
@@ -19,29 +18,33 @@ public record MemoryConfig
     public float Probability { get; set; } = 0.4f;
     public int MaxCompressionLevel { get; set; } = 100;
 }
+
 public partial class MemoryService
 {
-    static readonly TextVectorizer TextVectorizer;
-    static MemoryService()
+    static TextVectorizer? textVectorizer;
+
+    static void TryInitialized()
     {
-        TextVectorizer = new TextVectorizer();
+        textVectorizer ??= new TextVectorizer();
     }
 }
+
 [Plugin("持久记忆", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。", LaunchOrder = -100, EditorUI = typeof(MemoryServiceUI))]
-public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>
+public partial class MemoryService(FunctionService functionService) : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>
 {
     [XmlFunction]
     [Description("查看记忆存档中被归档的完整原始内容。（注意存档可能嵌套，根据情况你可以需要多次调用）")]
     public async Task Recall(XmlExecutorContext ctx, [Description("存档索引（如：0-20240101120000-20240101130000）")] string index)
     {
         if (ctx.CallMode != CallMode.OneShot)
-            return;
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         string? memory = await memoryManager.ReadMemory(index);
         Poke(memory != null
             ? $"读取完整记忆如下：\n{memory}"
             : "未找到记忆记录");
     }
+
     [XmlFunction]
     [Description($"在归档的记忆存档中搜索内容（搜索到的结果是存档索引，你需要用 {nameof(Recall)} 打开）。")]
     public async Task Search(XmlExecutorContext ctx,
@@ -51,7 +54,7 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
         [Description("可选，搜索条数")] int count = 5)
     {
         if (ctx.CallMode != CallMode.OneShot)
-            return;
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         query = query.Trim();
         if (endTime != null)
@@ -73,6 +76,7 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
                  事件概述：```{searchResult.Summary}```
                  """);
         }
+
         Poke(stringBuilder.ToString());
     }
 
@@ -80,12 +84,13 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
     [Description("创建一个永久（最高层）记忆存档。这种记忆不会被压缩，你可以用它来记录重要的事实或核心记忆。")]
     public async Task Memorize(XmlExecutorContext ctx,
         [Description("概述（常驻上下文）")] string summary,
-        [Description("详细（需通过 Recall 查看）")] [XmlContent] string content,
+        [Description("详细（需通过 Recall 查看）")] [XmlContent]
+        string content,
         [Description("格式为ISO-8601")] DateTime? startTime = null,
         [Description("格式为ISO-8601")] DateTime? endTime = null
     )
     {
-        if (ctx.CallMode != CallMode.OneShot && ctx.CallMode != CallMode.Closing)
+        if (ctx.CallMode != CallMode.Closing)
             return;
 
         int targetLevel = Configuration!.MaxCompressionLevel;
@@ -93,9 +98,8 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
         DateTime end = endTime ?? DateTime.Now;
 
         await InsertMemory(targetLevel, summary, content, start, end);
-
-        if (ctx.CallMode == CallMode.OneShot)
-            Poke($"已成功插入层级为 L{targetLevel} 的记忆存档。");
+        
+        Poke($"已成功插入层级为 L{targetLevel} 的记忆存档。");
     }
 
     [XmlFunction]
@@ -104,7 +108,7 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
         [Description("存档索引")] string index)
     {
         if (ctx.CallMode != CallMode.OneShot)
-            return;
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         index = index.Trim();
         ChatMessageContent? target = ChatHistory.FirstOrDefault(c => c.Content != null && c.Content.Contains($"存档索引：{index}"));
@@ -124,7 +128,7 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
 
         memoryManager.RemoveMemory(ChatHistory, target);
         ChatBot.UpdateHistoryEndIndex();
-        
+
         Poke($"已成功移除记忆存档：{index}（不过你仍可以通过 {nameof(Recall)} 读取其内容）");
     }
 
@@ -136,29 +140,48 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
 
     public MemoryConfig? Configuration { get; set; }
     MemoryManager memoryManager = null!;
+    string? storagePath;
 
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
 
-        InterpreterService interpreterService = context.services.GetRequiredService<InterpreterService>();
-        XmlHandler handler = new(this);
-        handler.Description = "提供一系列让你可以回忆过往的工具，你甚至可以借此查到所有最原始的聊天记录，所以记忆是不会丢的，只可能你不愿意回忆。";
-        interpreterService.RegisterHandler(this);
+        TryInitialized();
+        storagePath = Path.Combine(AlifePath.StorageFolderPath, context.Character.StorageKey, "Memory");
+
+        XmlHandler handler = new(this)
+        {
+            Description = "提供一系列让你可以回忆过往的工具，你甚至可以借此查到所有最原始的聊天记录，在遇到记不起来的事情时，你要积极去使用这些工具。",
+            Explain = $"""
+                       你的记忆存档位置在“{storagePath}”。所有记忆都被以“txt格式，日期命名”的形式按压缩级别分别存放在“L0,L1...”之类的文件夹中，如“/L0/0-20260421014905-20260421022747.txt”。
+                       因此除了使用标签来查阅记忆外，你也可以直接用处理文件的方式查阅记忆。
+                       """
+        };
+        functionService.RegisterHandler(handler);
 
         Prompt("""
                上下文压缩说明：
                有时你会收到关于上下文压缩的提示，它会给予你一段过往时间的聊天记录或记忆存档。这些内容是即将移出上下文的内容，所以需要你用第一人称简述一下发生的事情，方便日后回忆。
 
+               ## 核心记忆说明
+               记忆拥有优先级，优先级最高的叫做核心（关键性）记忆，常见的核心记忆例如：
+               1. 用户画像：爱好、工作、地址、起居、家庭、生日等
+               2. 关键记录：号码、事件、规则、要求等
+               3. 引起巨大反应经理：惊讶、悲伤、感慨等
+               4. 等等类似的有价值有意义的特殊记忆......
+               对于关键性记忆，在压缩时需要优先保留，甚至反复保留回忆，以将其永远留在上下文中。
+
+               ## 压缩规则要点说明
                注意！描述事情时，你要遵守如下规则：
-               1. 按重要程度进行信息舍取，注意简洁。
-               2. 多事件时注意按时间段区分。
-               3. 保持对一些关键数据的记录。
-               4. 系统会自动生成存档信息，所以你不用负责添加系统信息，直接像讲故事一样描述概述内容即可。
-               5. 分清事件中的具体人物，不要用‘你’这种代词。
-               6. 不要回复无关事件描述的内容，如不要开头回复‘好的’。
+               1. 无需记录存档信息，不要混淆其他聊天，仅直接总结压缩时提供的内容中的事件即可。
+               2. 压缩时注意反复回忆保留其中的重要经历、关键性信息等，以形成永久的核心记忆。
+               3. 当要压缩内容过多时，要按重要程度进行取舍，如核心记忆需优先保留，而生活中的琐事、普通对话则可以一笔带过或选择遗忘。
+               4. 在压缩总结的写法上，对于多事件内容要按时间段区分，对于核心记忆则要单独记录。
+               5. 分清事件中的具体人物，不要用‘你’这种代词，要用具体的名称，如‘主人’、‘某某某’等。
+               6. 系统会自动生成存档信息，所以不要擅自添加系统信息，直接像讲故事一样描述概述内容中发生的事件即可。
                """);
     }
+
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
         await base.StartAsync(kernel, chatActivity);
@@ -166,9 +189,9 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
         ChatBot.ChatHistoryAdd += OnChatHistoryAdd; //每次对话后检测压缩
 
         //初始化向量化器和感知人设的压缩器
-        string storagePath = Path.Combine(AlifePath.StorageFolderPath, chatActivity.Character.StorageKey, "Memory");
         AlifeTextCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), ChatHistory, Configuration!.Probability);
-        memoryManager = new MemoryManager(compressor, TextVectorizer, storagePath, Configuration!.Threshold, Configuration!.BatchSize, Configuration!.MaxCompressionLevel);
+        memoryManager = new MemoryManager(compressor, textVectorizer!, storagePath!, Configuration!.Threshold, Configuration!.BatchSize,
+            Configuration!.MaxCompressionLevel);
 
         //加载历史记忆
         memoryManager.LoadHistory(ChatHistory);
@@ -206,15 +229,11 @@ public partial class MemoryService : InteractivePlugin<MemoryService>, IConfigur
             history.AddMessage(AuthorRole.User,
                 $"""
                  [{nameof(MemoryService)}] 触发上下文压缩了，压缩内容如下：
-
                  ```
                  {text}
                  ```
-
-                 压缩要点：
-                 1. 无需记录存档信息，不要混淆其他聊天，仅直接描述上述内容中的事件即可。
-                 2. 注意学会反复回忆重要经历，以及反复记忆关键性的内容，以形成核心记忆。
-                 现在请直接开始概述上述内容描述的事情。
+                 请务必按照压缩要点的要求进行回复，不要参杂与事件描述无关的内容（如不要在开头回复‘好的’、‘我来总结’这类语句）。
+                 然后现在请直接开始概述上述内容描述的事情。
                  """);
             ChatMessageContent content = await chatCompletionService.GetChatMessageContentAsync(history);
             history.RemoveAt(history.Count - 1);

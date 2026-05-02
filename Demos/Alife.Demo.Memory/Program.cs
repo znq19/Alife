@@ -19,7 +19,7 @@ public class Program
             Name = "记忆助手",
             Prompt = "你是一个拥有长期记忆能力的助手。请尽量简洁地回答用户。",
             Plugins = new HashSet<string> {
-                typeof(InterpreterService).FullName!,
+                typeof(FunctionService).FullName!,
                 typeof(MemoryService).FullName!,
                 typeof(EventService).FullName!,
                 typeof(ChatService).FullName!,

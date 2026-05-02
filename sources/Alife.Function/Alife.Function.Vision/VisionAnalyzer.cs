@@ -27,7 +27,8 @@ public class VisionAnalyzer : IDisposable
         string script = Path.Combine(AppContext.BaseDirectory, "vision_bridge.py");
         string arguments = $"\"{script}\" --model_path \"{modelPath}\"";
 
-        ProcessStartInfo psi = new() {
+        ProcessStartInfo psi = new()
+        {
             FileName = "python",
             Arguments = arguments,
             RedirectStandardInput = true,
@@ -37,8 +38,11 @@ public class VisionAnalyzer : IDisposable
             CreateNoWindow = true,
             StandardInputEncoding = new UTF8Encoding(false),
             StandardOutputEncoding = new UTF8Encoding(false),
+            Environment =
+            {
+                ["PYTHONIOENCODING"] = "utf-8"
+            }
         };
-        psi.Environment["PYTHONIOENCODING"] = "utf-8";
 
         process = Process.Start(psi)
                   ?? throw new InvalidOperationException("Failed to start Python vision bridge.");
@@ -48,7 +52,8 @@ public class VisionAnalyzer : IDisposable
 
         if (onLog != null)
         {
-            _ = Task.Run(async () => {
+            _ = Task.Run(async () =>
+            {
                 StreamReader stderr = process.StandardError;
                 char[] buffer = new char[256];
                 try
@@ -73,7 +78,8 @@ public class VisionAnalyzer : IDisposable
             while (!cts.Token.IsCancellationRequested)
             {
                 string? line = stdout.ReadLine();
-                if (line == null) throw new InvalidOperationException("Python bridge process exited unexpectedly during startup.");
+                if (line == null)
+                    throw new InvalidOperationException("Python bridge process exited unexpectedly during startup.");
                 if (line == "READY") return;
                 if (line.StartsWith("{")) // 可能是错误信息
                 {
@@ -92,9 +98,11 @@ public class VisionAnalyzer : IDisposable
     /// <summary>
     /// 视觉问答：用中文提问，获得中文回答。
     /// </summary>
-    public Task<string> QueryAsync(string imagePath, string question, int? maxResponseTokens = null, CancellationToken ct = default)
+    public Task<string> QueryAsync(string imagePath, string question, int? maxResponseTokens = null,
+        CancellationToken ct = default)
     {
-        return SendRequestAsync(new { action = "query", image_path = imagePath, question, max_new_tokens = maxResponseTokens }, ct);
+        return SendRequestAsync(
+            new { action = "query", image_path = imagePath, question, max_new_tokens = maxResponseTokens }, ct);
     }
 
     async Task<string> SendRequestAsync(object request, CancellationToken ct)

@@ -15,7 +15,7 @@ var character = new Character {
              "在对话中，如果你发现需要进行复杂计算或系统操作，请主动使用 Python 脚本喵！",
     Plugins = new HashSet<string> {
         typeof(ChatService).FullName!,
-        typeof(InterpreterService).FullName!,
+        typeof(FunctionService).FullName!,
         typeof(PythonService).FullName!,
     }
 };

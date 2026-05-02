@@ -1,7 +1,7 @@
+@namespace Alife.Implement
 @inherits Alife.Framework.PluginUIBase
 @implements IDisposable
 @using Alife.Framework
-@using QChatService = Alife.Implement.QChatService
 @inject ConfigurationSystem ConfigurationSystem
 @inject IMessageService MessageService
 
@@ -27,6 +27,9 @@
     <Form TModel="QChatConfig" Model="@config" Layout="@FormLayout.Vertical">
         <FormItem Label="WebSocket URL">
             <Input @bind-Value="@config.Url" placeholder="例如: ws://127.0.0.1:3001"/>
+        </FormItem>
+        <FormItem Label="机器人 QQ 号">
+            <InputNumber @bind-Value="@config.BotId" Style="width: 100%;"/>
         </FormItem>
         <FormItem Label="主人 QQ 号">
             <InputNumber @bind-Value="@config.OwnerId" Style="width: 100%;"/>
@@ -168,7 +171,7 @@
         </FormItem>
 
         <FormItem Label="群聊回复预设 (Prompt)">
-            <TextArea @bind-Value="@config.GroupChatPrompt" Rows="2"
+            <TextArea @bind-Value="@config.AppendChatPrompt" Rows="2"
                       Placeholder="附加在消息末尾的指导提示词"></TextArea>
         </FormItem>
 
@@ -246,7 +249,11 @@
             </GridRow>
         </Card>
 
-        @ConfigSaveUI((config, newConfig => { config = (QChatConfig)newConfig; StateHasChanged(); }))
+        @ConfigSaveUI((config, newConfig =>
+        {
+            config = (QChatConfig)newConfig;
+            StateHasChanged();
+        }))
     </Form>
 
     <Divider/>
@@ -330,4 +337,5 @@
         refreshTimer?.Stop();
         refreshTimer?.Dispose();
     }
+
 }

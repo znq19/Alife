@@ -41,7 +41,7 @@
                         </div>
                         <Button Icon="sound" Size="ButtonSize.Small"
                                 Disabled="@(!SpeechService.IsSynthesizing)"
-                                Danger OnClick="@(StopTts)">停止播报
+                                Danger OnClick="@(SpeechService.TryStopSynthesizer)">停止播报
                         </Button>
                     </Flex>
                 </Card>
@@ -54,7 +54,7 @@
         @if (speechService != null)
         {
             <Flex Align="@FlexAlign.Center" Justify="FlexJustify.SpaceBetween" Style="margin-bottom: 8px;">
-                <Title Level="4" Style="margin: 0;">特定于活动的开关</Title>
+                <Title Level="4" Style="margin: 0;">特定于角色的开关</Title>
                 <Flex Align="@FlexAlign.Center" Gap="@("8")">
                     <Text Type="TextElementType.Secondary">是否接收语音</Text>
                     <Switch @bind-Checked="@speechService.IsReceiving" Size="InputSize.Small"/>
@@ -76,6 +76,7 @@
         refreshTimer.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
         refreshTimer.Start();
     }
+
     public void Dispose()
     {
         refreshTimer?.Stop();
@@ -91,17 +92,10 @@
 
     private void ToggleStt(bool value)
     {
-        if (speechService != null)
-        {
-            if (value)
-                speechService.TryStartRecognition();
-            else
-                speechService.TryStopRecognition();
-        }
+        if (value)
+            SpeechService.TryStartRecognition();
+        else
+            SpeechService.TryStopRecognition();
     }
 
-    private async Task StopTts()
-    {
-        await SpeechService.Synthesizer.StopSpeakAsync();
-    }
 }

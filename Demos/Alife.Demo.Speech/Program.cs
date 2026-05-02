@@ -9,7 +9,7 @@ Character character = new() {
              "主人正在通过语音或文字与你交流。请保持回答简短有力（回复控制在 30 字以内），适合语音播报。\n",
     Plugins = [
         typeof(ChatService).FullName!,
-        typeof(InterpreterService).FullName!,
+        typeof(FunctionService).FullName!,
         typeof(SpeechService).FullName!
     ]
 };

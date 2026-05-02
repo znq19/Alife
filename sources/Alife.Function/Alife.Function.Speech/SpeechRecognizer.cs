@@ -13,10 +13,29 @@ public class SpeechRecognizer : IDisposable
     {
         if (IsRecognizing)
             throw new InvalidOperationException("已在运行中，Stop 后才能再次 Start。");
+
+        if (SpeechEnvironment.HasMicrophone() == false)
+            return;
+        if (waveIn == null)
+        {
+            waveIn = new WaveInEvent();
+            waveIn.WaveFormat = new WaveFormat(16000, 16, 1);
+            waveIn.DataAvailable += (_, e) => AcceptWaveform(e.Buffer, e.BytesRecorded);
+            waveIn.RecordingStopped += (_, _) =>
+            {
+                waveIn.Dispose();
+                waveIn = null;
+                IsRecognizing = false;
+            };
+            waveIn.StartRecording();
+        }
+
+
         IsRecognizing = true;
         lock (vad)
             vad.Clear();
     }
+
     public void Stop()
     {
         if (IsRecognizing == false)
@@ -26,7 +45,7 @@ public class SpeechRecognizer : IDisposable
 
     readonly OfflineRecognizer recognizer;
     readonly VoiceActivityDetector vad;
-    readonly WaveInEvent waveIn;
+    WaveInEvent? waveIn;
 
     public SpeechRecognizer()
     {
@@ -52,19 +71,14 @@ public class SpeechRecognizer : IDisposable
         vadConfig.SileroVad.MinSpeechDuration = 0.25f;
         vadConfig.SampleRate = 16000;
         vad = new VoiceActivityDetector(vadConfig, bufferSizeInSeconds: 60);
-
-        waveIn = new WaveInEvent();
-        waveIn.WaveFormat = new WaveFormat(16000, 16, 1);
-        waveIn.DataAvailable += (_, e) => AcceptWaveform(e.Buffer, e.BytesRecorded);
-        waveIn.StartRecording();
     }
+
     public void Dispose()
     {
-        IsRecognizing = false;
-        waveIn.StopRecording();
-        waveIn.Dispose();
         recognizer.Dispose();
         vad.Dispose();
+        IsRecognizing = false;
+        waveIn?.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -95,6 +109,7 @@ public class SpeechRecognizer : IDisposable
             }
         }
     }
+
     void ProcessSegment(float[] samples)
     {
         using OfflineStream stream = recognizer.CreateStream();
