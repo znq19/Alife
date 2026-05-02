@@ -52,6 +52,8 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         option = option.Trim();
         if (string.IsNullOrWhiteSpace(option))
             return;
+        if (client!.SupportedExpressions.Contains(option) == false)
+            throw new Exception("选项不存在");
 
         client!.PlayExpression(option);
     }
@@ -65,9 +67,8 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         option = option.Trim();
         if (string.IsNullOrWhiteSpace(option))
             return;
-
         if (client!.SupportedMotions.TryGetValue(option, out (string Group, int Index) motion) == false)
-            return;
+            throw new Exception("选项不存在");
 
         client.PlayMotion(motion.Group, motion.Index);
     }

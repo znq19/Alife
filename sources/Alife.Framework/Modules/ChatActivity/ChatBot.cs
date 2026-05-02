@@ -175,6 +175,13 @@ public class ChatBot : IAsyncDisposable
         lastAutoFlushTime = 0; //重新计时，防止后续还有Poke
     }
 
+    public async Task ImplicitChatAsync(string message)
+    {
+        await ChatSemaphore.WaitAsync();
+        ChatHistory.AddUserMessage(message);
+        ChatSemaphore.Release();
+    }
+
     public void UpdateHistoryEndIndex()
     {
         lastContentIndex = ChatHistory.Count;

@@ -88,4 +88,9 @@ public class InteractivePlugin<T> : InteractivePlugin
     {
         return ChatBot.ChatAsync($"{ChatPrefixPrompt}{message}");
     }
+
+    protected Task ImplicitChatAsync(string message)
+    {
+        return ChatBot.ImplicitChatAsync($"{ChatPrefixPrompt}{message}");
+    }
 }

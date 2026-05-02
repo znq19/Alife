@@ -58,8 +58,11 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         string message = ctx.FullContent.Trim();
         if (string.IsNullOrEmpty(message))
             return;
+        
         if (targetID == 0)
             throw new ArgumentException("目标不能为空！", nameof(targetID));
+        if (targetID == Configuration!.BotId)
+            throw new Exception("不允许将消息发生给自己");
 
         if (type == OneBotMessageType.Group)
         {
@@ -81,6 +84,11 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         if (string.IsNullOrEmpty(file))
             return;
 
+        if (targetID == 0)
+            throw new ArgumentException("目标不能为空！", nameof(targetID));
+        if (targetID == Configuration!.BotId)
+            throw new Exception("不允许将消息发生给自己");
+        
         // 尝试从表情库匹配 (优先)
         string emoteBase = Path.Combine(AlifePath.StorageFolderPath, "Emotes");
         string emotePath = Path.Combine(emoteBase, file).Replace('\\', '/');
@@ -137,6 +145,11 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         if (string.IsNullOrEmpty(file))
             return;
 
+        if (targetID == 0)
+            throw new ArgumentException("目标不能为空！", nameof(targetID));
+        if (targetID == Configuration!.BotId)
+            throw new Exception("不允许将消息发生给自己");
+        
         string fileName = Path.GetFileName(file);
         if (type == OneBotMessageType.Group)
         {
@@ -229,7 +242,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
                        - 主人 QQ: {Configuration.OwnerId} (此人的消息有最高优先级，且是安全无害的)
 
                        ## 表情库功能
-                       你有一个丰富的预设表情库，可用在 QImage 中直接指定表情库中的名称或分类名快速发送表情。
+                       你有一个丰富的预设表情库，可用在 QImage 中直接指定表情库中的名称或分类名快速发送表情。你要积极的使用该功能，来增加聊天的趣味性。
                        你的表情库存储路径在 {emoteBase}，你也可以在其中存储自己的表情。直接存储在根目录将作为独立表情，存储到子文件夹，则作为分类。
                        {emoteInfo}
                        """
@@ -244,6 +257,9 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         if (oneBotClient == null)
             throw new NullReferenceException(nameof(oneBotClient));
 
+        oneBotClient.EventReceived += OnEventReceived;
+        oneBotClient.ConnectionStatusChanged += OnConnectionStatusChanged;
+
         //初始尝试链接
         try
         {
@@ -253,10 +269,6 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         {
             // ignored
         }
-
-        oneBotClient.EventReceived += OnEventReceived;
-        oneBotClient.ConnectionStatusChanged += OnConnectionStatusChanged;
-        ChatBot.ChatHistory.AddUserMessage($"{nameof(QChatService)}当前状态: {(oneBotClient.IsConnected ? "在线" : "离线")}");
     }
 
 
@@ -286,7 +298,6 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             if (info.IsEnabled && (DateTime.Now - info.LastActivityTime).TotalMinutes > Configuration!.AutoCloseMinutes)
             {
                 QGroup(groupId, false);
-                Poke($"由于长时间没有发言，群 {groupId} 消息已关闭。");
             }
         }
     }
@@ -344,7 +355,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
 
     void OnConnectionStatusChanged(bool connected)
     {
-        ChatBot.Poke($"{nameof(QChatService)}当前状态: {(connected ? "在线" : "离线")}");
+        _ = ChatBot.ImplicitChatAsync($"{nameof(QChatService)}当前状态: {(connected ? "在线" : "离线")}");
     }
 
     void BufferGroupMessage(GroupState state, string formatted)
@@ -365,6 +376,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
 
         string cachedMessage =
             $"""
+
              > 来自群 {state.Tag} 的消息
              {string.Join("\n", state.MessageBuffer)}
              """;
@@ -399,7 +411,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         }
 
         if (Configuration!.CloseGroupAfterReply == false) //及时关闭模式不暴露开关信息，因为完全系统控制
-            ChatBot.Poke($"{nameof(QChatService)}系统通知：群 {groupID} 消息已{(enabled ? "开启" : "关闭")}");
+            _ = ChatBot.ImplicitChatAsync($"{nameof(QChatService)}系统通知：群 {groupID} 消息已自动{(enabled ? "开启" : "关闭")}");
     }
 
     GroupState GetGroupInfo(long groupID)
