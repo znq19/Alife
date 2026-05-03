@@ -309,7 +309,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             if (oneBotEvent is not OneBotMessageEvent messageEvent)
                 return;
 
-            string speaker = messageEvent.GetSpeakerTag();
+            string speaker = (messageEvent.GroupId == 0 ? "\n[私聊] " : "") + messageEvent.GetSpeakerTag();
             string content = await messageEvent.GetReadableMessage(oneBotClient!);
             string formatted = $"{speaker}：{content}";
             await HandleFormattedMessage(messageEvent, formatted);
