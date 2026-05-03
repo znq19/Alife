@@ -80,12 +80,11 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     {
         if (ctx.CallMode != CallMode.OneShot)
             throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-        file = file.Trim().Replace('\\', '/');
+        file = file.Trim();
         if (string.IsNullOrEmpty(file))
-            return;
-
+            throw new ArgumentNullException(nameof(file));
         if (targetID == 0)
-            throw new ArgumentException("目标不能为空！", nameof(targetID));
+            throw new ArgumentNullException(nameof(targetID));
         if (targetID == Configuration!.BotId)
             throw new Exception("不允许将消息发生给自己");
 
@@ -125,6 +124,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             // 如果都不匹配，则维持原样（可能是 URL 或绝对路径）
         }
 
+        file = file.Replace('\\', '/');
         if (type == OneBotMessageType.Group)
         {
             OnAIGroupActivity(targetID);
@@ -141,15 +141,15 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     {
         if (ctx.CallMode != CallMode.OneShot)
             throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-        file = file.Trim().Replace('\\', '/');
+        file = file.Trim();
         if (string.IsNullOrEmpty(file))
-            return;
-
+            throw new ArgumentNullException(nameof(file));
         if (targetID == 0)
-            throw new ArgumentException("目标不能为空！", nameof(targetID));
+            throw new ArgumentNullException(nameof(targetID));
         if (targetID == Configuration!.BotId)
             throw new Exception("不允许将消息发生给自己");
 
+        file = file.Replace('\\', '/');
         string fileName = Path.GetFileName(file);
         if (type == OneBotMessageType.Group)
         {
@@ -164,7 +164,8 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     [Description("下载文件。（使用后需等待结果返回）")]
     public async Task QDownload(XmlExecutorContext ctx, string url, [Description("保存的文件名")] string name)
     {
-        if (ctx.CallMode != CallMode.Closing && ctx.CallMode != CallMode.OneShot) return;
+        if (ctx.CallMode != CallMode.OneShot)
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
 
         string savePath = Path.Combine(AlifePath.TempFolderPath, name).Replace('\\', '/');
         await url.DownloadFileAsync(savePath);
@@ -176,7 +177,9 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     [Description("设置群消息开关。（使用后需等待结果返回）")]
     public void QGroup(XmlExecutorContext ctx, long groupID, bool enabled)
     {
-        if (ctx.CallMode != CallMode.Closing && ctx.CallMode != CallMode.OneShot) return;
+        if (ctx.CallMode != CallMode.OneShot)
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
+
         QGroup(groupID, enabled);
     }
 

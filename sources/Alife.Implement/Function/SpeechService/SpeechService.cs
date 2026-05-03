@@ -7,16 +7,14 @@ using Microsoft.SemanticKernel;
 
 namespace Alife.Implement;
 
+public class SpeechConfig
+{
+    public string VoiceTone { get; set; } = "zh-CN-XiaoyiNeural";
+}
+
 public partial class SpeechService
 {
     public static bool IsRecognizing => recognizer?.IsRecognizing ?? false;
-    public static bool IsSynthesizing => synthesizer?.IsSpeaking ?? false;
-
-    public static async Task TryStopSynthesizer()
-    {
-        if (synthesizer is { IsSpeaking : true })
-            await synthesizer.StopSpeakAsync(); //中断语音
-    }
 
     public static void TryStartRecognition()
     {
@@ -31,19 +29,17 @@ public partial class SpeechService
     }
 
     static SpeechRecognizer? recognizer;
-    static SpeechSynthesizer? synthesizer;
 
     static void TryInitialized()
     {
         recognizer ??= new SpeechRecognizer();
-        synthesizer ??= new SpeechSynthesizer();
     }
 }
 
-[Plugin("语音对话", "为AI增加语音识别和语音转文字输出的能力。", EditorUI = typeof(SpeechServiceUI))]
+[Plugin("语音对话", "为AI增加语音识别（基于本地模型）和语音转文字输出（基于edge-tts）的能力。", EditorUI = typeof(SpeechServiceUI))]
 [Description("此服务让你获得能将文字以语音形式输出的能力。")]
 public partial class SpeechService(FunctionService functionService)
-    : InteractivePlugin<SpeechService>, IAsyncDisposable, ITimeIterative
+    : InteractivePlugin<SpeechService>, IAsyncDisposable, ITimeIterative, IConfigurable<SpeechConfig>
 {
     [XmlFunction("say", -10)]
     [Description("将文本以语音方式输出。")]
@@ -121,18 +117,39 @@ public partial class SpeechService(FunctionService functionService)
         });
     }
 
+    public SpeechConfig? Configuration
+    {
+        get => configuration;
+        set
+        {
+            configuration = value;
+            if (configuration != null && synthesizer != null)
+                synthesizer.VoiceTone = configuration.VoiceTone;
+        }
+    }
+
+    public bool IsSynthesizing => synthesizer?.IsSpeaking ?? false;
     public bool IsSpeaking => IsSynthesizing || audioSynthesizingTask.IsCompleted == false;
     public bool IsReceiving { get; set; } = true;
+
+    public async Task TryStopSynthesizer()
+    {
+        if (synthesizer is { IsSpeaking : true })
+            await synthesizer.StopSpeakAsync(); //中断语音
+    }
 
     protected override string ChatPrefixPrompt => "[回复请用Say标签]";
     Task<string?> audioSynthesizingTask = Task.FromResult<string?>(null);
     CancellationTokenSource? audioFileSynthesizingCancellation;
     bool hasHeadphones;
+    SpeechSynthesizer? synthesizer;
+    SpeechConfig? configuration;
 
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
         TryInitialized();
+        synthesizer = new SpeechSynthesizer(Configuration!.VoiceTone);
         functionService.RegisterHandler(this);
     }
 

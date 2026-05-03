@@ -62,10 +62,12 @@ public partial class PythonService(FunctionService functionService) : Interactiv
     [XmlFunction]
     [Description("执行python脚本（使用后需等待结果返回）（注意：不要写注释判断等非必要内容，用最短的代码，最少的行数写，然后直接执行功能！）。")]
     public async Task Python(XmlExecutorContext context, [XmlContent] string script,
-        [Description("程序预估运行持续时间（单位秒）")] int timeout = 30)
+        [Description("程序预估运行持续时间（单位秒）")] int timeout)
     {
         if (context.CallMode != CallMode.Closing)
             return;
+        if (timeout == 0)
+            throw new Exception("必须提供预估运行时间！");
 
         string filePath = $"{AlifePath.TempFolderPath}/pythonScript.py";
 

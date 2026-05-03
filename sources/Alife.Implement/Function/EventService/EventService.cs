@@ -18,7 +18,7 @@ public class EventServiceData
     public int UpdateRandomOffset { get; set; } = 30;
 }
 
-[Plugin("主动事件", "让AI可以获取到各种系统事件的提醒。", LaunchOrder = 10, EditorUI = typeof(EventServiceUI))]
+[Plugin("主动事件", "让AI可以获取到各种系统事件的提醒。", LaunchOrder = 100, EditorUI = typeof(EventServiceUI))]
 public class EventService : InteractivePlugin<EventService>, IConfigurable<EventServiceData>, ITimeIterative
 {
     [XmlFunction]

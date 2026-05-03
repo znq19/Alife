@@ -61,15 +61,35 @@
     Plugin? Plugin { get; set; }
     object? configuration;
     bool isConfigurable;
+
     string jsonConfig = "{}";
+    bool isInputted = false;
 
     RenderFragment DefaultUI => __builder =>
     {
         if (isConfigurable)
         {
             <div style="display: flex; flex-direction: column; gap: 16px;">
-                <TextArea AutoSize="true" MinRows="10" Style="font-family: monospace;" @bind-Value="jsonConfig"
-                          Disabled="@(ChatActivity != null)"></TextArea>
+                <!-- 新增相对定位容器 -->
+                <div style="position: relative;">
+                    <TextArea AutoSize="true"
+                              MinRows="10"
+                              Style="font-family: monospace; padding-right: 32px;"
+                              @bind-Value="jsonConfig"
+                              OnInput="@(() => isInputted = true)">
+                    </TextArea>
+
+                    <Button Type="@ButtonType.Primary"
+                            Icon="@IconType.Outline.Check"
+                            OnClick="@(() =>
+                                     {
+                                         OnConfigSaved(GetConfigFromText());
+                                         isInputted = false;
+                                     })"
+                            Disabled="@(!isInputted)"
+                            Style="position: absolute; top: 8px; right: 8px; z-index: 1;">
+                    </Button>
+                </div>
             </div>
         }
     };
@@ -102,15 +122,15 @@
         }
     }
 
-    void OnConfigSaved(object newConfig)
+    void OnConfigSaved(object? newConfig)
     {
-        configuration = newConfig;
+        configuration = newConfig ?? configuration;
         jsonConfig = JsonConvert.SerializeObject(configuration, Formatting.Indented);
 
         // 运行时自动回写到 Plugin
         if (Plugin != null)
         {
-            System.Reflection.PropertyInfo? prop = Plugin.GetType().GetProperty("Configuration");
+            PropertyInfo? prop = Plugin.GetType().GetProperty("Configuration");
             if (prop != null && prop.CanWrite)
                 prop.SetValue(Plugin, newConfig);
         }
@@ -150,4 +170,5 @@
             { "DefaultUI", DefaultUI },
         };
     }
+
 }

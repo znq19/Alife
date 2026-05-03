@@ -190,15 +190,21 @@
 
         <Card Size="CardSize.Small" Style="background: #fafafa; border-radius: 8px; margin-bottom: 24px;">
             <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 16px;">
-                <Text Strong>快速预设方案</Text>
+                <Text Strong>群聊回复设置</Text>
                 <Space>
                     <SpaceItem>
-                        <Button OnClick="@ApplyDesktopPetPreset" Icon="@IconType.Outline.Smile">自主开关
-                        </Button>
+                        <Tooltip
+                            Title="提供自主可控的群聊开关，启用时全量接受群聊信息。（适合作为AI自己的娱乐方式，以及突发性大量互动）">
+                            <Button OnClick="@ApplyDesktopPetPreset" Icon="@IconType.Outline.Smile">开关监听式
+                            </Button>
+                        </Tooltip>
                     </SpaceItem>
                     <SpaceItem>
-                        <Button OnClick="@ApplyGroupChatPreset" Icon="@IconType.Outline.Robot">全天挂机
-                        </Button>
+                        <Tooltip
+                            Title="只有触发关键词或通过极低随机概率的消息将被回复。（适合强制性全天挂机，有惊喜感的同时避免刷屏）">
+                            <Button OnClick="@ApplyGroupChatPreset" Icon="@IconType.Outline.Robot">随机触发式
+                            </Button>
+                        </Tooltip>
                     </SpaceItem>
                 </Space>
             </Flex>
@@ -221,7 +227,8 @@
                 </GridCol>
                 <GridCol Span="8">
                     <FormItem Label="最大积压条数">
-                        <AntDesign.InputNumber @bind-Value="@Configuration.MaxBufferMessages" Min="0" Style="width: 100%;"/>
+                        <AntDesign.InputNumber @bind-Value="@Configuration.MaxBufferMessages" Min="0"
+                                               Style="width: 100%;"/>
                         <Text Type="TextElementType.Secondary" Style="font-size: 11px;">0 表示不限</Text>
                     </FormItem>
                 </GridCol>
@@ -289,7 +296,7 @@
         Configuration.DebounceEnabled = true;
         Configuration.FlushInterval = 3f;
         Configuration.MaxBufferMessages = 5;
-        Configuration.ProactiveChatProbability = 0.1f;
+        Configuration.ProactiveChatProbability = 0.05f;
         Configuration.CloseGroupAfterReply = true;
     }
 

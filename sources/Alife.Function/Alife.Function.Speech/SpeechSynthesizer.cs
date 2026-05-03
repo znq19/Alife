@@ -4,10 +4,16 @@ using NAudio.Wave;
 
 namespace Alife.Function.Speech;
 
-public  class SpeechSynthesizer
+public class SpeechSynthesizer
 {
     public bool IsSpeaking => currentTask is { IsCompleted: false };
     public Task LastSpeaking => currentTask;
+
+    public string VoiceTone
+    {
+        get => voiceTone;
+        set => voiceTone = value;
+    }
 
     public async Task SpeakAsync(string text)
     {
@@ -17,7 +23,8 @@ public  class SpeechSynthesizer
             return;
 
         speakCancellation = new CancellationTokenSource();
-        currentTask = Task.Run(async () => {
+        currentTask = Task.Run(async () =>
+        {
             string? outputFile = await GenerateSpeechFileAsync(text, speakCancellation.Token);
             if (outputFile == null)
                 return; //计算后发现没有可朗读的文本
@@ -26,6 +33,7 @@ public  class SpeechSynthesizer
 
         await currentTask;
     }
+
     /// <summary>
     /// 不进行语音合成，直接将已存在的音频文件作为说话内容，借助该函数，可以将合成与播放分离，从而实现预加载等功能。
     /// </summary>
@@ -39,6 +47,7 @@ public  class SpeechSynthesizer
 
         await currentTask;
     }
+
     public Task StopSpeakAsync()
     {
         if (IsSpeaking == false)
@@ -46,6 +55,7 @@ public  class SpeechSynthesizer
 
         return speakCancellation!.CancelAsync();
     }
+
     /// <summary>
     /// 通过edge-tts生成音频文件
     /// </summary>
@@ -59,7 +69,8 @@ public  class SpeechSynthesizer
         if (File.Exists(outputPath))
             return outputPath;
 
-        ProcessStartInfo psi = new() {
+        ProcessStartInfo psi = new()
+        {
             FileName = "python",
             Arguments = $"-m edge_tts --text \"{fileSafeText}\" --voice {voiceTone} --write-media \"{outputPath}\"",
             UseShellExecute = false,
@@ -83,7 +94,8 @@ public  class SpeechSynthesizer
             if (process.HasExited == false)
                 throw new TimeoutException();
             if (process.ExitCode != 0)
-                throw new Exception($"{outputPath}\n{await process.StandardOutput.ReadToEndAsync(cancellationToken)}\n{await process.StandardError.ReadToEndAsync(cancellationToken)}");
+                throw new Exception(
+                    $"{outputPath}\n{await process.StandardOutput.ReadToEndAsync(cancellationToken)}\n{await process.StandardError.ReadToEndAsync(cancellationToken)}");
             if (File.Exists(outputPath) == false)
                 throw new Exception($"语音文件未生成：{outputPath}");
 
@@ -149,6 +161,7 @@ public  class SpeechSynthesizer
                 samples.AsSpan(position, toCopy).CopyTo(buffer.AsSpan(offset, toCopy));
                 position += toCopy;
             }
+
             return toCopy;
         }
 
@@ -157,16 +170,16 @@ public  class SpeechSynthesizer
     }
 
     readonly char[] invalidChars;
-    readonly string voiceTone;
+    string voiceTone;
     Task currentTask;
     CancellationTokenSource? speakCancellation;
 
-    public SpeechSynthesizer()
+    public SpeechSynthesizer(string voiceTone)
     {
         AlifePlatform.Command("pip", "install edge-tts");
 
         invalidChars = Path.GetInvalidFileNameChars();
-        voiceTone = "zh-CN-XiaoyiNeural";
+        this.voiceTone = voiceTone;
         currentTask = Task.CompletedTask;
     }
 

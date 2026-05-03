@@ -1,10 +1,12 @@
 @namespace Alife.Implement
-@inherits Alife.Framework.PluginUIBase<SpeechService>
+@inherits Alife.Framework.PluginUIBase<SpeechService, SpeechConfig>
 @implements IDisposable
 
 <div style="background: #fafafa; padding: 24px; border-radius: 12px; border: 1px solid #f0f0f0;">
-
     <Flex Direction="FlexDirection.Vertical" Gap="@("24")">
+        
+        @(DefaultUI)
+        
         <GridRow Gutter="16">
             <GridCol Span="12">
                 <Card Size="CardSize.Small" Title="语音识别 (STT)" Style="border-radius: 8px;">
@@ -26,26 +28,30 @@
                 </Card>
             </GridCol>
 
-            <GridCol Span="12">
-                <Card Size="CardSize.Small" Title="语音合成 (TTS)" Style="border-radius: 8px;">
-                    <Flex Direction="FlexDirection.Vertical" Align="@FlexAlign.Center" Style="padding: 12px 0;">
-                        <div style="margin-bottom: 16px;">
-                            @if (SpeechService.IsSynthesizing)
-                            {
-                                <Badge Status="BadgeStatus.Processing" Color="@("green")" Text="正在播放语音..."/>
-                            }
-                            else
-                            {
-                                <Badge Status="BadgeStatus.Default" Text="待机"/>
-                            }
-                        </div>
-                        <Button Icon="sound" Size="ButtonSize.Small"
-                                Disabled="@(!SpeechService.IsSynthesizing)"
-                                Danger OnClick="@(SpeechService.TryStopSynthesizer)">停止播报
-                        </Button>
-                    </Flex>
-                </Card>
-            </GridCol>
+            @if (Plugin != null)
+            {
+                <GridCol Span="12">
+                    <Card Size="CardSize.Small" Title="语音合成 (TTS)" Style="border-radius: 8px;">
+                        <Flex Direction="FlexDirection.Vertical" Align="@FlexAlign.Center" Style="padding: 12px 0;">
+                            <div style="margin-bottom: 16px;">
+                                @if (Plugin.IsSynthesizing)
+                                {
+                                    <Badge Status="BadgeStatus.Processing" Color="@("green")" Text="正在播放语音..."/>
+                                }
+                                else
+                                {
+                                    <Badge Status="BadgeStatus.Default" Text="待机"/>
+                                }
+                            </div>
+                            <Button Icon="sound" Size="ButtonSize.Small"
+                                    Disabled="@(!Plugin.IsSynthesizing)"
+                                    Danger OnClick="@(Plugin.TryStopSynthesizer)">停止播报
+                            </Button>
+                        </Flex>
+                    </Card>
+                </GridCol>
+            }
+
         </GridRow>
 
         <Alert Type="AlertType.Info" ShowIcon="true"
@@ -61,6 +67,7 @@
                 </Flex>
             </Flex>
         }
+
 
     </Flex>
 
