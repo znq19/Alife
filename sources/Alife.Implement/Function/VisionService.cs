@@ -10,9 +10,21 @@ public partial class VisionService
 {
     static VisionAnalyzer? analyzer;
 
-    static void TryInitialized()
+    /// <summary>
+    /// 确保视觉分析器已初始化（供其他服务调用）
+    /// </summary>
+    internal static void TryInitAnalyzer()
     {
         analyzer ??= new VisionAnalyzer();
+    }
+
+    /// <summary>
+    /// 分析图片并返回结果（供其他服务调用）
+    /// </summary>
+    internal static async Task<string> AnalyzeImage(string imagePath, string query)
+    {
+        TryInitAnalyzer();
+        return await analyzer!.QueryAsync(imagePath, query);
     }
 }
 
@@ -86,7 +98,7 @@ public partial class VisionService(FunctionService functionService) : Interactiv
     {
         await base.AwakeAsync(context);
 
-        TryInitialized();
+        TryInitAnalyzer();
         functionService.RegisterHandler(this);
     }
 }

@@ -190,7 +190,20 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         Poke(formatted);
     }
 
-    public QChatConfig? Configuration { get; set; }
+    public QChatConfig? Configuration
+    {
+        get => configuration;
+        set
+        {
+            configuration = value;
+            if (configuration != null)
+            {
+                groupAwakingWords = Configuration!.WakingWords.Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            }
+        }
+    }
+
     public bool IsConnected => oneBotClient is { IsConnected: true };
     public IReadOnlyDictionary<long, GroupState> GroupStates => groupStates;
 
@@ -203,6 +216,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     OneBotClient? oneBotClient;
     string[]? groupAwakingWords;
     readonly Dictionary<long, GroupState> groupStates = new();
+    private QChatConfig? configuration;
     protected override string ChatPrefixPrompt => $"[回复请用QChat及相关标签{Configuration?.AppendChatPrompt}]";
 
     public override async Task AwakeAsync(AwakeContext context)
@@ -210,9 +224,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         await base.AwakeAsync(context);
 
         //加载基本环境
-        groupAwakingWords = Configuration!.WakingWords.Split(',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        oneBotClient = new OneBotClient(Configuration.Url);
+        oneBotClient = new OneBotClient(Configuration!.Url);
 
         // 动态扫描表情库资源，告知 AI 可用的视觉表达
         string emoteBase = Path.Combine(AlifePath.StorageFolderPath, "Emotes");

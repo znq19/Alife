@@ -44,8 +44,13 @@ public class FunctionService : InteractivePlugin<FunctionService>
         //注入使用说明
         string prompt = $"""
                          你拥有输出特定的xml标签来实现功能调用的能力（虽然你也可以直接输出普通文本，但那样通常无法被外界看到或听到）。
+                         
+                         注意！由于xml的解释器，<,>之类的xml符号无法直接输出，你需要用转义的方式，如 &amp;lt;和&amp;gt; 来输出尖括号。如果你在调用其他标签功能时，出现了因尖括号中断导致的异常，你可以尝试将其转义输出来解决。
 
-                         ## 使用时请遵守如下示例
+                         ## 目前支持的标签和说明文档
+                         {handlerTable.Document()}
+                         
+                         ## 使用时可以参考如下示例（注意！确保你要调用的指令在上面的标签文档中）
                          ```text
                          <say> <!-- 这里选择用语音方式输出，所以将说话内容放在的say区域中 -->
                          主人你看我~
@@ -58,9 +63,6 @@ public class FunctionService : InteractivePlugin<FunctionService>
                          print('Hello World!')
                          <python>
                          ```
-
-                         ## 目前支持的标签和说明文档
-                         {handlerTable.Document()}
                          """;
 
         chatActivity.ChatBot.ChatHistory.AddSystemMessage(prompt);

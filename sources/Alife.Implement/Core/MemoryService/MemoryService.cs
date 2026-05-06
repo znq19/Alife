@@ -33,7 +33,7 @@ public partial class MemoryService
 public partial class MemoryService(FunctionService functionService) : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>
 {
     [XmlFunction]
-    [Description("查看记忆存档中被归档的完整原始内容。（注意存档可能嵌套，根据情况你可以需要多次调用）")]
+    [Description("查看记忆存档中保存的完整原始内容。（你要积极使用该功能，因为有些记忆的重要内容被记在了完整内容中，而不是概述里）")]
     public async Task Recall(XmlExecutorContext ctx, [Description("存档索引（如：0-20240101120000-20240101130000）")] string index)
     {
         if (ctx.CallMode != CallMode.OneShot)
@@ -81,9 +81,8 @@ public partial class MemoryService(FunctionService functionService) : Interactiv
     }
 
     [XmlFunction]
-    [Description("创建一个永久（最高层）记忆存档。这种记忆不会被压缩，你可以用它来记录重要的事实或核心记忆。")]
+    [Description("创建一个永久（最高层）记忆。这种记忆不会被压缩，你可以用它来记录重要的事实或核心记忆。")]
     public async Task Memorize(XmlExecutorContext ctx,
-        [Description("概述（常驻上下文）")] string summary,
         [Description("详细（需通过 Recall 查看）")] [XmlContent]
         string content,
         [Description("格式为ISO-8601")] DateTime? startTime = null,
@@ -97,8 +96,8 @@ public partial class MemoryService(FunctionService functionService) : Interactiv
         DateTime start = startTime ?? DateTime.Now;
         DateTime end = endTime ?? DateTime.Now;
 
-        await InsertMemory(targetLevel, summary, content, start, end);
-        
+        await InsertMemory(targetLevel, ctx.FullContent, "已全部存放到概述中", start, end);
+
         Poke($"已成功插入层级为 L{targetLevel} 的记忆存档。");
     }
 
@@ -120,7 +119,7 @@ public partial class MemoryService(FunctionService functionService) : Interactiv
 
 
         MemoryMeta memoryMeta = memoryManager.GetMemoryMetaData(target);
-        if (memoryMeta.Level != Configuration!.MaxCompressionLevel)
+        if (memoryMeta.Level < Configuration!.MaxCompressionLevel)
         {
             Poke($"不允许删除非最高层记忆！（当前设定的最高层记忆为：{Configuration!.MaxCompressionLevel}）");
             return;
@@ -148,6 +147,8 @@ public partial class MemoryService(FunctionService functionService) : Interactiv
 
         TryInitialized();
         storagePath = Path.Combine(AlifePath.StorageFolderPath, context.Character.StorageKey, "Memory");
+        string characterStorage = Path.Combine(AlifePath.StorageFolderPath, context.Character.StorageKey, "Storage");
+        Directory.CreateDirectory(characterStorage);
 
         XmlHandler handler = new(this)
         {
@@ -155,6 +156,8 @@ public partial class MemoryService(FunctionService functionService) : Interactiv
             Explain = $"""
                        你的记忆存档位置在“{storagePath}”。所有记忆都被以“txt格式，日期命名”的形式按压缩级别分别存放在“L0,L1...”之类的文件夹中，如“/L0/0-20260421014905-20260421022747.txt”。
                        因此除了使用标签来查阅记忆外，你也可以直接用处理文件的方式查阅记忆。
+
+                       此外你还有一个专属文件夹 {characterStorage}，你可以把你的东西优先存到这里面，这样可以一直保存而且不会弄脏其他文件夹。
                        """
         };
         functionService.RegisterHandler(handler);

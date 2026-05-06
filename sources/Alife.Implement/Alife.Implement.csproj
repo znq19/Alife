@@ -11,7 +11,7 @@
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" Version="1.74.0-alpha" />
     <PackageReference Include="AntDesign" Version="1.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3912.50" />
+
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +23,7 @@
     <ProjectReference Include="..\Alife.Function\Alife.Function.Vision\Alife.Function.Vision.csproj" />
     <ProjectReference Include="..\Alife.Function\Alife.Function.Memory\Alife.Function.Memory.csproj" />
     <ProjectReference Include="..\Alife.Function\Alife.Function.DeskPet\Alife.Function.DeskPet.csproj" />
+    <ProjectReference Include="..\Alife.Function\Alife.Function.Browser\Alife.Function.Browser.csproj" />
   </ItemGroup>
 
   <ItemGroup>

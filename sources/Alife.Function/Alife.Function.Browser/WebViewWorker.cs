@@ -1,7 +1,10 @@
 using Microsoft.Web.WebView2.WinForms;
 
+namespace Alife.Function.Browser;
+
 /// <summary>
-/// 在独立的 STA 线程中管理 WebView2，以支持后台静默执行浏览器任务
+/// 在独立的 STA 线程中管理 WebView2，以支持后台执行浏览器任务。
+/// 浏览器窗口默认可见，用户可实时观察 AI 的浏览行为并手动介入。
 /// </summary>
 public class WebViewWorker : IDisposable
 {
@@ -32,31 +35,6 @@ public class WebViewWorker : IDisposable
     WebView2? webView;
     Form? form;
     bool initialized;
-
-    public void SetVisibility(bool visible)
-    {
-        if (form == null || form.IsDisposed) return;
-        
-        form.Invoke((Action)(() =>
-        {
-            if (visible)
-            {
-                form.Opacity = 1;
-                form.WindowState = FormWindowState.Normal;
-                form.FormBorderStyle = FormBorderStyle.Sizable;
-                form.ShowInTaskbar = true;
-                form.TopMost = true; // 确保弹到最前面
-                form.BringToFront();
-            }
-            else
-            {
-                form.Opacity = 0;
-                form.WindowState = FormWindowState.Minimized;
-                form.FormBorderStyle = FormBorderStyle.None;
-                form.ShowInTaskbar = false;
-            }
-        }));
-    }
 
     public WebViewWorker()
     {
@@ -94,15 +72,11 @@ public class WebViewWorker : IDisposable
         {
             try
             {
-                // 初始化 Edge 核心
                 await webView.EnsureCoreWebView2Async();
-                
-                // 设置通用的桌面端 User-Agent，避免被部分站点拦截
                 webView.CoreWebView2.Settings.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edge/122.0.0.0";
                 
                 initialized = true;
 
-                // 开启后台消费者循环
                 _ = Task.Run(() =>
                 {
                     foreach (Func<Task> job in jobs.GetConsumingEnumerable())
@@ -110,9 +84,7 @@ public class WebViewWorker : IDisposable
                         if (form.IsDisposed) break;
                         try
                         {
-                            // 将任务通过 Invoke 封送到 STA 线程执行
                             Task task = form.Invoke(job);
-                            // 阻塞等待该任务完全结束，保证浏览器任务串行
                             task.Wait();
                         }
                         catch
@@ -128,7 +100,6 @@ public class WebViewWorker : IDisposable
             }
         };
 
-        // 启动消息循环
         Application.Run(form);
     }
 }

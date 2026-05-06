@@ -154,7 +154,7 @@ public class MemoryManager
             insertIndex = chatHistory.Count;
 
         chatHistory.Insert(insertIndex, compressedContent);
-        memoryMetaDatas[compressedContent] = new MemoryMeta(level + 1, startTime, endTime);
+        memoryMetaDatas[compressedContent] = new MemoryMeta(level, startTime, endTime);
     }
 
     public void RemoveMemory(ChatHistory chatHistory, ChatMessageContent content)

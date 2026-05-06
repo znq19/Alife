@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.Interpreter;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,7 @@ public class SkillService : InteractivePlugin<SkillService>
              """);
     }
 
+
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
@@ -48,18 +50,19 @@ public class SkillService : InteractivePlugin<SkillService>
             : [];
 
         FunctionService functionService = context.Services.GetRequiredService<FunctionService>();
-        XmlHandler xmlHandler = new(this);
-        xmlHandler.Explain =
-            $"""
-             此服务让你拥有使用和管理 skill 的功能。每个 skill 都是一个文件夹，它由一个 SKILL.md（使用手册），和可能附带的脚本、资源文件构成。
-             如果要使用 skill，只需要先阅读一下 <skillFolder>/SKILL.md ，然后按其指导的方式去使用即可（注意手册中提到的文件一般是相对 skillFolder 的路径，你可以用python执行）。
-             你的所有 skill 都存在 {skillsPath} 这个根目录中，根据 skill 的格式你也可以创建自己的 skill。
+        XmlHandler xmlHandler = new(this)
+        {
+            Explain = $"""
+                       此服务让你拥有使用和管理 skill 的功能。每个 skill 都是一个文件夹，它由一个 SKILL.md（使用手册），和可能附带的脚本、资源文件构成。
+                       如果要使用 skill，只需要先阅读一下 <skillFolder>/SKILL.md ，然后按其指导的方式去使用即可（注意手册中提到的文件一般是相对 skillFolder 的路径，你可以用python执行）。
+                       你的所有 skill 都存在 {skillsPath} 这个根目录中，根据 skill 的格式你也可以创建自己的 skill。
 
-             当前 skill根目录 中已经存在的 skill 有：
-             - {string.Join("\n- ", skills)}
-             """;
+                       当前 skill根目录 中已经存在的 skill 有：
+                       - {string.Join("\n- ", skills)}
+                       """
+        };
         functionService.RegisterHandler(xmlHandler);
     }
 
-    readonly string skillsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".agents", "skills");
+    readonly string skillsPath = Path.Combine(AlifePath.StorageFolderPath, "Skills");
 }
