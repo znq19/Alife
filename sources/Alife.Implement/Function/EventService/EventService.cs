@@ -23,8 +23,20 @@ public class EventService(FunctionService functionService)
     : InteractivePlugin<EventService>, IConfigurable<EventServiceData>, ITimeIterative
 {
     [XmlFunction]
-    [Description("设置一个自定义触发器（设置时自动取消上一个）。")]
-    public void SetReminder(XmlExecutorContext context, [Description("格式为ISO-8601")] DateTime time,
+    [Description("等待几秒后继续行动。")]
+    public void Wait(XmlExecutorContext context, int delay)
+    {
+        if (context.CallMode != CallMode.OneShot)
+            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
+
+        continuousTimerCount = 0;
+        NextTimer();
+        timeTask[0].Item1 = DateTime.Now.AddSeconds(delay);
+    }
+
+    [XmlFunction]
+    [Description("设置一个自定义提醒（设置时自动取消上一个）。")]
+    public void Remind(XmlExecutorContext context, [Description("格式为ISO-8601")] DateTime time,
         [Description("备注信息")] string remark)
     {
         if (context.CallMode != CallMode.OneShot)
@@ -118,7 +130,7 @@ public class EventService(FunctionService functionService)
             if (functionService.IsIdle)
             {
                 Poke($"""
-                      系统报点：由Timer触发的自动报点。{Configuration!.UpdatePrompt}
+                      系统报点：由计时器触发的自动报点。{Configuration!.UpdatePrompt}
                       """);
             }
 
