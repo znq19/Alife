@@ -65,3 +65,9 @@
 - [2026-04-28] 打包与环境自动化升级: 引入了 `Build_Release.cmd` 解决 WPF Blazor 静态资产绝对路径依赖问题，并在 `Launch.cmd` 中加入了 `.NET 9 Desktop Runtime` 的全自动检测与静默安装逻辑，实现了真正的开箱即用。
 - [2026-04-27] 平台能力架构重构: 完成了 `Alife.Basic` 层的解耦，所有 Win32 原生调用已集中管理，实现了业务与平台的初步分离。
 - [2026-04-27] 环境管理外迁: 引入 `Launch.cmd` 统一管理 Python 环境初始化。
+- [2026-05-06] XML 解析器修复与强化: 修复了 `XmlStreamParser` 中 `\"` 在属性内被截断导致标签无法闭合的严重 bug。优化了 `SurfingService.ExecuteScript` 以支持将 JS 代码置于标签内容（Content）中，极大提高了大段 JS 和包含引号/正则的代码执行成功率。
+
+## 5. 经验教训与技巧 (Lessons Learned & Tips)
+
+- **XML 标签生成最佳实践**: AI 过去在生成 `<execute_script script="...">` 时常因属性值内转义双引号 `\"` 导致 XML 流解析器卡死崩溃。尽管解析器已修复，但最佳实践仍是**将复杂 JavaScript 代码放在 `<execute_script>` 的内容块中**，而不是作为 `script` 属性。
+- **MIDI 文件获取策略**: 获取真实可用的 `.mid` 文件时，Musescore 和 OnlineSequencer 常被 Cloudflare 的真人验证拦截。优先通过 **MIDIClouds** 寻找页面中的 `.mid` 原始文件链接（或从 GitHub 相关 repo 中的 raw 链接下载），若要使用浏览器下载工具，需要注意验证码墙，或者直接请求用户提供本地文件。

@@ -80,6 +80,6 @@ public partial class PythonService(FunctionService functionService) : Interactiv
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
-        functionService.RegisterHandler(this);
+        functionService.RegisterHandler(this, "python");
     }
 }

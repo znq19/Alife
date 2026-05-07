@@ -8,13 +8,26 @@ namespace Alife.Implement;
 [Plugin("函数调用", "为AI增加一种基于Xml的流式函数执行功能，实现快速实时的交互能力。", launchOrder: -1000)]
 public class FunctionService : InteractivePlugin<FunctionService>
 {
-    public void RegisterHandler(XmlHandler handler) => handlerTable.Register(handler);
+    public bool IsIdle => executor.IsIdle;
+
+    public void RegisterHandler(XmlHandler handler, params string[] verbatimTags)
+    {
+        handlerTable.Register(handler);
+        this.verbatimTags.AddRange(verbatimTags);
+    }
+
     public void UnregisterHandler(XmlHandler handler) => handlerTable.Unregister(handler);
 
-    public void RegisterHandler(object handler) => handlerTable.Register(new XmlHandler(handler));
+    public void RegisterHandler(object handler, params string[] verbatimTags)
+    {
+        handlerTable.Register(new XmlHandler(handler));
+        this.verbatimTags.AddRange(verbatimTags);
+    }
+
     public void UnregisterHandler(object handler) => handlerTable.Unregister(new XmlHandler(handler));
 
     readonly XmlHandlerTable handlerTable = new();
+    readonly List<string> verbatimTags = new() { "interpreter" };
     XmlStreamParser parser = null!;
     XmlStreamExecutor executor = null!;
 
@@ -23,7 +36,7 @@ public class FunctionService : InteractivePlugin<FunctionService>
         await base.StartAsync(kernel, chatActivity);
 
         //创建xml解析执行器等
-        parser = new XmlStreamParser("think");
+        parser = new XmlStreamParser("think", verbatimTags.ToArray());
         executor = new XmlStreamExecutor(
             parser,
             handlerTable,
@@ -44,12 +57,12 @@ public class FunctionService : InteractivePlugin<FunctionService>
         //注入使用说明
         string prompt = $"""
                          你拥有输出特定的xml标签来实现功能调用的能力（虽然你也可以直接输出普通文本，但那样通常无法被外界看到或听到）。
-                         
-                         注意！由于xml的解释器，<,>之类的xml符号无法直接输出，你需要用转义的方式，如 &amp;lt;和&amp;gt; 来输出尖括号。如果你在调用其他标签功能时，出现了因尖括号中断导致的异常，你可以尝试将其转义输出来解决。
+
+                         注意！由于xml的解释器的存在，【" | & | < | >】之类的xml符号都无法直接输出，你需要使用xml转义的方式【&quot; | &amp; | &lt; | &gt;】来输出尖括号。如果你在调用其他标签功能时，出现了因Xml符号中断导致的异常，你可以尝试将其转义输出来解决。
 
                          ## 目前支持的标签和说明文档
                          {handlerTable.Document()}
-                         
+
                          ## 使用时可以参考如下示例（注意！确保你要调用的指令在上面的标签文档中）
                          ```text
                          <say> <!-- 这里选择用语音方式输出，所以将说话内容放在的say区域中 -->

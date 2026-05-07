@@ -2,8 +2,8 @@
   <Folder Name="/Demos/">
     <Project Path="Demos/Alife.Demo.DeskPet/Alife.Demo.DeskPet.csproj" />
     <Project Path="Demos/Alife.Demo.Framework/Alife.Demo.Framework.csproj" />
-    <Project Path="Demos/Alife.Demo.Memory/Alife.Demo.Memory.csproj" />
     <Project Path="Demos/Alife.Demo.Mcp/Alife.Demo.Mcp.csproj" />
+    <Project Path="Demos/Alife.Demo.Memory/Alife.Demo.Memory.csproj" />
     <Project Path="Demos/Alife.Demo.Python/Alife.Demo.Python.csproj" />
     <Project Path="Demos/Alife.Demo.QChat/Alife.Demo.QChat.csproj" />
     <Project Path="Demos/Alife.Demo.Speech/Alife.Demo.Speech.csproj" />
@@ -22,10 +22,12 @@
     <Project Path="Sources/Alife.Function/Alife.Function.QChat/Alife.Function.QChat.csproj" />
     <Project Path="Sources/Alife.Function/Alife.Function.Speech/Alife.Function.Speech.csproj" />
     <Project Path="Sources/Alife.Function/Alife.Function.Vision/Alife.Function.Vision.csproj" />
+    <Project Path="Sources\Alife.Function\Alife.Function.Browser\Alife.Function.Browser.csproj" Type="Classic C#" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Alife.Test.DeskPet/Alife.Test.DeskPet.csproj" />
     <Project Path="Tests/Alife.Test.Interpreter/Alife.Test.Interpreter.csproj" />
+    <Project Path="Tests\Alife.Test.Browser\Alife.Test.Browser.csproj" Type="Classic C#" />
     <Project Path="Tests\Alife.Test.Memory\Alife.Test.Memory.csproj" Type="Classic C#" />
     <Project Path="Tests\Alife.Test.Python\Alife.Test.Python.csproj" Type="Classic C#" />
     <Project Path="Tests\Alife.Test.QChat\Alife.Test.QChat.csproj" Type="Classic C#" />

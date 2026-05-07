@@ -14,11 +14,11 @@ public class BrowserEngine : IDisposable
     readonly WebViewWorker worker = new();
 
     /// <summary>
-    /// 导航到指定 URL 并等待页面加载完成
+    /// 导航到指定 URL 并等待页面加载完成且稳定
     /// </summary>
     public async Task<(bool Success, int StatusCode)> NavigateAsync(string url)
     {
-        return await worker.EnqueueAsync(async webView =>
+        var navResult = await worker.EnqueueAsync(async webView =>
         {
             TaskCompletionSource<(bool, int)> tcs = new();
             void Handler(object? sender, CoreWebView2NavigationCompletedEventArgs e)
@@ -27,40 +27,70 @@ public class BrowserEngine : IDisposable
             webView.CoreWebView2.NavigationCompleted += Handler;
             webView.Source = new Uri(url);
 
-            // 智能探测：轮询页面状态，如果已经有内容了就提前返回
-            _ = Task.Run(async () =>
-            {
-                for (int i = 0; i < 20; i++) // 最多等 10 秒
-                {
-                    await Task.Delay(500);
-                    if (tcs.Task.IsCompleted) return;
-
-                    try
-                    {
-                        // 检查是否已经可以交互，或者 body 已经有文字内容了
-                        string check = await webView.CoreWebView2.ExecuteScriptAsync(
-                            "(function() { return { ready: document.readyState !== 'loading', hasContent: document.body && document.body.innerText.length > 50 }; })()");
-                        if (check.Contains("\"ready\":true") && check.Contains("\"hasContent\":true"))
-                        {
-                            tcs.TrySetResult((true, 200));
-                            return;
-                        }
-                    }
-                    catch { }
-                }
-                tcs.TrySetResult((true, 200)); // 最终保底
-            });
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            cts.Token.Register(() => tcs.TrySetResult((true, 200)));
 
             var result = await tcs.Task;
             webView.CoreWebView2.NavigationCompleted -= Handler;
             return result;
         });
+
+        await WaitUntilStableAsync();
+        return navResult;
     }
 
+    /// <summary>
+    /// 内部方法：等待页面加载完成并保持稳定
+    /// </summary>
+    /// <param name="expectNavFromUrl">如果不为 null，则会等待直到 URL 偏离此值</param>
+    private async Task WaitUntilStableAsync(string? expectNavFromUrl = null)
+    {
+        await worker.EnqueueAsync(async webView =>
+        {
+            // 1. 如果指定了旧 URL，先等待 URL 发生变化（或 3 秒超时）
+            if (expectNavFromUrl != null)
+            {
+                for (int i = 0; i < 15; i++)
+                {
+                    string currentUrl = await webView.CoreWebView2.ExecuteScriptAsync("location.href");
+                    if (JsonSerializer.Deserialize<string>(currentUrl) != expectNavFromUrl) break;
+                    await Task.Delay(200);
+                }
+            }
+
+            // 2. 等待 ReadyState
+            for (int i = 0; i < 40; i++)
+            {
+                string state = await webView.CoreWebView2.ExecuteScriptAsync("document.readyState");
+                if (state == "\"complete\"" || state == "\"interactive\"") break;
+                await Task.Delay(250);
+            }
+
+            // 3. 智能等待：探测 DOM 树是否稳定
+            int stableCount = 0;
+            int lastLen = -1;
+            for (int i = 0; i < 20; i++)
+            {
+                string lenStr = await webView.CoreWebView2.ExecuteScriptAsync("document.body ? document.body.innerHTML.length.toString() : '0'");
+                int currentLen = int.TryParse(lenStr.Trim('"'), out var len) ? len : 0;
+                
+                if (currentLen > 200 || i > 10)
+                {
+                    if (currentLen == lastLen) stableCount++;
+                    else stableCount = 0;
+
+                    if (stableCount >= 3) break; 
+                }
+
+                lastLen = currentLen;
+                await Task.Delay(300);
+            }
+            return true;
+        });
+    }
 
     /// <summary>
-    /// 观察当前页面，返回精简的页面结构信息：
-    /// 标题、URL、可见文本、所有可交互元素及其 CSS 选择器
+    /// 观察当前页面，返回精简的页面结构信息
     /// </summary>
     public async Task<string> ObserveAsync()
     {
@@ -73,33 +103,48 @@ public class BrowserEngine : IDisposable
                 interactiveElements: []
             };
 
-            // 收集所有可交互元素，附带可用的 CSS 选择器
-            const elements = document.querySelectorAll('a, button, input, textarea, select, [role=button], [onclick]');
-            const seen = new Set();
-            elements.forEach((el, i) => {
-                // 构建一个尽可能精确的选择器
-                let selector = '';
-                if (el.id) selector = '#' + el.id;
-                else if (el.name) selector = el.tagName.toLowerCase() + '[name=""' + el.name + '""]';
-                else if (el.className && typeof el.className === 'string') {
-                    const cls = el.className.trim().split(/\s+/).filter(c => c.length > 0 && c.length < 30).slice(0, 2).join('.');
-                    if (cls) selector = el.tagName.toLowerCase() + '.' + cls;
+            // 1. 获取基础交互元素
+            const elements = Array.from(document.querySelectorAll('a, button, input, textarea, select, [role=button], [onclick]'));
+            
+            // 2. 深度扫描：找出所有 CSS 鼠标样式为 'pointer' (小手) 的隐式按钮 (如 MIDIClouds 的 div.pCls)
+            const allNodes = document.body.querySelectorAll('*');
+            for(let i = 0; i < allNodes.length; i++) {
+                let node = allNodes[i];
+                if (elements.includes(node)) continue;
+                
+                // 排除一些天然的非独立交互容器
+                if (['HTML', 'BODY', 'SCRIPT', 'STYLE'].includes(node.tagName)) continue;
+
+                let style = window.getComputedStyle(node);
+                if (style && style.cursor === 'pointer') {
+                    elements.push(node);
                 }
-                if (!selector) selector = el.tagName.toLowerCase() + ':nth-of-type(' + (Array.from(el.parentElement?.children || []).filter(c => c.tagName === el.tagName).indexOf(el) + 1) + ')';
+            }
 
-                // 跳过重复选择器
-                if (seen.has(selector)) return;
-                seen.add(selector);
+            let index = 0;
+            elements.forEach((el) => {
+                // 过滤掉不可见元素以减少 token 消耗
+                if (el.offsetWidth === 0 || el.offsetHeight === 0) return;
 
+                let id = el.getAttribute('data-alife-id');
+                if (!id) {
+                    id = (++index).toString();
+                    el.setAttribute('data-alife-id', id);
+                }
+                const selector = '[data-alife-id=""' + id + '""]';
+                
+                // 提取对 AI 有意义的文本
                 const text = (el.innerText || el.value || el.placeholder || el.title || el.alt || '').substring(0, 60).trim();
                 const type = el.type || el.tagName.toLowerCase();
                 const href = el.href || '';
+                
+                // 跳过完全没有文本的纯装饰性元素（如果是 input/图片则保留）
+                if (!text && type !== 'input' && type !== 'img' && type !== 'button') return;
 
                 info.interactiveElements.push({ selector, type, text, href: href.substring(0, 150) });
             });
-
-            // 限制数量防止 token 爆炸
-            info.interactiveElements = info.interactiveElements.slice(0, 40);
+            
+            info.interactiveElements = info.interactiveElements.slice(0, 60); // 稍微放宽限制
             return JSON.stringify(info, null, 2);
         })()");
     }
@@ -109,17 +154,55 @@ public class BrowserEngine : IDisposable
     /// </summary>
     public async Task<string> ClickAsync(string selector)
     {
+        string oldUrl = await ExecuteScriptAsync("location.href");
+        
         string result = await ExecuteScriptAsync($@"
         (function() {{
-            const el = document.querySelector('{selector.Replace("'", "\\'")}');
-            if (!el) return 'ERROR: 未找到匹配元素: {selector}';
-            el.scrollIntoView({{block:'center'}});
-            const text = (el.innerText || el.tagName).substring(0, 50);
-            el.click();
-            return 'SUCCESS: 已点击 ' + text;
-        }})()", 300);
+            try {{
+                const el = document.querySelector('{selector.Replace("'", "\\'")}');
+                if (!el) return 'ERROR: 未找到匹配元素: {selector}';
+                el.scrollIntoView({{block:'center'}});
+                const text = (el.innerText || el.tagName).substring(0, 50);
+                
+                // 1. 自动处理链接跳转（优先处理）
+                let current = el;
+                let link = null;
+                while (current && current !== document.body) {{
+                    if (current.tagName.toLowerCase() === 'a' && current.href && current.href.startsWith('http')) {{
+                        link = current;
+                        break;
+                    }}
+                    current = current.parentElement;
+                }}
+                
+                if (link) {{
+                    window.location.href = link.href;
+                    return 'SUCCESS: 已跳转链接 ' + text;
+                }}
+                
+                // 2. 全仿真点击序列 (解决 div/span 伪按钮不响应 click() 的问题)
+                const events = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+                events.forEach(type => {{
+                    el.dispatchEvent(new MouseEvent(type, {{
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        buttons: 1
+                    }}));
+                }});
+
+                return 'SUCCESS: 已点击 ' + text;
+            }} catch (e) {{
+                return 'ERROR: JS异常 - ' + e.toString();
+            }}
+        }})()");
+
+        if (result == null || !result.StartsWith("ERROR"))
+        {
+            await WaitUntilStableAsync(oldUrl);
+        }
         
-        return result ?? "ACTION: 点击操作已发出（页面可能正在跳转）";
+        return result ?? "SUCCESS: 点击操作已发出";
     }
 
     /// <summary>
@@ -127,20 +210,59 @@ public class BrowserEngine : IDisposable
     /// </summary>
     public async Task<string> TypeAsync(string selector, string text, bool submit = false)
     {
+        string oldUrl = await ExecuteScriptAsync("location.href");
         string escapedText = text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n");
-        string submitAction = submit ? "el.form?.submit() || el.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',keyCode:13,bubbles:true}));" : "";
-        return await ExecuteScriptAsync($@"
+
+        string result = await ExecuteScriptAsync($@"
         (function() {{
             const el = document.querySelector('{selector.Replace("'", "\\'")}');
             if (!el) return 'ERROR: 未找到输入框: {selector}';
             el.scrollIntoView({{block:'center'}});
             el.focus();
-            el.value = '{escapedText}';
+            
+            // 1. 注入值
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+                                        || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+            if (nativeInputValueSetter) {{
+                nativeInputValueSetter.call(el, '{escapedText}');
+            }} else {{
+                el.value = '{escapedText}';
+            }}
+            
             el.dispatchEvent(new Event('input', {{bubbles:true}}));
             el.dispatchEvent(new Event('change', {{bubbles:true}}));
-            {submitAction}
+            
+            // 3. 验证注入是否成功
+            if (el.value !== '{escapedText}') {{
+                return 'ERROR: 注入值失败，当前值仍为: ' + el.value;
+            }}
+
+            // 4. 提交或触发回车逻辑
+            if ({submit.ToString().ToLower()} || true) {{
+                const evParams = {{ key: 'Enter', keyCode: 13, code: 'Enter', which: 13, bubbles: true, cancelable: true }};
+                el.dispatchEvent(new KeyboardEvent('keydown', evParams));
+                el.dispatchEvent(new KeyboardEvent('keypress', evParams));
+                
+                if ({submit.ToString().ToLower()}) {{
+                    const form = el.form;
+                    if (form) {{
+                        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                        else form.submit();
+                    }} else {{
+                        el.dispatchEvent(new KeyboardEvent('keyup', evParams));
+                    }}
+                }}
+            }}
+
             return '已输入: {escapedText}';
-        }})()", submit ? 1500 : 500);
+        }})()");
+
+        if (submit || result == null)
+        {
+            await WaitUntilStableAsync(oldUrl);
+        }
+        
+        return result ?? "SUCCESS: 输入操作已执行";
     }
 
     /// <summary>
@@ -149,36 +271,56 @@ public class BrowserEngine : IDisposable
     public async Task<string> ScrollAsync(string direction, int pixels = 500)
     {
         int scrollY = direction.Equals("up", StringComparison.OrdinalIgnoreCase) ? -pixels : pixels;
-        return await ExecuteScriptAsync($@"
+        string result = await ExecuteScriptAsync($@"
         (function() {{
             window.scrollBy(0, {scrollY});
-            return '已滚动 {direction} {pixels}px，当前位置: ' + window.scrollY + '/' + document.body.scrollHeight;
-        }})()", 500);
+            return '已滚动 {direction} {pixels}px';
+        }})()");
+
+        return result ?? "ACTION: 滚动操作已发出";
     }
 
     /// <summary>
-    /// 在当前页面执行 JavaScript 并返回结果（内部工具方法）
-    /// 它会自动处理 WebView2 的二次 JSON 转义，返回正常的字符串。
+    /// 在当前页面执行 JavaScript 并返回结果
     /// </summary>
-    public async Task<string> ExecuteScriptAsync(string script, int delayMs = 0)
+    public async Task<string> ExecuteScriptAsync(string script)
     {
         string rawRes = await worker.EnqueueAsync(async webView =>
         {
-            string res = await webView.CoreWebView2.ExecuteScriptAsync(script);
-            if (delayMs > 0) await Task.Delay(delayMs);
-            return res;
+            try
+            {
+                var res = await webView.CoreWebView2.ExecuteScriptAsync(script);
+                // 仅用于调试底层通路
+                Console.WriteLine($"[WebView2 Raw] {res}");
+                return res;
+            }
+            catch (Exception ex)
+            {
+                return JsonSerializer.Serialize("ERROR: JS 引擎异常 - " + ex.Message);
+            }
         });
 
-        // WebView2 返回的是 JSON 序列化后的字符串（带引号且内部已转义）
-        // 我们需要反序列化一次来拿到原本的字符串内容
-        try 
+        if (string.IsNullOrEmpty(rawRes) || rawRes == "null")
         {
-            return JsonSerializer.Deserialize<string>(rawRes) ?? rawRes;
+            return null;
         }
-        catch 
+
+        // 尝试剥离 WebView2 返回的 JSON 字符串外壳
+        // 由于 SurfingService 现在强制在 JS 侧执行 JSON.stringify，
+        // 所以这里一定能拿到一个被双重序列化的字符串。
+        if (rawRes.StartsWith("\"") && rawRes.EndsWith("\""))
         {
-            return rawRes;
+            try 
+            {
+                return JsonSerializer.Deserialize<string>(rawRes) ?? rawRes;
+            }
+            catch 
+            {
+                return rawRes.Trim('"');
+            }
         }
+
+        return rawRes;
     }
 
 

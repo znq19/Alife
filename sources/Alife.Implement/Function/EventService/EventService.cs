@@ -19,7 +19,8 @@ public class EventServiceData
 }
 
 [Plugin("主动事件", "让AI可以获取到各种系统事件的提醒。", LaunchOrder = 100, EditorUI = typeof(EventServiceUI))]
-public class EventService : InteractivePlugin<EventService>, IConfigurable<EventServiceData>, ITimeIterative
+public class EventService(FunctionService functionService)
+    : InteractivePlugin<EventService>, IConfigurable<EventServiceData>, ITimeIterative
 {
     [XmlFunction]
     [Description("设置一个自定义触发器（设置时自动取消上一个）。")]
@@ -59,7 +60,6 @@ public class EventService : InteractivePlugin<EventService>, IConfigurable<Event
     {
         await base.AwakeAsync(context);
 
-        FunctionService functionService = context.Services.GetRequiredService<FunctionService>();
         XmlHandler xmlHandler = new(this);
         xmlHandler.Description = "此服务让你能够接收到系统事件（如开始、结束、自动报点），同时可以控制这些信息的收发。";
         xmlHandler.Explain =
@@ -110,13 +110,18 @@ public class EventService : InteractivePlugin<EventService>, IConfigurable<Event
     void NextTimer()
     {
         int offset = Random.Shared.Next(-Configuration!.UpdateRandomOffset, Configuration.UpdateRandomOffset);
-        int timeOffset = (Configuration.UpdateInterval + offset) * (int)MathF.Pow(3, MathF.Min(continuousTimerCount, 5));
+        int timeOffset = (Configuration.UpdateInterval + offset) *
+                         (int)MathF.Pow(3, MathF.Min(continuousTimerCount, 5));
         timeTask[0].Item1 = DateTime.Now.AddSeconds(timeOffset);
         timeTask[0].Item2 = () =>
         {
-            Poke($"""
-                  系统报点：由Timer触发的自动报点。{Configuration!.UpdatePrompt}
-                  """);
+            if (functionService.IsIdle)
+            {
+                Poke($"""
+                      系统报点：由Timer触发的自动报点。{Configuration!.UpdatePrompt}
+                      """);
+            }
+
             continuousTimerCount++;
             NextTimer(); //自动进入下一次报点
         };

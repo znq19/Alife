@@ -6,13 +6,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Alife.Implement.Function;
 
-[Plugin("网上冲浪", "让 AI 像人一样操控浏览器：打开网页、观察页面、点击、打字、滚动。")]
+[Plugin("网上冲浪", "让 AI 像人一样操控浏览器：打开网页、观察页面、点击、打字、滚动、执行脚本。")]
 [Description(@"你拥有一个真实的、用户可见的浏览器窗口。通过以下函数来操控它：
 - navigate: 打开网址
 - observe: 观察当前页面内容和可交互元素（返回标题、文本和按钮选择器）
 - click: 点击页面上的元素
 - type: 在输入框中打字
 - scroll: 滚动页面
+- execute_script: 在当前页面执行任意 JavaScript 代码
 - download: 下载文件
 
 重要规则：
@@ -95,6 +96,43 @@ public class SurfingService(FunctionService functionService)
         Poke($"[Scroll] {result}");
     }
 
+    [XmlFunction("execute_script")]
+    [Description("在浏览器当前页面中执行任意一段 JavaScript 代码并返回执行结果。请直接返回你想获取的数据（如：return document.title; 或直接写表达式），无需手动调用 JSON.stringify。")]
+    public async Task ExecuteScript(XmlExecutorContext context,
+        [Description("为保持兼容性保留的参数，请勿使用，将代码直接放在标签内容中")] string script = "")
+    {
+        string userCode;
+        if (context.CallMode == CallMode.OneShot)
+        {
+            if (string.IsNullOrWhiteSpace(script))
+                throw new Exception("请将 JavaScript 代码放在标签内容中，不要使用自闭合标签。例如：<execute_script>代码...</execute_script>");
+            userCode = script;
+        }
+        else if (context.CallMode == CallMode.Content)
+        {
+            userCode = context.Content;
+            if (string.IsNullOrWhiteSpace(userCode)) return;
+        }
+        else return;
+
+        // 诊断版：极简包装，直接 eval
+        string escapedCode = System.Text.Json.JsonSerializer.Serialize(userCode);
+        string safeScript = $@"
+        (function() {{
+            const code = {escapedCode};
+            try {{
+                let r = eval(code);
+                if (r instanceof Promise) return r.then(v => JSON.stringify(v));
+                return JSON.stringify(r === undefined ? '(无返回值)' : r);
+            }} catch(err) {{
+                return JSON.stringify('JS_ERROR: ' + err.message);
+            }}
+        }})()";
+
+        string result = await browser.ExecuteScriptAsync(safeScript);
+        Poke($"[ExecuteScript][v2.2] 执行结果：\n{result}");
+    }
+
     [XmlFunction("download")]
     [Description("下载文件到本地。")]
     public async Task Download(XmlExecutorContext context,
@@ -111,7 +149,7 @@ public class SurfingService(FunctionService functionService)
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
-        functionService.RegisterHandler(this);
+        functionService.RegisterHandler(this, "execute_script");
     }
 
     public void Dispose() => browser.Dispose();

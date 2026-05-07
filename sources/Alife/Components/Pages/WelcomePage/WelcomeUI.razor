@@ -32,7 +32,7 @@
             <Flex Gap="@("small")">
                 <Input @bind-Value="storageFolderPath" Placeholder="默认为 我的文档\Alife 目录" Style="flex: 1;"/>
                 <Button Icon="@IconType.Outline.FolderOpen" OnClick="@(OnPickFolder)"></Button>
-                <Button Type="@ButtonType.Default" OnClick="@(SaveStoragePath)">保存修定</Button>
+                <Button Type="@ButtonType.Default" OnClick="@(SaveStoragePath)">保存修改</Button>
             </Flex>
             <Text Type="@TextElementType.Secondary" Style="font-size: 12px; margin-top: 8px; display: block;">提示：将其定位到
                 OneDrive / 坚果云等跨设备目录，即可实现多端无缝同步喵！(重启生效)

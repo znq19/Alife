@@ -60,16 +60,67 @@ public class XmlStreamParser
 
         if (isTagParsing == false)
         {
-            switch (ch)
+            if (ch == '<')
             {
-                case '<':
-                    isTagParsing = true;
-                    break;
-                default:
-                    await HandleContentChar(ch);
-                    break;
+                isTagParsing = true;
+            }
+            else
+            {
+                await HandleContentChar(ch);
             }
 
+            return;
+        }
+
+        // 如果在原样输出模式下，我们需要判断是否是闭标签的开始
+        if (IsVerbatimMode)
+        {
+            // 在原样输出模式中，我们只关心是否出现了类似 </TAGNAME> 的结构
+            if (ch == '/')
+            {
+                tagMode = 1; // 标记为闭标签尝试
+                return;
+            }
+
+            // 继续收集标签名以供比对
+            if (ch == '>')
+            {
+                FlushTagOrAttributeName();
+                if (tagMode == 1 && currentTagName == tagStack.Last())
+                {
+                    // 匹配成功，退出原样模式
+                    await FlashTag();
+                }
+                else
+                {
+                    // 匹配失败，把收到的内容作为普通内容吐出去
+                    await HandleContentChar('<');
+                    if (tagMode == 1) await HandleContentChar('/');
+                    if (currentTagName != null)
+                    {
+                        foreach (var c in currentTagName) await HandleContentChar(c);
+                    }
+
+                    foreach (var c in tagBuffer.ToString()) await HandleContentChar(c);
+
+                    ClearTag();
+                }
+
+                return;
+            }
+
+            if (ch == ' ' || ch == '=')
+            {
+                // 在原样模式的闭标签尝试中遇到空格，基本可以判定不是我们要找的闭标签
+                await HandleContentChar('<');
+                if (tagMode == 1) await HandleContentChar('/');
+                foreach (var c in tagBuffer.ToString()) await HandleContentChar(c);
+                await HandleContentChar(ch);
+                ClearTag();
+                return;
+            }
+
+            HandleTagChar(ch);
             return;
         }
 
@@ -137,10 +188,13 @@ public class XmlStreamParser
         ClearTag();
     }
 
-    public XmlStreamParser(string safeArea = "")
+    public XmlStreamParser(string safeArea = "", params string[] verbatimTags)
     {
         this.safeArea = safeArea;
+        this.verbatimTags = new HashSet<string>(verbatimTags.Select(t => t.ToLower()));
     }
+
+    bool IsVerbatimMode => tagStack.Count > 0 && verbatimTags.Contains(tagStack.Last());
 
     //注释状态
     bool isAnnotation;
@@ -157,12 +211,14 @@ public class XmlStreamParser
     string? currentTagAttributeName;
     bool isValueParsing;
     readonly Dictionary<string, string> parsedAttributes = new();
+    readonly HashSet<string> verbatimTags;
 
     /// 0：开标签；1：闭标签；2：自闭合标签
     int tagMode;
 
     readonly List<string> tagStack = new();
     readonly string safeArea;
+
 
     async Task HandleContentChar(char ch)
     {
@@ -228,12 +284,12 @@ public class XmlStreamParser
         if (currentTagName == null) //正在解析名称
         {
             if (tagBuffer.Length != 0)
-                currentTagName = ExtractTagContent();
+                currentTagName = ExtractTagContent().ToLower();
         }
         else if (currentTagAttributeName == null) //正在解析属性名
         {
             if (tagBuffer.Length != 0)
-                currentTagAttributeName = ExtractTagContent();
+                currentTagAttributeName = ExtractTagContent().ToLower();
         }
     }
 

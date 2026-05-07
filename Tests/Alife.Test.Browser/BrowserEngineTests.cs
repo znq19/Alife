@@ -81,6 +81,48 @@ public class BrowserEngineTests : IDisposable
         Assert.Contains("GitHub", finalPage);
     }
 
+    [Fact]
+    public async Task MidiClouds_SearchAndExtractData()
+    {
+        // 1. 打开 MIDIClouds 主页
+        var nav = await _engine.NavigateAsync("https://www.midiclouds.com/");
+        Assert.True(nav.Success, "导航到 MIDIClouds 失败");
+
+        // 2. 搜索「极乐净土」
+        // 使用 subagent 发现的精准选择器 #KeyStrs
+        await _engine.TypeAsync("#KeyStrs", "极乐净土", submit: false);
+        
+        // 3. 点击搜索按钮 (div.pCls)
+        string searchClick = await _engine.ClickAsync("div.pCls");
+        Console.WriteLine($"=== 搜索按钮点击结果 === {searchClick}");
+        Console.WriteLine($"=== 搜索后 URL === {await _engine.ExecuteScriptAsync("location.href")}");
+
+        // 4. 点击第一个搜索结果 (使用更精准的 td.fmTD a)
+        string resultClick = await _engine.ClickAsync("td.fmTD a");
+        Console.WriteLine($"=== 结果链接点击结果 === {resultClick}");
+        Console.WriteLine($"=== 点击后 URL === {await _engine.ExecuteScriptAsync("location.href")}");
+
+        // 5. 用 JS 提取 data-d 和 data-f
+        string jsResult = await _engine.ExecuteScriptAsync(@"
+        (function() {
+            var els = document.querySelectorAll('[data-d],[data-f]');
+            var results = [];
+            els.forEach(function(el) {
+                results.push({
+                    tag: el.tagName,
+                    dataD: el.getAttribute('data-d'),
+                    dataF: el.getAttribute('data-f'),
+                    text: (el.innerText || '').substring(0, 80)
+                });
+            });
+            return JSON.stringify(results, null, 2);
+        })()");
+
+        Console.WriteLine($"=== 抓取结果 ===\n{jsResult}");
+        Assert.NotNull(jsResult);
+        Assert.Contains("data", jsResult.ToLower());
+    }
+
     public void Dispose()
     {
         _engine.Dispose();

@@ -42,7 +42,7 @@ public partial class SpeechService(FunctionService functionService)
     : InteractivePlugin<SpeechService>, IAsyncDisposable, ITimeIterative, IConfigurable<SpeechConfig>
 {
     [XmlFunction("say", -10)]
-    [Description("将文本以语音方式输出。")]
+    [Description("将文本以语音方式输出。（这应该是你默认与外界的沟通方式）")]
     public async Task Say(XmlExecutorContext context, [XmlContent] string content)
     {
         if (context.CallMode == CallMode.Reset)
