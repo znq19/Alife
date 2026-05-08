@@ -28,6 +28,15 @@ public class XmlStreamExecutorTests
         {
             Logs.Add($"oneshot:{context.CallMode}");
         }
+
+        [XmlFunction]
+        public void Script(XmlExecutorContext context, int timeout, [XmlContent] string content)
+        {
+            if (context.CallMode != CallMode.Closing)
+                return;
+
+            Logs.Add($"script:{timeout} {context.FullContent}");
+        }
     }
 
     [Test]
@@ -37,11 +46,12 @@ public class XmlStreamExecutorTests
         XmlHandlerTable table = new XmlHandlerTable();
         table.Register(new XmlHandler(handler));
 
-        XmlStreamParser parser = new XmlStreamParser();
+        XmlStreamParser parser = new XmlStreamParser("script");
         // Set minBreakingLength to 1 to force split on every separator
         await using XmlStreamExecutor executor = new XmlStreamExecutor(parser, table, [".", "!"], 1);
 
         executor.Feed("<test>Hello. World!</test>");
+        executor.Feed("<script timeout=\"20\">if(0 < 1) print(123 > 1)</ script>");
         executor.Flush();
 
         while (executor.IsIdle == false)
@@ -53,6 +63,7 @@ public class XmlStreamExecutorTests
         Assert.That(handler.Logs, Has.Member("test:Content:Hello."));
         Assert.That(handler.Logs, Has.Member("test:Content: World!"));
         Assert.That(handler.Logs, Has.Member("test:Closing:"));
+        Assert.That(handler.Logs, Has.Member("script:20 if(0 < 1) print(123 > 1)"));
     }
 
     [Test]

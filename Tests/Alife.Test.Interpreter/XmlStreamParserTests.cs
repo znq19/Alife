@@ -91,15 +91,15 @@ public class XmlStreamParserTests
         它可以用于测试解析器在遇到标准语法时的表现。
 
 ======
-调用：userProfile-response
-区间：打开userProfile
+调用：userprofile-response
+区间：打开userprofile
 参数：
 {
   ""id"": ""1001"",
   ""role"": ""admin""
 }
 ======
-调用：name-userProfile-response
+调用：name-userprofile-response
 区间：打开name
 参数：
 {
@@ -107,11 +107,11 @@ public class XmlStreamParserTests
   ""role"": ""admin""
 }
 ======
-调用：name-userProfile-response
+调用：name-userprofile-response
 区间：关闭name
 内容：Alice
 ======
-调用：standard-userProfile-response
+调用：standard-userprofile-response
 区间：打开standard
 参数：
 {
@@ -119,11 +119,11 @@ public class XmlStreamParserTests
   ""role"": ""admin""
 }
 ======
-调用：standard-userProfile-response
+调用：standard-userprofile-response
 区间：关闭standard
 内容：使用标准实体：< > &
 ======
-调用：preferences-userProfile-response
+调用：preferences-userprofile-response
 区间：打开preferences
 参数：
 {
@@ -131,7 +131,7 @@ public class XmlStreamParserTests
   ""role"": ""admin""
 }
 ======
-调用：theme-preferences-userProfile-response
+调用：theme-preferences-userprofile-response
 区间：打开theme
 参数：
 {
@@ -139,11 +139,11 @@ public class XmlStreamParserTests
   ""role"": ""admin""
 }
 ======
-调用：theme-preferences-userProfile-response
+调用：theme-preferences-userprofile-response
 区间：关闭theme
 内容：dark
 ======
-调用：notifications-preferences-userProfile-response
+调用：notifications-preferences-userprofile-response
 区间：一次notifications
 参数：
 {
@@ -152,14 +152,14 @@ public class XmlStreamParserTests
   ""enabled"": ""true""
 }
 ======
-调用：preferences-userProfile-response
+调用：preferences-userprofile-response
 区间：关闭preferences
 内容：
 
         
 ======
-调用：userProfile-response
-区间：异常关闭userProfile
+调用：userprofile-response
+区间：异常关闭userprofile
 内容：
 
 ======

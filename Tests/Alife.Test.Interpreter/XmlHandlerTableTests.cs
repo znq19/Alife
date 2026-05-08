@@ -42,7 +42,7 @@ public class XmlHandlerTableTests
         handlerTable.Register(new XmlHandler(new MockPetHandler()));
         handlerTable.Register(new XmlHandler(new MockSpeechHandler()));
         handlerTable.Register(new XmlHandler(new MockSystemHandler()));
-
+        
         XmlContext speak = new() {
             Parameters = new Dictionary<string, string> {
                 ["text"] = "异常参数"

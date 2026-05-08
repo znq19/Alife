@@ -78,26 +78,19 @@ public class BrowserEngine : IDisposable
         (function() {{
             try {{
                 const scope = {scope};
-                const TEXT_SIZE = 3000;
-                const ELEMENT_SIZE = 60;
+                const TEXT_SIZE = 1500;
+                const ELEMENT_SIZE = 40;
 
                 const info = {{
                     title: document.title,
                     url: location.href,
-                    currentScope: scope,
-                    totalScopes: 1,
-                    text: '',
-                    inputs: [],
-                    links: [],
-                    status: ''
+                    text: ''
                 }};
 
                 if (document.body) {{
-                    const fullText = document.body.innerText || '';
+                    const fullText = (document.body.innerText || '').replace(/\s+/g, ' ').trim();
                     const textStart = (scope - 1) * TEXT_SIZE;
                     info.text = fullText.substring(textStart, textStart + TEXT_SIZE);
-                    const textScopes = Math.ceil(fullText.length / TEXT_SIZE);
-                    info.totalScopes = Math.max(textScopes, 1);
                 }}
 
                 const allInputs = [];
@@ -127,7 +120,7 @@ public class BrowserEngine : IDisposable
                                 if (isInput || isLink || isBtn || isPointer) {{
                                     if (node.offsetWidth === 0 || node.offsetHeight === 0) continue;
 
-                                    const text = (node.innerText || node.value || node.placeholder || node.title || node.alt || node.getAttribute('aria-label') || '').substring(0, 80).trim();
+                                    const text = (node.innerText || node.value || node.placeholder || node.title || node.alt || node.getAttribute('aria-label') || '').substring(0, 40).replace(/\n/g, ' ').trim();
                                     const href = node.href || '';
 
                                     if (isInput) {{
@@ -136,27 +129,21 @@ public class BrowserEngine : IDisposable
                                             id = (++maxId).toString();
                                             node.setAttribute('data-alife-id', id);
                                         }}
-                                        allInputs.push({{
-                                            text: text || ('[' + (node.type || tagName) + ']'),
-                                            type: node.type || tagName,
-                                            selector: '[data-alife-id=\'' + id + '\']'
-                                        }});
+                                        allInputs.push({{ text, type: node.type || tagName, id }});
                                     }} else if (href || isPointer || isBtn) {{
-                                        const linkItem = {{ text: text || (href ? '[Link]' : '[Button]') }};
-                                        if (href) linkItem.href = href.substring(0, 150);
-                                        
+                                        let linkItem = {{ text: text || (href ? '[Link]' : '[Button]'), href: href.substring(0, 150) }};
                                         if (!href || isBtn || isPointer) {{
                                             let id = node.getAttribute('data-alife-id');
                                             if (!id) {{
                                                 id = (++maxId).toString();
                                                 node.setAttribute('data-alife-id', id);
                                             }}
-                                            linkItem.selector = '[data-alife-id=\'' + id + '\']';
+                                            linkItem.id = id;
+                                            linkItem.tagName = tagName;
                                         }}
                                         allLinks.push(linkItem);
                                     }}
                                 }}
-
                                 if (node.shadowRoot) scan(node.shadowRoot);
                             }} catch (e) {{}}
                         }}
@@ -167,17 +154,37 @@ public class BrowserEngine : IDisposable
                 if (document.body) document.body.setAttribute('data-alife-max-id', maxId.toString());
 
                 const elementStart = (scope - 1) * ELEMENT_SIZE;
-                info.inputs = allInputs; 
-                info.links = allLinks.slice(elementStart, elementStart + ELEMENT_SIZE);
+                const linksPage = allLinks.slice(elementStart, elementStart + ELEMENT_SIZE);
                 
                 const linkScopes = Math.ceil(allLinks.length / ELEMENT_SIZE);
-                info.totalScopes = Math.max(info.totalScopes, linkScopes);
-                info.status = 'Scope ' + scope + '/' + info.totalScopes + 
-                              ' (Text: ' + info.text.length + ', Inputs: ' + allInputs.length + ', Links: ' + allLinks.length + ')';
+                const totalScopes = Math.max(Math.ceil(((document.body ? document.body.innerText.length : 0)) / TEXT_SIZE), linkScopes, 1);
 
-                return JSON.stringify(info);
+                // --- Build custom layout ---
+                let output = `TITLE:${{document.title}}\nURL:${{location.href}}\nSTATUS:${{scope}}/${{totalScopes}}\n`;
+                output += `${{info.text}}\n\n`;
+
+                let componentsStr = """";
+                allInputs.forEach(i => {{
+                    componentsStr += `${{i.text}}:${{i.type}}[${{i.id}}]\n`;
+                }});
+                linksPage.forEach(l => {{
+                    if (l.id) {{
+                        componentsStr += `${{l.text}}:${{l.tagName || 'button'}}[${{l.id}}]\n`;
+                    }}
+                }});
+                if (componentsStr) output += `-- COMPONENTS (ID) --\n${{componentsStr}}`;
+
+                let linksStr = """";
+                linksPage.forEach(l => {{
+                    if (l.href) {{
+                        linksStr += `${{l.text}}:${{l.href}}\n`;
+                    }}
+                }});
+                if (linksStr) output += `-- LINKS (HREF) --\n${{linksStr}}`;
+
+                return output.trim();
             }} catch (err) {{
-                return JSON.stringify({{ error: err.toString() }});
+                return ""ERROR: "" + err.toString();
             }}
         }})()");
     }

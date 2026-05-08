@@ -136,7 +136,8 @@ public partial class ChatActivity : IAsyncDisposable
         ChatCompletionAgent llmAgent = new()
         {
             Name = character.Name,
-            Instructions = character.Prompt,
+            Instructions =
+                $"名称：{character.Name}\n生日：{character.Birthday}\n简介：{character.Description}\n设定：\n{character.Prompt}",
             InstructionsRole = AuthorRole.System,
             Kernel = kernelService,
             Arguments = new KernelArguments(executionSettings),

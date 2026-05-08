@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Alife.Function.Interpreter;
 
@@ -15,6 +16,28 @@ public class XmlStreamParser
 
     public async Task Feed(char ch)
     {
+        if (tagStack.Count != 0 && plainAreas.Contains(tagStack.Last()))
+        {
+            tagBuffer.Append(ch);
+            string plainContent = tagBuffer.ToString();
+            if (plainContent.Last() == '>')
+            {
+                string newContent = Regex.Replace(plainContent, $"<\\s*/\\s*{tagStack.Last()}\\s*>", "");
+                foreach (char c in newContent)
+                    await HandleContentChar(c);
+                tagBuffer.Clear();
+
+                if (newContent != plainContent)
+                {
+                    tagMode = 1;
+                    currentTagName = tagStack.Last();
+                    await FlashTag();
+                }
+            }
+
+            return;
+        }
+
         if (isAnnotation)
         {
             switch (ch)
@@ -60,67 +83,16 @@ public class XmlStreamParser
 
         if (isTagParsing == false)
         {
-            if (ch == '<')
+            switch (ch)
             {
-                isTagParsing = true;
-            }
-            else
-            {
-                await HandleContentChar(ch);
-            }
-
-            return;
-        }
-
-        // 如果在原样输出模式下，我们需要判断是否是闭标签的开始
-        if (IsVerbatimMode)
-        {
-            // 在原样输出模式中，我们只关心是否出现了类似 </TAGNAME> 的结构
-            if (ch == '/')
-            {
-                tagMode = 1; // 标记为闭标签尝试
-                return;
+                case '<':
+                    isTagParsing = true;
+                    break;
+                default:
+                    await HandleContentChar(ch);
+                    break;
             }
 
-            // 继续收集标签名以供比对
-            if (ch == '>')
-            {
-                FlushTagOrAttributeName();
-                if (tagMode == 1 && currentTagName == tagStack.Last())
-                {
-                    // 匹配成功，退出原样模式
-                    await FlashTag();
-                }
-                else
-                {
-                    // 匹配失败，把收到的内容作为普通内容吐出去
-                    await HandleContentChar('<');
-                    if (tagMode == 1) await HandleContentChar('/');
-                    if (currentTagName != null)
-                    {
-                        foreach (var c in currentTagName) await HandleContentChar(c);
-                    }
-
-                    foreach (var c in tagBuffer.ToString()) await HandleContentChar(c);
-
-                    ClearTag();
-                }
-
-                return;
-            }
-
-            if (ch == ' ' || ch == '=')
-            {
-                // 在原样模式的闭标签尝试中遇到空格，基本可以判定不是我们要找的闭标签
-                await HandleContentChar('<');
-                if (tagMode == 1) await HandleContentChar('/');
-                foreach (var c in tagBuffer.ToString()) await HandleContentChar(c);
-                await HandleContentChar(ch);
-                ClearTag();
-                return;
-            }
-
-            HandleTagChar(ch);
             return;
         }
 
@@ -188,13 +160,10 @@ public class XmlStreamParser
         ClearTag();
     }
 
-    public XmlStreamParser(string safeArea = "", params string[] verbatimTags)
+    public XmlStreamParser(params string[] plainAreas)
     {
-        this.safeArea = safeArea;
-        this.verbatimTags = new HashSet<string>(verbatimTags.Select(t => t.ToLower()));
+        this.plainAreas = new HashSet<string>(plainAreas.Select(t => t.ToLower()));
     }
-
-    bool IsVerbatimMode => tagStack.Count > 0 && verbatimTags.Contains(tagStack.Last());
 
     //注释状态
     bool isAnnotation;
@@ -211,18 +180,16 @@ public class XmlStreamParser
     string? currentTagAttributeName;
     bool isValueParsing;
     readonly Dictionary<string, string> parsedAttributes = new();
-    readonly HashSet<string> verbatimTags;
+    readonly HashSet<string> plainAreas;
 
     /// 0：开标签；1：闭标签；2：自闭合标签
     int tagMode;
 
     readonly List<string> tagStack = new();
-    readonly string safeArea;
-
 
     async Task HandleContentChar(char ch)
     {
-        if (ContentGot != null && tagStack.Contains(safeArea) == false)
+        if (ContentGot != null)
             await ContentGot.Invoke(ch);
     }
 
@@ -311,12 +278,9 @@ public class XmlStreamParser
             switch (tagMode)
             {
                 case 0:
-                    if (tagStack.Contains(safeArea) == false)
-                    {
-                        tagStack.Add(currentTagName);
-                        if (TagOpened != null)
-                            await TagOpened.Invoke();
-                    }
+                    tagStack.Add(currentTagName);
+                    if (TagOpened != null)
+                        await TagOpened.Invoke();
 
                     break;
                 case 1:
@@ -339,14 +303,10 @@ public class XmlStreamParser
                     tagStack.RemoveAt(tagStack.Count - 1);
                     break;
                 case 2:
-                    if (tagStack.Contains(safeArea) == false)
-                    {
-                        tagStack.Add(currentTagName);
-                        if (TagShotted != null && tagStack.Contains(safeArea) == false)
-                            await TagShotted.Invoke();
-                        tagStack.RemoveAt(tagStack.Count - 1);
-                    }
-
+                    tagStack.Add(currentTagName);
+                    if (TagShotted != null)
+                        await TagShotted.Invoke();
+                    tagStack.RemoveAt(tagStack.Count - 1);
                     break;
             }
         }
