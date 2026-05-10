@@ -17,7 +17,7 @@ public class BrowserIntegrationTest
 
         // 2. 第一次观察：获取输入框 ID
         string observe = await engine.ObserveAsync(1);
-        string inputID = Regex.Match(observe, @"Input\[(.*)\]").Groups[1].Value;
+        string inputID = Regex.Match(observe, @"输入框\[(.*)\]").Groups[1].Value;
         string searchID = Regex.Match(observe, @"检索本站\[(.*)\]").Groups[1].Value;
         Assert.True(!string.IsNullOrEmpty(inputID) && !string.IsNullOrEmpty(searchID), "未在首页找到输入框和搜索按钮");
 
@@ -33,7 +33,7 @@ public class BrowserIntegrationTest
                 const search = document.querySelector('[data-alife-id=""{searchID}""]');
                 search.click();
 
-                return '搜索已发起+++';
+                return '搜索已发起';
             }})()";
 
         string jsResult = await engine.ExecuteScriptAsync(searchScript);

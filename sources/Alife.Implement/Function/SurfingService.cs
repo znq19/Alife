@@ -27,16 +27,16 @@ public class SurfingService(FunctionService functionService)
 
     [XmlFunction("observe")]
     [Description(
-        "查看页面内容（注意！内容过多时会被分页，所以当你没看到想要的内容时，可以尝试用scope翻页。此外该功能还会自动为可交互元素分配[ID]，借此可用`document.querySelector(\"[data-alife-id='ID']\")`定位交互）")]
-    public async Task Observe(XmlExecutorContext context, [Description("观察的页面区域，从1开始")] int scope)
+        "查看页面内容（注意！内容过多时会被分页，所以当你没看到想要的内容时，可以尝试用 page 翻页。此外该功能还会自动为可交互元素分配[ID]，借此可用`document.querySelector(\"[data-alife-id='ID']\")`定位交互）")]
+    public async Task Observe(XmlExecutorContext context, [Description("观察的页面区域，从1开始")] int page)
     {
         if (context.CallMode != CallMode.OneShot)
             throw new Exception("请使用自闭合标签调用。");
-        if (scope == 0)
-            throw new Exception("必须提供要观察的页面区域：scope");
+        if (page == 0)
+            throw new Exception("必须提供要观察的页面区域：page");
 
-        string result = await browser.ObserveAsync(scope);
-        Poke($"（注意：如果 PAGING 支持翻页，说明页面显示不全，没有所需内容时可用 scope 翻页查看。此外若遇到人机验证或登录，可请求主人协助）：\n{result}");
+        string result = await browser.ObserveAsync(page);
+        Poke($"页面结果如下（注意！网站页面大多不能一次全显示，必须通过 page 翻页来查看完整内容。此外若遇到人机验证或登录，可请求主人协助）：\n{result}");
     }
 
     [XmlFunction("runjs")]

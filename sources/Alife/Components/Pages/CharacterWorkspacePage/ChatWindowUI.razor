@@ -14,13 +14,6 @@
             <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">我的称呼:</AntDesign.Text>
             <Input @bind-Value="@adminTag" Placeholder="管理员" Size="@InputSize.Small" Style="width: 100px; border-radius: 4px;"/>
         </div>
-        @if (isWorking)
-        {
-            <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px; color: #1890ff;">
-                <Icon Type="@IconType.Outline.Loading"/>
-                AI 正在工作中...
-            </AntDesign.Text>
-        }
         <Button Icon="@IconType.Outline.Clear"
                 Type="@ButtonType.Link"
                 Danger
@@ -91,9 +84,8 @@
             <Flex Gap="@("12")" Align="@FlexAlign.End" Style="width: 100%;">
                 <div style="flex: 1; position: relative;">
                     <textarea id="chatInput"
-                              class="native-chat-input @(isWorking ? "input-locked" : "")"
-                              placeholder="@(isWorking ? "AI 思考中，请稍候..." : "输入消息... (Enter 发送, Shift+Enter 换行)")"
-                              disabled="@isWorking"
+                              class="native-chat-input @(isWorking ? "input-busy" : "")"
+                              placeholder="@(isWorking ? "AI 思考中，可继续输入并排队发送..." : "输入消息... (Enter 发送, Shift+Enter 换行)")"
                               @bind="inputText"
                               @bind:event="oninput"
                               @onkeydown="HandleNativeKeyDown"
@@ -101,18 +93,17 @@
                     
                     @if (isWorking)
                     {
-                        <div class="input-overlay">
-                            <Icon Type="@IconType.Outline.Loading" Style="font-size: 20px; color: #1890ff; margin-bottom: 8px;"/>
-                            <span style="color: #1890ff; font-weight: 500;">@(CharacterName) 正在思考/保存记忆中...</span>
+                        <div class="input-busy-tag">
+                            <Icon Type="@IconType.Outline.Loading" Style="font-size: 14px; color: #1890ff;"/>
+                            <span style="color: #1890ff; font-size: 12px; font-weight: 500;">@(CharacterName) 正在思考/保存...</span>
                         </div>
                     }
                 </div>
                 <Button Type="@ButtonType.Primary"
                         Icon="@(isWorking ? IconType.Outline.Loading : IconType.Outline.Send)"
-                        Disabled="@isWorking"
                         OnClick="@(async () => await OnSend())"
                         Style="height: 40px; border-radius: 8px; padding: 0 24px; flex-shrink: 0; box-shadow: 0 2px 4px rgba(24, 144, 255, 0.2);">
-                    @(isWorking ? "处理中" : "发送")
+                    @(isWorking ? "排队发送" : "发送")
                 </Button>
             </Flex>
         </div>
@@ -156,27 +147,32 @@
         box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
     }
 
-    .input-locked {
-        background: #f5f5f5 !important;
-        cursor: not-allowed;
-        color: transparent !important; /* 隐藏输入文字 */
+    .input-busy {
+        background: #fcfcfc !important;
+        border-color: #1890ff !important;
+        box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
     }
 
-    .input-overlay {
+    .input-busy-tag {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        bottom: 8px;
+        right: 12px;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(2px);
-        border-radius: 12px;
+        gap: 6px;
+        padding: 2px 10px;
+        background: rgba(24, 144, 255, 0.05);
+        border: 1px solid rgba(24, 144, 255, 0.2);
+        border-radius: 20px;
         z-index: 10;
         pointer-events: none;
+        animation: pulse-tag 2s infinite;
+    }
+
+    @@keyframes pulse-tag {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
     }
 
     .chat-bubble {
