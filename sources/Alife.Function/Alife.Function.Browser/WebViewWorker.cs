@@ -15,6 +15,9 @@ public class WebViewWorker : IDisposable
 
     public Task<T> AddFormTask<T>(Func<WebView2, Task<T>> action)
     {
+        if (form == null || form.IsDisposed)
+            throw new ObjectDisposedException(nameof(WebViewWorker));
+
         TaskCompletionSource<T> tcs = new();
 
         formTasks.Add(async () =>
@@ -35,7 +38,7 @@ public class WebViewWorker : IDisposable
         return tcs.Task;
     }
 
-    Form? form;
+    AlifeForm? form;
     WebView2? webView;
     readonly BlockingCollection<Func<Task>> formTasks = new();
     bool isLoading;
@@ -47,14 +50,14 @@ public class WebViewWorker : IDisposable
             try
             {
                 //创建窗口
-                form = new Form
+                form = new AlifeForm
                 {
                     Text = "Alife Browser",
                     Width = 1024,
                     Height = 768,
-                    WindowState = FormWindowState.Normal,
+                    WindowState = FormWindowState.Minimized,
                     ShowInTaskbar = true,
-                    FormBorderStyle = FormBorderStyle.Sizable
+                    FormBorderStyle = FormBorderStyle.Sizable,
                 };
                 webView = new WebView2 { Dock = DockStyle.Fill };
 
@@ -109,7 +112,7 @@ public class WebViewWorker : IDisposable
             });
 
             //持续处理分配的formTask任务
-            _ = Task.Run(() =>
+            await Task.Run(() =>
             {
                 foreach (Func<Task> formTask in formTasks.GetConsumingEnumerable())
                 {
@@ -131,6 +134,21 @@ public class WebViewWorker : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine(ex);
+        }
+    }
+}
+
+public class AlifeForm : Form
+{
+    const int CP_NOCLOSE_BUTTON = 0x200;
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            CreateParams myCp = base.CreateParams;
+            myCp.ClassStyle = myCp.ClassStyle | CP_NOCLOSE_BUTTON;
+            return myCp;
         }
     }
 }

@@ -14,9 +14,9 @@ public class BrowserEngine : IDisposable
     /// <summary>
     /// 跳转到指定页面
     /// </summary>
-    public async Task<NavigateResult> NavigateAsync(string url)
+    public Task<NavigateResult> NavigateAsync(string url)
     {
-        return await worker.AddFormTask(async webView =>
+        return worker.AddFormTask(async webView =>
         {
             var tcs = new TaskCompletionSource<NavigateResult>();
             webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
@@ -34,9 +34,9 @@ public class BrowserEngine : IDisposable
     /// <summary>
     /// 执行JavaScript并易读的结果
     /// </summary>
-    public async Task<string> ExecuteScriptAsync(string code)
+    public Task<string> ExecuteScriptAsync(string code)
     {
-        return await worker.AddFormTask(async webView =>
+        return worker.AddFormTask(async webView =>
         {
             string wrapperScript =
                 $$$"""
