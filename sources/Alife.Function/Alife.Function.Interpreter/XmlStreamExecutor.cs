@@ -3,19 +3,10 @@ using System.Threading.Channels;
 
 namespace Alife.Function.Interpreter;
 
-public enum CallMode
-{
-    Opening,
-    Closing,
-    OneShot,
-    Content,
-    Reset,
-}
-
 public class XmlExecutorContext : XmlContext
 {
     public required IReadOnlyList<string> CallChain { get; init; }
-    public CallMode CallMode { get; init; }
+
     public string AboveContent { get; init; } = "";
     public string? AboveSeparator { get; init; }
     public string FullContent => AboveContent + Content;
@@ -31,26 +22,29 @@ public class XmlStreamExecutor : IAsyncDisposable
         foreach (char ch in text)
             commandChannel.Writer.TryWrite(new StreamCommand(CommandType.Feed, ch));
     }
-
     public void Flush()
     {
         commandChannel.Writer.TryWrite(new StreamCommand(CommandType.Flush));
     }
-
-    public void Reset()
+    public async Task CancelAsync()
     {
-        while (commandChannel.Reader.TryRead(out _))
+        // while (commandChannel.Reader.TryRead(out _)) {}
+        await handleTokenSource.CancelAsync();
+        Flush();
+        await WaitToIdle();
+    }
+    public async Task WaitToIdle(CancellationToken cancellationToken = default)
+    {
+        while (IsIdle == false)
         {
-        } //排空管道
-
-        commandChannel.Writer.TryWrite(new StreamCommand(CommandType.Reset));
+            await Task.Delay(100, cancellationToken);
+        }
     }
 
     enum CommandType
     {
         Feed,
         Flush,
-        Reset
     }
 
     record struct StreamCommand(CommandType Type, char Data = '\0');
@@ -61,16 +55,16 @@ public class XmlStreamExecutor : IAsyncDisposable
     readonly int minBreakingLength;
     readonly CancellationTokenSource processingTokenSource;
 
-    readonly Channel<StreamCommand> commandChannel = Channel.CreateUnbounded<StreamCommand>(new UnboundedChannelOptions
-    {
+    readonly Channel<StreamCommand> commandChannel = Channel.CreateUnbounded<StreamCommand>(new UnboundedChannelOptions {
         SingleReader = true,
         SingleWriter = false,
     });
 
+
     readonly List<StringBuilder> aboveContentBuffer = new();
     readonly StringBuilder contentBuffer = new();
-    bool isResetting;
     Task? lastTask;
+    CancellationTokenSource handleTokenSource = new();
 
     public XmlStreamExecutor(XmlStreamParser parser, XmlHandlerTable handler, string[]? sentenceBreakers = null,
         int minBreakingLength = 0)
@@ -83,7 +77,6 @@ public class XmlStreamExecutor : IAsyncDisposable
         this.parser.TagOpened = OnTagOpened;
         this.parser.TagShotted = OnTagShotted;
         this.parser.TagClosed = OnTagClosed;
-        this.parser.TagReset = OnTagReset;
         this.parser.ContentGot = OnContentGot;
 
         processingTokenSource = new CancellationTokenSource();
@@ -106,25 +99,20 @@ public class XmlStreamExecutor : IAsyncDisposable
                     switch (cmd.Type)
                     {
                         case CommandType.Feed:
+                            Console.Write(cmd.Data);
                             await (lastTask = parser.Feed(cmd.Data));
                             break;
                         case CommandType.Flush:
+                            Console.Write("[Flush]");
                             await (lastTask = parser.Flush(true));
                             ClearContentBuffer();
-                            break;
-                        case CommandType.Reset:
-                            isResetting = true;
-                            await (lastTask = parser.Flush());
-                            ClearContentBuffer();
-                            isResetting = false;
+                            handleTokenSource = new CancellationTokenSource();
                             break;
                     }
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) {}
         catch (Exception e)
         {
             Console.WriteLine(e);
@@ -136,21 +124,14 @@ public class XmlStreamExecutor : IAsyncDisposable
         if (aboveContentBuffer.Count < parser.TagStack.Count)
             aboveContentBuffer.Add(new StringBuilder());
 
-        await FlushContentBuffer(skipTop: true); //有新的标签要进入，不能让新标签拿到老内容
+        await FlushContentBuffer(skipTop: true);//有新的标签要进入，不能让新标签拿到老内容
         await HandleTag(CallMode.Opening);
     }
 
     async Task OnTagClosed()
     {
-        if (isResetting)
-        {
-            await HandleTag(CallMode.Reset);
-        }
-        else
-        {
-            await FlushContentBuffer(); //即使没有触发分词也必须推送了，因为标签即将关闭
-            await HandleTag(CallMode.Closing);
-        }
+        await FlushContentBuffer();//即使没有触发分词也必须推送了，因为标签即将关闭
+        await HandleTag(CallMode.Closing);
 
         aboveContentBuffer[parser.TagStack.Count - 1].Clear();
     }
@@ -162,18 +143,11 @@ public class XmlStreamExecutor : IAsyncDisposable
         return HandleTag(CallMode.OneShot);
     }
 
-    async Task OnTagReset()
-    {
-        await HandleTag(CallMode.Reset);
-        aboveContentBuffer[parser.TagStack.Count - 1].Clear();
-    }
-
     Task HandleTag(CallMode callMode)
     {
         string tagName = parser.TagStack.Last();
         string aboveContent = aboveContentBuffer[parser.TagStack.Count - 1].ToString();
-        XmlExecutorContext context = new()
-        {
+        XmlExecutorContext context = new() {
             CallChain = parser.TagStack,
             CallMode = callMode,
             Parameters = parser.TagParameters,
@@ -197,7 +171,7 @@ public class XmlStreamExecutor : IAsyncDisposable
             foreach (string breaker in sentenceBreakers)
             {
                 if (content.EndsWith(breaker))
-                    return FlushContentBuffer(breaker); //提前推送一次content
+                    return FlushContentBuffer(breaker);//提前推送一次content
             }
         }
 
@@ -216,8 +190,7 @@ public class XmlStreamExecutor : IAsyncDisposable
             string tagName = parser.TagStack[index];
             string aboveContent = aboveContentBuffer[index].ToString();
             IReadOnlyList<string> callChain = parser.TagStack.Take(index + 1).ToList();
-            XmlExecutorContext context = new()
-            {
+            XmlExecutorContext context = new() {
                 CallChain = callChain,
                 CallMode = CallMode.Content,
                 Parameters = parser.TagParameters,
@@ -231,7 +204,7 @@ public class XmlStreamExecutor : IAsyncDisposable
             //获取调用后的内容，这可能被修改
             content = context.Content;
             if (content == "")
-                break; //被彻底拦截
+                break;//被彻底拦截
 
             //缓存内容
             aboveContentBuffer[index].Append(content);
@@ -249,7 +222,7 @@ public class XmlStreamExecutor : IAsyncDisposable
     {
         try
         {
-            await handler.Handle(name, tagContext);
+            await handler.Handle(name, tagContext, handleTokenSource.Token);
         }
         catch (Exception e)
         {

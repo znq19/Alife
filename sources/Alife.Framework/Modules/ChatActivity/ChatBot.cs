@@ -4,7 +4,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using OpenAI.Chat;
-using ChatMessageContent = Microsoft.SemanticKernel.ChatMessageContent;
+using ChatMessageContent=Microsoft.SemanticKernel.ChatMessageContent;
 
 namespace Alife.Framework;
 
@@ -23,20 +23,31 @@ public class ChatBot : IAsyncDisposable
     public event Action<ChatMessageContent>? ChatHistoryAdd;
     public event Action<ChatTokenUsage>? TokenUsed;
     public ChatHistory ChatHistory => llmAgentThread.ChatHistory;
-    public SemaphoreSlim ChatSemaphore => chatSemaphore;
     public bool IsChatting => chatSemaphore.CurrentCount == 0;
+    public CancellationToken ChatBreakToken => chatBreakSource.Token;
+
+    public Task RequestChatAsync(CancellationToken cancellationToken = default)
+    {
+        return chatSemaphore.WaitAsync(cancellationToken);
+    }
+
+    public void ReleaseChat()
+    {
+        chatSemaphore.Release();
+    }
 
     public async IAsyncEnumerable<string> ChatStreamingAsync(string message, AuthorRole? role = null)
     {
-        if (IsChatting) //打断上一次的聊天
+        if (IsChatting)//打断上一次的聊天
         {
-            if (cancelChatSource != null)
-                await cancelChatSource.CancelAsync();
+            await chatBreakSource.CancelAsync();
         }
 
         await chatSemaphore.WaitAsync();
         try
         {
+            chatBreakSource = new CancellationTokenSource();
+
             if (ChatSend != null)
             {
                 foreach (Delegate @delegate in ChatSend.GetInvocationList())
@@ -48,16 +59,16 @@ public class ChatBot : IAsyncDisposable
 
             message = message.Trim();
             llmAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
-            cancelChatSource = new CancellationTokenSource();
+
 
             ChaseChatHistory();
 
             ChatSent?.Invoke(message);
             string? error = null;
-            StringBuilder cleanResponseBuilder = new(); // 用于存储不含思考过程的最终回复
+            StringBuilder cleanResponseBuilder = new();// 用于存储不含思考过程的最终回复
 
             await using IAsyncEnumerator<AgentResponseItem<StreamingChatMessageContent>> enumerator = llmAgent
-                .InvokeStreamingAsync(llmAgentThread, cancellationToken: cancelChatSource.Token)
+                .InvokeStreamingAsync(llmAgentThread, cancellationToken: chatBreakSource.Token)
                 .GetAsyncEnumerator();
             while (true)
             {
@@ -116,7 +127,7 @@ public class ChatBot : IAsyncDisposable
                         if (usage is ChatTokenUsage chatTokenUsage)
                         {
                             Console.WriteLine(
-                                $"[Token消耗] total:{chatTokenUsage.TotalTokenCount} input:{chatTokenUsage.InputTokenCount}({chatTokenUsage.InputTokenDetails?.CachedTokenCount}) output:{chatTokenUsage.OutputTokenCount} ");
+                            $"[Token消耗] total:{chatTokenUsage.TotalTokenCount} input:{chatTokenUsage.InputTokenCount}({chatTokenUsage.InputTokenDetails?.CachedTokenCount}) output:{chatTokenUsage.OutputTokenCount} ");
                             TokenUsed?.Invoke(chatTokenUsage);
                         }
                     }
@@ -172,14 +183,14 @@ public class ChatBot : IAsyncDisposable
         while (messageCache.Count > 11)
             messageCache.TryDequeue(out _);
         messageCache.Enqueue($"{message}\n");
-        lastAutoFlushTime = 0; //重新计时，防止后续还有Poke
+        lastAutoFlushTime = 0;//重新计时，防止后续还有Poke
     }
 
     public async Task ImplicitChatAsync(string message)
     {
-        await ChatSemaphore.WaitAsync();
+        await chatSemaphore.WaitAsync();
         ChatHistory.AddUserMessage(message);
-        ChatSemaphore.Release();
+        chatSemaphore.Release();
     }
 
     public void UpdateHistoryEndIndex()
@@ -191,7 +202,7 @@ public class ChatBot : IAsyncDisposable
     readonly ChatHistoryAgentThread llmAgentThread;
     readonly ConcurrentQueue<string> messageCache;
     readonly SemaphoreSlim chatSemaphore;
-    CancellationTokenSource? cancelChatSource;
+    CancellationTokenSource chatBreakSource = new();
 
     int lastContentIndex;
 
@@ -240,9 +251,7 @@ public class ChatBot : IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) {}
         catch (Exception e)
         {
             Console.WriteLine(e);

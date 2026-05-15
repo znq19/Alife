@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.Browser;
 using Alife.Function.Interpreter;
@@ -11,65 +12,51 @@ namespace Alife.Implement.Function;
 public class SurfingService(FunctionService functionService)
     : InteractivePlugin<SurfingService>, IDisposable
 {
-    readonly BrowserEngine browser = new();
-
-    [XmlFunction("navigate")]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("打开网页。")]
-    public async Task Navigate(XmlExecutorContext context, string url)
+    public async Task Navigate(string url)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("请使用自闭合标签调用。");
-
         await browser.NavigateAsync(url);
         Poke($"[Navigate] 已打开: {url}（接下来可以使用 observe 来查看页面内容）");
     }
 
-
-    [XmlFunction("observe")]
-    [Description(
-        "查看页面内容（注意！内容过多时会被分页，所以当你没看到想要的内容时，可以尝试用 page 翻页。此外该功能还会自动为可交互元素分配[ID]，借此可用`document.querySelector(\"[data-alife-id='ID']\")`定位交互）")]
-    public async Task Observe(XmlExecutorContext context, [Description("观察的页面区域，从1开始")] int page)
+    [XmlFunction(FunctionMode.OneShot)]
+    [Description("查看页面内容（注意！内容过多时会被分页，所以当你没看到想要的内容时，可以尝试用 page 翻页。此外该功能还会自动为可交互元素分配[ID]，借此可用`document.querySelector(\"[data-alife-id='ID']\")`定位交互）")]
+    public async Task Observe([Description("观察的页面区域，从1开始")] int page)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("请使用自闭合标签调用。");
-        if (page == 0)
-            throw new Exception("必须提供要观察的页面区域：page");
-
         string result = await browser.ObserveAsync(page);
         Poke($"页面结果如下（注意！网站页面大多不能一次全显示，必须通过 page 翻页来查看完整内容。此外若遇到人机验证或登录，可请求主人协助）：\n{result}");
     }
 
-    [XmlFunction("runjs")]
+    [XmlFunction(FunctionMode.Content)]
     [Description("在浏览器中执行JS表达式。")]
-    public async Task ExecuteScript(XmlExecutorContext context, [XmlContent] string script = "")
+    public async Task RunJs(XmlExecutorContext context, [XmlContent] string script)
     {
-        if (context.CallMode != CallMode.Closing)
-            return;
-
-        string code = context.FullContent.Trim();
-        string result = await browser.ExecuteScriptAsync(code);
-        Poke($"[RunJS] 执行结果：\n{result}");
+        if (context.CallMode == CallMode.Closing)
+        {
+            string code = context.FullContent.Trim();
+            string result = await browser.ExecuteScriptAsync(code);
+            Poke($"[RunJS] 执行结果：\n{result}");
+        }
     }
 
-
-    [XmlFunction("download")]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("下载文件到本地。")]
-    public async Task Download(XmlExecutorContext context,
-        [Description("下载链接")] string url,
-        [Description("本地绝对路径")] string path)
+    public async Task Download([Description("下载链接")] string url, [Description("本地绝对路径")] string path)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("请使用自闭合标签调用。");
-
-        await BrowserEngine.DownloadFileAsync(url, path);
+        await AlifePlatform.DownloadFileAsync(url, path);
         Poke($"[Download] 文件已下载至：{path}");
     }
+
+    readonly BrowserEngine browser = new();
 
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
-        functionService.RegisterHandler(this, "runjs");
+        await browser.WaitToLoadedAsync(TimeSpan.FromSeconds(3));
+        functionService.RegisterHandler(this, nameof(RunJs));
     }
 
     public void Dispose() => browser.Dispose();
+
 }

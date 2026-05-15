@@ -11,7 +11,8 @@ namespace Alife.Function.Browser;
 /// </summary>
 public class WebViewWorker : IDisposable
 {
-    public bool IsLoading => isLoading;
+    public bool IsNavigating => isNavigating;
+    public bool IsLoaded => isLoaded;
 
     public Task<T> AddFormTask<T>(Func<WebView2, Task<T>> action)
     {
@@ -20,8 +21,7 @@ public class WebViewWorker : IDisposable
 
         TaskCompletionSource<T> tcs = new();
 
-        formTasks.Add(async () =>
-        {
+        formTasks.Add(async () => {
             try
             {
                 if (webView == null)
@@ -41,17 +41,16 @@ public class WebViewWorker : IDisposable
     AlifeForm? form;
     WebView2? webView;
     readonly BlockingCollection<Func<Task>> formTasks = new();
-    bool isLoading;
+    bool isNavigating;
+    bool isLoaded;
 
     public WebViewWorker()
     {
-        var thread = new Thread(() =>
-        {
+        var thread = new Thread(() => {
             try
             {
                 //创建窗口
-                form = new AlifeForm
-                {
+                form = new AlifeForm {
                     Text = "Alife Browser",
                     Width = 1024,
                     Height = 768,
@@ -94,26 +93,24 @@ public class WebViewWorker : IDisposable
                 Directory.CreateDirectory(userDataFolder);
             var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
 
-            await form!.InvokeAsync(async _ =>
-            {
+            await form!.InvokeAsync(async _ => {
                 await webView!.EnsureCoreWebView2Async(env);
                 //伪装普通浏览器
                 webView.CoreWebView2.Settings.UserAgent =
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edge/122.0.0.0";
                 //禁用新窗口跳转
-                webView.CoreWebView2.NewWindowRequested += (_, ev) =>
-                {
+                webView.CoreWebView2.NewWindowRequested += (_, ev) => {
                     ev.Handled = true;
                     webView.CoreWebView2.Navigate(ev.Uri);
                 };
                 //统计加载状态
-                webView.CoreWebView2.NavigationStarting += (_, ev) => isLoading = true;
-                webView.CoreWebView2.NavigationCompleted += (_, ev) => isLoading = false;
+                webView.CoreWebView2.NavigationStarting += (_, ev) => isNavigating = true;
+                webView.CoreWebView2.NavigationCompleted += (_, ev) => isNavigating = false;
             });
 
             //持续处理分配的formTask任务
-            await Task.Run(() =>
-            {
+            isLoaded = true;
+            await Task.Run(() => {
                 foreach (Func<Task> formTask in formTasks.GetConsumingEnumerable())
                 {
                     if (form.IsDisposed)

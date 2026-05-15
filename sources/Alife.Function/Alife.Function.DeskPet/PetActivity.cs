@@ -37,9 +37,9 @@ public class PetActivity : IDisposable
     double lastWindowMouseX;
     double lastWindowMouseY;
 
-    long lastMouseMoveTime; //上次鼠标移动时间
-    int comboCount; //短时间累计点击数量
-    long lastHitTime; //上次点击交互时间
+    long lastMouseMoveTime;//上次鼠标移动时间
+    int comboCount;//短时间累计点击数量
+    long lastHitTime;//上次点击交互时间
     bool isDragging;
 
     async void OnPetReady()
@@ -55,13 +55,13 @@ public class PetActivity : IDisposable
             process.ListenInput();
 
             //监听桌宠端输入
-            bridge.OnPoke += areas => HandleMousePoke(areas);
+            bridge.OnPoke += HandleMousePoke;
             bridge.OnInput += text => process.SendOutput(new InputEvent(text));
             bridge.OnDragStart += () => isDragging = true;
             bridge.OnDragEnd += () => isDragging = false;
 
             //监听鼠标移动
-            tracker.MouseMoved += (x, y) => OnMouseMove(x, y);
+            tracker.MouseMoved += OnMouseMove;
             tracker.Start();
 
             //监听特殊运动交互
@@ -127,14 +127,14 @@ public class PetActivity : IDisposable
         if (areas.Any(a => a.Contains("Head", StringComparison.OrdinalIgnoreCase))) category = "head";
         else if (areas.Any(a => a.Contains("Body", StringComparison.OrdinalIgnoreCase))) category = "body";
         if (category == null)
-            return; //不支持
+            return;//不支持
 
         //连击交互判定
         long now = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         if (now - lastHitTime < 2500) comboCount++;
         else comboCount = 1;
         lastHitTime = now;
-        if (comboCount >= 5 && comboCount % 5 == 0)
+        if (comboCount != 0 && comboCount % 3 == 0)
         {
             HandleInteraction("mouse_combo");
             process.SendOutput(new InteractionEvent("桌宠被连续触摸：" + category));
@@ -168,7 +168,7 @@ public class PetActivity : IDisposable
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) {}
         catch (Exception e)
         {
             File.AppendAllText("pet.log", e + Environment.NewLine);

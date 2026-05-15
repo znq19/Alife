@@ -53,7 +53,7 @@ public class PetFunctionTests
             "测试 [鼠标交互]: \n1. 请快速连击 (mouse_combo)\n2. 请绕着真央转 6 圈 (mouse_shake)\n\n完成后点击确定。",
             "人工指令", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, MessageBoxOptions.DefaultDesktopOnly);
         
-        Assert.That(recordedInteractions, Does.Contain("桌宠被连续戳击"), "未检测到鼠标连击");
+        Assert.That(recordedInteractions, Has.Some.StartWith("桌宠被连续触摸"), "未检测到鼠标连击");
         Assert.That(recordedInteractions, Does.Contain("鼠标在快速转圈"), "未检测到围绕转圈");
     }
 

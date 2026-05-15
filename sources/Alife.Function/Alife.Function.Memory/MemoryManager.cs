@@ -6,7 +6,10 @@ using Newtonsoft.Json;
 
 namespace Alife.Function.Memory;
 
-public record MemoryMeta(int Level, DateTime StartTime, DateTime EndTime);
+public record MemoryMeta(int Level, DateTime StartTime, DateTime EndTime)
+{
+    public string Name => $"{Level}-{StartTime:yyyyMMddHHmmss}-{EndTime:yyyyMMddHHmmss}";
+}
 
 /// <summary>
 /// 记忆核心管理器。协调存储、索引和压缩逻辑。
@@ -65,36 +68,27 @@ public class MemoryManager
                 areaCount++;
             }
 
-            if (areaCount >= areaCompressionThreshold && areaLevel < maxCompressionLevel)
+            if (areaCount >= areaCompressionThreshold && areaLevel + 1 <= maxCompressionLevel)//压缩记忆
             {
-                //压缩记忆
+                //确认压缩事件段和内容
                 DateTime startTime = GetMemoryMetaData(chatHistory[areaStart]).StartTime;
                 DateTime endTime = currentMemoryMeta.EndTime;
                 string fullContent = PickContent(chatHistory, areaStart, areaStart + areaCompressionCount);
+
+                //清理为适合ai阅读的内容然后让ai压缩
                 string plainContent = Regex.Replace(fullContent, "^\\[记忆存档.*$", "", RegexOptions.Multiline);
                 plainContent = Regex.Replace(plainContent, "^存档索引.*$", "", RegexOptions.Multiline);
                 string? summary = await compressor.Compress(plainContent);
                 if (summary == null)
                     return false;
 
-                //提取并保存旧的记录
-                string name = await SaveMemory(new MemoryMeta(areaLevel, startTime, endTime), summary, fullContent);
-                for (int index = areaStart + areaCompressionCount - 1; index >= areaStart; index--)
+                //插入新增的记忆存档
+                await SaveMemory(areaLevel + 1, startTime, endTime, summary, fullContent, chatHistory, areaStart);
+
+                //移除被压缩记忆
+                for (int index = areaStart + areaCompressionCount; index > areaStart; index--)
                     memoryMetaDatas.Remove(chatHistory[index]);
-                chatHistory.RemoveRange(areaStart, areaCompressionCount);
-
-                //增加新的记录
-                summary = $"""
-                           [记忆存档(L{areaLevel})]
-                           存档索引：{name}（可以通过索引查到被归档的原始完整内容）
-                           发生时间：{startTime}到{endTime}
-                           事件概述：{summary}
-                           """;
-                ChatMessageContent compressedContent = new(AuthorRole.Assistant, summary);
-                chatHistory.Insert(areaStart, compressedContent);
-                memoryMetaDatas[compressedContent] = new MemoryMeta(areaLevel + 1, startTime, endTime);
-
-                Console.WriteLine($"压缩记忆：{name}");
+                chatHistory.RemoveRange(areaStart + 1, areaCompressionCount);
 
                 return true;
             }
@@ -103,20 +97,8 @@ public class MemoryManager
         return false;
     }
 
-    public async Task InsertMemory(ChatHistory chatHistory, int level, string summary, string content, DateTime startTime, DateTime endTime)
+    public async Task<string> InsertMemory(ChatHistory chatHistory, int level, string summary, string content, DateTime startTime, DateTime endTime)
     {
-        // 保存到持久化存储
-        string index = await SaveMemory(new MemoryMeta(level, startTime, endTime), summary, content);
-
-        // 构建存档显示内容
-        string archiveContent = $"""
-                                 [记忆存档(L{level})]
-                                 存档索引：{index}
-                                 发生时间：{startTime}到{endTime}
-                                 事件概述：{summary}
-                                 """;
-        ChatMessageContent compressedContent = new(AuthorRole.Assistant, archiveContent);
-
         // 寻找插入位置（同级区域的最下方）
         int insertIndex = -1;
         int contentIndex = 0;
@@ -153,8 +135,7 @@ public class MemoryManager
         if (insertIndex == -1)
             insertIndex = chatHistory.Count;
 
-        chatHistory.Insert(insertIndex, compressedContent);
-        memoryMetaDatas[compressedContent] = new MemoryMeta(level, startTime, endTime);
+        return await SaveMemory(level, startTime, endTime, summary, content, chatHistory, insertIndex);
     }
 
     public void RemoveMemory(ChatHistory chatHistory, ChatMessageContent content)
@@ -173,9 +154,9 @@ public class MemoryManager
             if (chatMessageContent.Content == null)
                 continue;
             history.Add(new HistoryRecord(
-                chatMessageContent.Role,
-                chatMessageContent.Content,
-                GetMemoryMetaData(chatMessageContent)
+            chatMessageContent.Role,
+            chatMessageContent.Content,
+            GetMemoryMetaData(chatMessageContent)
             ));
         }
 
@@ -232,11 +213,24 @@ public class MemoryManager
     readonly string historyStoragePath;
     readonly Dictionary<ChatMessageContent, MemoryMeta> memoryMetaDatas = new Dictionary<ChatMessageContent, MemoryMeta>();
 
-
-    async Task<string> SaveMemory(MemoryMeta memoryMeta, string summary, string content)
+    async Task<string> SaveMemory(int level, DateTime startTime, DateTime endTime, string summary, string content, ChatHistory chatHistory, int insertIndex)
     {
-        string name = $"{memoryMeta.Level}-{memoryMeta.StartTime:yyyyMMddHHmmss}-{memoryMeta.EndTime:yyyyMMddHHmmss}";
+        MemoryMeta memoryMeta = new(level, startTime, endTime);
+        string name = memoryMeta.Name;
+
+        //归档到数据库
         await memoryStorage.SaveAsync(name, memoryMeta.Level, summary, content, memoryMeta.StartTime, memoryMeta.EndTime);
+
+        //插入到上下文
+        summary = $"""
+                   [记忆存档({name})]
+                   {summary}
+                   """;
+        ChatMessageContent compressedContent = new(AuthorRole.Assistant, summary);
+        chatHistory.Insert(insertIndex, compressedContent);
+        memoryMetaDatas[compressedContent] = new MemoryMeta(level, startTime, endTime);
+
+        Console.WriteLine($"压缩记忆：{name}");
         return name;
     }
 

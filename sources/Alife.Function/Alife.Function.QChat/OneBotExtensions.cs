@@ -59,26 +59,4 @@ public static class OneBotExtensions
         OneBotForwardData? data = await client.CallActionAsync<OneBotForwardData>("get_forward_msg", new { id = forwardId });
         return data?.Messages;
     }
-
-    /// <summary>
-    /// 简单的文件异步下载辅助，包含基础请求头以绕过部分防盗链。
-    /// </summary>
-    public static async Task DownloadFileAsync(this string url, string savePath)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-        // 针对腾讯多媒体服务器设置 Referer
-        if (url.Contains("multimedia.nt.qq.com.cn") || url.Contains("qpic.cn"))
-        {
-            request.Headers.Add("Referer", "https://q.qq.com/");
-        }
-
-        using var response = await SharedHttpClient.SendAsync(request);
-        response.EnsureSuccessStatusCode();
-        byte[] data = await response.Content.ReadAsByteArrayAsync();
-        await File.WriteAllBytesAsync(savePath, data);
-    }
-
-    static readonly HttpClient SharedHttpClient = new();
 }

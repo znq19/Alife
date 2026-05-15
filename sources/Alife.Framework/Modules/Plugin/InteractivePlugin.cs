@@ -5,18 +5,21 @@ namespace Alife.Framework;
 
 public abstract class InteractivePlugin : Plugin
 {
+    protected Character Character { get; private set; } = null!;
+    protected ChatActivity ChatActivity { get; private set; } = null!;
     protected ChatBot ChatBot { get; private set; } = null!;
     protected ChatHistory ChatHistory { get; private set; } = null!;
 
     public override Task AwakeAsync(AwakeContext context)
     {
+        Character = context.Character;
         ChatHistory = context.ContextBuilder.ChatHistory;
 
         return Task.CompletedTask;
     }
-
     public override Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
+        ChatActivity = chatActivity;
         ChatBot = chatActivity.ChatBot;
 
         if (this is ITimeIterative interactivePlugin)
@@ -27,7 +30,6 @@ public abstract class InteractivePlugin : Plugin
 
         return Task.CompletedTask;
     }
-
     public override Task DestroyAsync()
     {
         if (updateCancellation != null)
@@ -50,9 +52,7 @@ public abstract class InteractivePlugin : Plugin
                 startTime = DateTime.Now - TimeSpan.FromSeconds(seconds);
             }
         }
-        catch (OperationCanceledException)
-        {
-        }
+        catch (OperationCanceledException) {}
         catch (Exception e)
         {
             Console.WriteLine(e);
@@ -66,7 +66,7 @@ public class InteractivePlugin<T> : InteractivePlugin
 
     protected void Prompt(string prompt)
     {
-        ChatHistory.AddSystemMessage($"[{typeof(T).Name}]补充说明：\n{prompt}");
+        ChatHistory.AddSystemMessage($"# [{typeof(T).Name}]说明文档：\n{prompt}");
     }
 
     protected void Throw(string error)

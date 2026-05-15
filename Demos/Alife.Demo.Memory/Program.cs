@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Alife.Basic;
 using Alife.Framework;
 using Alife.Implement;
@@ -19,10 +20,9 @@ public class Program
             Name = "记忆助手",
             Prompt = "你是一个拥有长期记忆能力的助手。请尽量简洁地回答用户。",
             Plugins = new HashSet<string> {
+                typeof(ChatService).FullName!,
                 typeof(FunctionService).FullName!,
                 typeof(MemoryService).FullName!,
-                typeof(EventService).FullName!,
-                typeof(ChatService).FullName!,
             }
         };
 
@@ -30,8 +30,10 @@ public class Program
         DemoSuite suite = await DemoSuite.InitializeAsync(character, system => {
             system.SetConfiguration(typeof(MemoryService), new MemoryConfig {
                 Threshold = 8,
-                BatchSize = 6
-            });
+                BatchSize = 6,
+                MaxCompressionLevel = 3,
+                Probability = 1,
+            },character.StorageKey);
         });
 
         // 4. 注入历史轴实时探测器 (探测分层记忆的变化)
@@ -66,10 +68,12 @@ public class Program
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     Console.Write("[SYSTEM     ] ");
                 }
-                else if (msg.Content != null && msg.Content.StartsWith("[记忆档案"))
+                else if (msg.Content != null && msg.Content.StartsWith("[记忆存档"))
                 {
                     Console.ForegroundColor = ConsoleColor.Blue;
                     Console.Write("[ARCHIVED   ] ");
+                    Console.WriteLine(Regex.Match(msg.Content, @"\[记忆存档(.*)\]").Value);
+                    continue;
                 }
                 else
                 {

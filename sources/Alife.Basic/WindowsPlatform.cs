@@ -1,6 +1,10 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
+using Windows.Graphics.Imaging;
+using Windows.Media.Ocr;
+using Windows.Storage;
 
 namespace Alife.Basic;
 
@@ -162,5 +166,33 @@ public static class WindowsPlatform
         }
 
         return dialog.ShowDialog() == true ? dialog.FolderName : null;
+
+    public static async Task<string> OcrAsync(string path)
+    {
+        if (File.Exists(path) == false)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            StorageFile file = await StorageFile.GetFileFromPathAsync(Path.GetFullPath(path));
+            using var stream = await file.OpenAsync(FileAccessMode.Read);
+            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(stream);
+            using SoftwareBitmap bitmap = await decoder.GetSoftwareBitmapAsync();
+
+            OcrEngine engine = OcrEngine.TryCreateFromUserProfileLanguages();
+            if (engine is null)
+            {
+                return "OCR 引擎初始化失败";
+            }
+
+            OcrResult result = await engine.RecognizeAsync(bitmap);
+            return string.Join(" ", result.Lines.Select(line => line.Text));
+        }
+        catch (Exception ex)
+        {
+            return $"OCR 识别出错: {ex.Message}";
+        }
     }
 }

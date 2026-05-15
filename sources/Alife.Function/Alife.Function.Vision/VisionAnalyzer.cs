@@ -29,8 +29,7 @@ public class VisionAnalyzer : IDisposable
         string script = Path.Combine(AppContext.BaseDirectory, "vision_bridge.py");
         string arguments = $"\"{script}\" --model_path \"{modelPath}\"";
 
-        ProcessStartInfo psi = new()
-        {
+        ProcessStartInfo psi = new() {
             FileName = "python",
             Arguments = arguments,
             RedirectStandardInput = true,
@@ -41,8 +40,7 @@ public class VisionAnalyzer : IDisposable
             StandardInputEncoding = new UTF8Encoding(false),
             StandardOutputEncoding = new UTF8Encoding(false),
             StandardErrorEncoding = new UTF8Encoding(false),
-            Environment =
-            {
+            Environment = {
                 ["PYTHONIOENCODING"] = "utf-8",
                 ["PYTHONUTF8"] = "1"
             }
@@ -67,8 +65,7 @@ public class VisionAnalyzer : IDisposable
 
         if (onLog != null)
         {
-            _ = Task.Run(async () =>
-            {
+            _ = Task.Run(async () => {
                 StreamReader stderr = process.StandardError;
                 char[] buffer = new char[256];
                 try
@@ -96,7 +93,7 @@ public class VisionAnalyzer : IDisposable
                 if (line == null)
                     throw new InvalidOperationException("Python bridge process exited unexpectedly during startup.");
                 if (line == "READY") return;
-                if (line.StartsWith("{")) // 可能是错误信息
+                if (line.StartsWith("{"))// 可能是错误信息
                 {
                     JsonNode? err = JsonNode.Parse(line);
                     throw new InvalidOperationException($"Vision bridge startup error: {err?["message"]}");
@@ -116,35 +113,23 @@ public class VisionAnalyzer : IDisposable
     public async Task<string> QueryAsync(string imagePath, string question, int? maxResponseTokens = null,
         CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder();
-        
-        // 1. 基础元数据分析 (永远在线)
-        sb.AppendLine("【屏幕元数据分析】");
-        sb.AppendLine($"- 活跃窗口：{WindowsPlatform.GetActiveWindowTitle()}");
-        sb.AppendLine($"- 窗口列表：{AlifePlatform.GetRunningWindowTitles()}");
-        
         // 2. AI 深度视觉分析 (CUDA 增强)
         if (_isFallback)
         {
-            sb.AppendLine("\n[AI 视觉状态]：CUDA 运行时未就绪，已跳过神经网络深度分析。");
-        }
-        else
-        {
-            try
-            {
-                var aiResult = await SendRequestAsync(
-                    new { action = "query", image_path = imagePath, question, max_new_tokens = maxResponseTokens }, cancellationToken);
-                
-                sb.AppendLine("\n【AI 视觉深度理解】");
-                sb.AppendLine(aiResult);
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"\n[AI 视觉调用失败]：{ex.Message}");
-            }
+            return "CUDA 运行时未就绪，无法进行神经网络深度分析。";
         }
 
-        return sb.ToString();
+        try
+        {
+            var aiResult = await SendRequestAsync(
+            new { action = "query", image_path = imagePath, question, max_new_tokens = maxResponseTokens }, cancellationToken);
+
+            return aiResult;
+        }
+        catch (Exception ex)
+        {
+            return $"调用失败：{ex.Message}";
+        }
     }
 
     async Task<string> SendRequestAsync(object request, CancellationToken ct)

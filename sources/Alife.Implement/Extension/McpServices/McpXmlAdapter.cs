@@ -48,7 +48,7 @@ public static class McpXmlAdapter
         string description = tool.Description;
         (List<XmlParameter> parameters, var typeMap) = ParseInputSchema(tool);
 
-        async Task Invoker(XmlContext context)
+        async Task Invoker(XmlContext context, CancellationToken cancellationToken)
         {
             Dictionary<string, object?> arguments = new();
             foreach ((string key, string value) in context.Parameters)
@@ -64,7 +64,7 @@ public static class McpXmlAdapter
                 }
             }
 
-            CallToolResult result = await client.CallToolAsync(tool.Name, arguments);
+            CallToolResult result = await client.CallToolAsync(tool.Name, arguments, cancellationToken: cancellationToken);
 
             string resultText = string.Join("\n",
                 result.Content

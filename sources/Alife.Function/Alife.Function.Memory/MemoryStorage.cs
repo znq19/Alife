@@ -49,11 +49,7 @@ public class MemoryStorage
             command.ExecuteNonQuery();
         }
     }
-
-
-    /// <summary>
-    /// 功能1：将文本独立存为文件，并解析向量放入数据库（附带时间范围）
-    /// </summary>
+    
     public async Task SaveAsync(string name, int level, string summary, string content, DateTimeOffset startTime, DateTimeOffset endTime)
     {
         await using DuckDBConnection connection = new DuckDBConnection($"Data Source={dbPath}");
@@ -92,10 +88,13 @@ public class MemoryStorage
             string filePath = Path.Combine(dir, $"{name}.txt");
             await File.WriteAllTextAsync(filePath,
                 $"""
-                 级别：{level}
-                 时间：{startTime}到{endTime}
-                 概述：{summary}
-                 完整内容：
+                 压缩级别：{level}
+                 时间范围：{startTime} 到 {endTime}
+                 内容概述：
+                 ```
+                 {summary}
+                 ```
+                 原始内容：
                  ```
                  {content}
                  ```

@@ -7,30 +7,20 @@ public class XmlStreamExecutorTests
     {
         public List<string> Logs { get; } = new();
 
-        [XmlFunction("test")]
+        [XmlFunction(FunctionMode.Content)]
         public void Test(XmlExecutorContext context)
         {
             Logs.Add($"test:{context.CallMode}:{context.Content}");
         }
 
-        [XmlFunction("modify")]
-        public void Modify(XmlExecutorContext context, ref string content)
-        {
-            Logs.Add($"modify:{context.CallMode}:{content}");
-            if (context.CallMode == CallMode.Content)
-            {
-                content = $"[{content}]";
-            }
-        }
-
-        [XmlFunction("oneshot")]
+        [XmlFunction(FunctionMode.OneShot)]
         public void OneShot(XmlExecutorContext context)
         {
             Logs.Add($"oneshot:{context.CallMode}");
         }
 
-        [XmlFunction]
-        public void Script(XmlExecutorContext context, int timeout, [XmlContent] string content)
+        [XmlFunction(FunctionMode.Content)]
+        public void Script(XmlExecutorContext context, int timeout)
         {
             if (context.CallMode != CallMode.Closing)
                 return;

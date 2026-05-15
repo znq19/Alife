@@ -21,28 +21,32 @@ public class XmlStreamParserTests
             if (dictionary != null)
                 output.AppendLine($"参数：\n{JsonConvert.SerializeObject(dictionary, Formatting.Indented)}");
         }
-        parser.TagOpened = () => {
+
+        parser.TagOpened = () =>
+        {
             Log("打开" + parser.TagStack.Last(), parser.TagParameters);
             stringBuilder.Clear();
             return Task.CompletedTask;
         };
-        parser.TagClosed = () => {
+        parser.TagClosed = () =>
+        {
             Log("关闭" + parser.TagStack.Last());
             output.AppendLine("内容：" + stringBuilder);
             stringBuilder.Clear();
             return Task.CompletedTask;
         };
-        parser.TagReset = () => {
-            Log("异常关闭" + parser.TagStack.Last());
-            output.AppendLine("内容：" + stringBuilder);
-            stringBuilder.Clear();
-            return Task.CompletedTask;
+        parser.Error += (tag, ex) =>
+        {
+            Log(tag);
+            output.AppendLine(ex.Message);
         };
-        parser.TagShotted = () => {
+        parser.TagShotted = () =>
+        {
             Log("一次" + parser.TagStack.Last(), parser.TagParameters);
             return Task.CompletedTask;
         };
-        parser.ContentGot = c => {
+        parser.ContentGot = c =>
+        {
             stringBuilder.Append(c);
             return Task.CompletedTask;
         };
@@ -69,19 +73,19 @@ public class XmlStreamParserTests
         await parser.Flush();
 
         string actual = Regex.Replace(output.ToString().Replace("\r\n", "\n"), @"\n[ \t]+\n", "\n\n");
-        string expected = @"======
+        string expected = $@"======
 调用：response
 区间：打开response
 参数：
-{}
+{{}}
 ======
 调用：content-response
 区间：打开content
 参数：
-{
+{{
   ""type"": ""text"",
   ""lang"": ""zh-CN""
-}
+}}
 ======
 调用：content-response
 区间：关闭content
@@ -94,18 +98,18 @@ public class XmlStreamParserTests
 调用：userprofile-response
 区间：打开userprofile
 参数：
-{
+{{
   ""id"": ""1001"",
   ""role"": ""admin""
-}
+}}
 ======
 调用：name-userprofile-response
 区间：打开name
 参数：
-{
+{{
   ""id"": ""1001"",
   ""role"": ""admin""
-}
+}}
 ======
 调用：name-userprofile-response
 区间：关闭name
@@ -114,10 +118,10 @@ public class XmlStreamParserTests
 调用：standard-userprofile-response
 区间：打开standard
 参数：
-{
+{{
   ""id"": ""1001"",
   ""role"": ""admin""
-}
+}}
 ======
 调用：standard-userprofile-response
 区间：关闭standard
@@ -126,18 +130,18 @@ public class XmlStreamParserTests
 调用：preferences-userprofile-response
 区间：打开preferences
 参数：
-{
+{{
   ""id"": ""1001"",
   ""role"": ""admin""
-}
+}}
 ======
 调用：theme-preferences-userprofile-response
 区间：打开theme
 参数：
-{
+{{
   ""id"": ""1001"",
   ""role"": ""admin""
-}
+}}
 ======
 调用：theme-preferences-userprofile-response
 区间：关闭theme
@@ -146,11 +150,11 @@ public class XmlStreamParserTests
 调用：notifications-preferences-userprofile-response
 区间：一次notifications
 参数：
-{
+{{
   ""id"": ""1001"",
   ""role"": ""admin"",
   ""enabled"": ""true""
-}
+}}
 ======
 调用：preferences-userprofile-response
 区间：关闭preferences
@@ -159,7 +163,11 @@ public class XmlStreamParserTests
         
 ======
 调用：userprofile-response
-区间：异常关闭userprofile
+区间：userprofile
+检测到无效的孤儿开标签：userprofile
+======
+调用：userprofile-response
+区间：关闭userprofile
 内容：
 
 ======
@@ -178,7 +186,8 @@ public class XmlStreamParserTests
         TaskCompletionSource tcs = new TaskCompletionSource();
 
         XmlStreamParser parser = new XmlStreamParser();
-        parser.TagShotted = () => {
+        parser.TagShotted = () =>
+        {
             try
             {
                 Assert.That(parser.TagParameters["arg1"], Is.EqualTo("a&b"));

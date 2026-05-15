@@ -1,3 +1,5 @@
+using System.IO;
+using System.Net.Http;
 using System.Runtime.InteropServices;
 
 namespace Alife.Basic;
@@ -11,7 +13,7 @@ public static class AlifePlatform
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return WindowsPlatform.GetResolution();
-        
+
         throw new PlatformNotSupportedException("当前平台不支持获取分辨率。");
     }
 
@@ -61,4 +63,37 @@ public static class AlifePlatform
 
         throw new PlatformNotSupportedException("当前平台暂不支持目录选择对话框。");
     }
+
+    public static async Task<string> OcrAsync(string path)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return await WindowsPlatform.OcrAsync(path);
+
+        return "当前平台不支持 OCR";
+    }
+
+    /// <summary>
+    /// 通过 HttpClient 下载文件到本地
+    /// </summary>
+    public static async Task DownloadFileAsync(string url, string savePath)
+    {
+        //伪装用户
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        if (url.Contains("multimedia.nt.qq.com.cn") || url.Contains("qpic.cn"))
+            request.Headers.Add("Referer", "https://q.qq.com/");
+
+        //下载文件
+        using var response = await SharedHttpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        byte[] data = await response.Content.ReadAsByteArrayAsync();
+
+        string? dir = Path.GetDirectoryName(savePath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
+        await File.WriteAllBytesAsync(savePath, data);
+    }
+
+    static readonly HttpClient SharedHttpClient = new();
 }

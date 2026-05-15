@@ -10,7 +10,6 @@ public class XmlStreamParser
     public Func<Task>? TagOpened { get; set; }
     public Func<Task>? TagClosed { get; set; }
     public Func<Task>? TagShotted { get; set; }
-    public Func<Task>? TagReset { get; set; }
     public Func<char, Task>? ContentGot { get; set; }
     public event Action<string, Exception>? Error;
 
@@ -300,9 +299,10 @@ public class XmlStreamParser
 
                     while (tagStack.Last() != currentTagName)
                     {
-                        //移除无效的孤儿开标签（因为入栈且调用过函数，所以要回调）
-                        if (TagReset != null)
-                            await TagReset.Invoke();
+                        //移除无效的孤儿开标签
+                        Error?.Invoke(tagStack.Last(), new Exception($"检测到无效的孤儿开标签：{tagStack.Last()}"));
+                        if (TagClosed != null)
+                            await TagClosed.Invoke(); //因为入栈且调用过函数，所以要回调
                         tagStack.RemoveAt(tagStack.Count - 1);
                     }
 

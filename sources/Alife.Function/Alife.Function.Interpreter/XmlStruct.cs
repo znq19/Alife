@@ -3,19 +3,6 @@ using System.Reflection;
 
 namespace Alife.Function.Interpreter;
 
-[AttributeUsage(AttributeTargets.Method)]
-public class XmlFunctionAttribute(string? name = null, int order = 0) : Attribute
-{
-    public string? Name { get; } = name;
-    public int Order { get; } = order;
-}
-[AttributeUsage(AttributeTargets.Parameter)]
-public class XmlContentAttribute : Attribute { }
-public class XmlContext
-{
-    public required IReadOnlyDictionary<string, string> Parameters { get; init; }
-    public string Content { get; set; } = "";
-}
 public class XmlHandler
 {
     public string? Name { get; set; }
@@ -25,7 +12,8 @@ public class XmlHandler
     public object? Instance { get; init; }
     public bool IsImplicit { get; set; }
 
-    public XmlHandler() { }
+    public XmlHandler() {}
+
     public XmlHandler(object instance, string? explain = null, bool isImplicit = false)
     {
         Instance = instance;
@@ -49,37 +37,34 @@ public class XmlHandler
         if (functionAttribute == null)
             return null;
 
-        string name = functionAttribute.Name ?? method.Name.ToLower();
-        string? description = method.GetCustomAttribute<DescriptionAttribute>()?.Description;
-
         ParameterInfo[] rawParameters = method.GetParameters();
         //统计参数信息
-        int contextParameterIndex = -1;
-        int contentParameterIndex = -1;
-        Dictionary<string, int> normalParameterIndices = new();
-        List<XmlParameter> normalParameters = new();
-        string? contentName = null;
+        string? contentName = functionAttribute.Mode == FunctionMode.Content ? "Content" : null;
         string? contentDescription = null;
-        for (int index = 0; index < rawParameters.Length; index++)
+        List<XmlParameter> normalParameters = new();
+        foreach (ParameterInfo parameterInfo in rawParameters)
         {
-            ParameterInfo parameterInfo = rawParameters[index];
             if (parameterInfo.Name == null)
                 continue;
 
             string parameterName = parameterInfo.Name.ToLower();
             string? parameterDescription = parameterInfo.GetCustomAttribute<DescriptionAttribute>()?.Description;
 
-            if (parameterInfo.ParameterType.IsAssignableTo(typeof(XmlContext)))
+            //特殊参数
+            if (parameterInfo.ParameterType.IsAssignableTo(typeof(XmlContext)) ||
+                parameterInfo.ParameterType == typeof(CancellationToken))
+                continue;
+
+            //内容参数
+            if (parameterInfo.GetCustomAttribute<XmlContentAttribute>() != null)
             {
-                contextParameterIndex = index;
-            }
-            else if (parameterInfo.ParameterType == typeof(string).MakeByRefType() || parameterInfo.GetCustomAttribute<XmlContentAttribute>() != null)
-            {
-                contentParameterIndex = index;
                 contentName = parameterName;
                 contentDescription = parameterDescription;
+                continue;
             }
-            else if (TypeDescriptor.GetConverter(parameterInfo.ParameterType).CanConvertFrom(typeof(string)))
+
+            //普通参数
+            if (TypeDescriptor.GetConverter(parameterInfo.ParameterType).CanConvertFrom(typeof(string)))
             {
                 bool isCanNull = Nullable.GetUnderlyingType(parameterInfo.ParameterType) != null;
                 Type parameterType = isCanNull ? parameterInfo.ParameterType.GenericTypeArguments[0] : parameterInfo.ParameterType;
@@ -92,83 +77,143 @@ public class XmlHandler
                     Description = parameterDescription,
                     Type = parameterTypeName,
                 });
-                normalParameterIndices[parameterName] = index;
+                continue;
             }
-            else
-            {
-                throw new NotSupportedException("不支持的参数类型！");
-            }
+
+            throw new NotSupportedException("不支持的参数类型！");
         }
 
-        //统计调用方法
+        //函数参数缓冲区
         object?[] parameterValuesBuffer = new object?[rawParameters.Length];
-        Task Invoker(XmlContext context)
+
+        Task Invoker(XmlContext context, CancellationToken cancellationToken)
         {
-            //填充默认值
+            //验证调用模式
+            if (context.CallMode == CallMode.Opening || context.CallMode == CallMode.Content || context.CallMode == CallMode.Closing)
+            {
+                if ((functionAttribute.Mode & FunctionMode.Content) == 0)
+                    throw new Exception($"调用 {method.Name} 标签的方式错误，应该使用单个自闭合标签调用。");
+            }
+            else if (context.CallMode == CallMode.OneShot)
+            {
+                if ((functionAttribute.Mode & FunctionMode.OneShot) == 0)
+                    throw new Exception($"调用 {method.Name} 标签的方式错误，应该使用两个开闭标签包裹调用。");
+            }
+
+            //填充函数参数
             for (int index = 0; index < rawParameters.Length; index++)
             {
-                object? defaultValue = rawParameters[index].DefaultValue;
-                if (defaultValue == null || defaultValue == DBNull.Value)
-                {
-                    Type parameterType = rawParameters[index].ParameterType;
-                    defaultValue = parameterType.IsValueType ? Activator.CreateInstance(parameterType) : null;
-                }
-                parameterValuesBuffer[index] = defaultValue;
-            }
-            //接收输入值
-            foreach ((string name, string value) in context.Parameters)
-            {
-                if (normalParameterIndices.TryGetValue(name, out int index) == false)
-                    continue; //没有同名参数
-                TypeConverter converter = TypeDescriptor.GetConverter(rawParameters[index].ParameterType);
-                if (converter.CanConvertFrom(typeof(string)) == false)
-                    continue; //无法通过字符串转换
+                ParameterInfo parameterInfo = rawParameters[index];
 
-                try
+                object? result = null;
+                bool isFilled = false;
+
+                //尝试特殊值
                 {
-                    object? result = converter.ConvertFromInvariantString(value);
+                    if (parameterInfo.ParameterType.IsInstanceOfType(context))
+                    {
+                        result = context;
+                        isFilled = true;
+                    }
+                    else if (parameterInfo.ParameterType == typeof(CancellationToken))
+                    {
+                        result = cancellationToken;
+                        isFilled = true;
+                    }
+                    else if (parameterInfo.GetCustomAttribute<XmlContentAttribute>() != null)
+                    {
+                        result = context.Content;
+                        isFilled = true;
+                    }
+                }
+
+                //尝试输入值
+                if (isFilled == false)
+                {
+                    TypeConverter converter = TypeDescriptor.GetConverter(parameterInfo.ParameterType);
+                    if (converter.CanConvertFrom(typeof(string)))
+                    {
+                        //可以由字符串转换
+                        if (parameterInfo.Name != null && context.Parameters.TryGetValue(parameterInfo.Name.ToLower(), out string? value))
+                        {
+                            //有传入的字符串参数
+                            try
+                            {
+                                result = converter.ConvertFromInvariantString(value);
+                                isFilled = true;
+                            }
+                            catch (Exception)
+                            {
+                                // 解析失败
+                            }
+                        }
+                    }
+                }
+
+
+                //尝试默认值
+                if (isFilled == false)
+                {
+                    object? defaultValue = rawParameters[index].DefaultValue;
+                    if (defaultValue != DBNull.Value)
+                    {
+                        result = defaultValue;
+                        isFilled = true;
+                    }
+                }
+
+                if (isFilled)
                     parameterValuesBuffer[index] = result;
-                }
-                catch (Exception)
-                {
-                    // Console.WriteLine(e);
-                }
+                else
+                    throw new Exception($"无法解析到 {method.Name} 标签的 {parameterInfo.Name} 值");
             }
-            //设置特殊值
-            if (contextParameterIndex != -1 && rawParameters[contextParameterIndex].ParameterType.IsInstanceOfType(context))
-                parameterValuesBuffer[contextParameterIndex] = context;
-            if (contentParameterIndex != -1)
-                parameterValuesBuffer[contentParameterIndex] = context.Content;
 
             //调用
             object? back = method.Invoke(handler, parameterValuesBuffer);
 
             //处理返回值
-            if (contentParameterIndex != -1) context.Content = parameterValuesBuffer[contentParameterIndex] as string ?? "";
             if (back is Task task) return task;
             return Task.CompletedTask;
         }
 
         return new XmlFunction {
-            Name = name,
-            Description = description,
+            Name = functionAttribute.Name ?? method.Name.ToLower(),
+            Description = method.GetCustomAttribute<DescriptionAttribute>()?.Description,
             ContentName = contentName,
             ContentDescription = contentDescription,
             Parameters = normalParameters,
-            Invoker = Invoker,
             Order = functionAttribute.Order,
+            Invoker = Invoker,
         };
     }
 }
+
+[Flags]
+public enum FunctionMode
+{
+    All = ~0,
+    Content = 0b_01,
+    OneShot = 0b_10,
+}
+
+[AttributeUsage(AttributeTargets.Method)]
+public class XmlFunctionAttribute(FunctionMode mode, string? name = null, int order = 0) : Attribute
+{
+    public string? Name { get; } = name;
+    public int Order { get; } = order;
+    public FunctionMode Mode { get; } = mode;
+}
+
 public class XmlFunction : IComparable<XmlFunction>
 {
     public required string Name { get; init; }
+    public int Order { get; init; }
+    public FunctionMode Mode { get; init; }
     public string? Description { get; init; }
     public string? ContentName { get; init; }
     public string? ContentDescription { get; init; }
     public List<XmlParameter> Parameters { get; init; } = new();
-    public required Func<XmlContext, Task> Invoker { get; init; }
-    public int Order { get; init; }
+    public required Func<XmlContext, CancellationToken, Task> Invoker { get; init; }
 
     public int CompareTo(XmlFunction? other)
     {
@@ -177,6 +222,25 @@ public class XmlFunction : IComparable<XmlFunction>
         return Order.CompareTo(other.Order);
     }
 }
+
+public enum CallMode
+{
+    Opening = 0,
+    Content = 1,
+    Closing = 2,
+    OneShot = 3,
+}
+
+public class XmlContext
+{
+    public CallMode CallMode { get; init; }
+    public string Content { get; set; } = "";
+    public required IReadOnlyDictionary<string, string> Parameters { get; init; }
+}
+
+[AttributeUsage(AttributeTargets.Parameter)]
+public class XmlContentAttribute : Attribute {}
+
 public record XmlParameter
 {
     public required string Name { get; init; }

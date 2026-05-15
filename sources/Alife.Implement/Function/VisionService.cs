@@ -13,18 +13,9 @@ public partial class VisionService
     /// <summary>
     /// 确保视觉分析器已初始化（供其他服务调用）
     /// </summary>
-    internal static void TryInitAnalyzer()
+    static void TryInitAnalyzer()
     {
         analyzer ??= new VisionAnalyzer();
-    }
-
-    /// <summary>
-    /// 分析图片并返回结果（供其他服务调用）
-    /// </summary>
-    internal static async Task<string> AnalyzeImage(string imagePath, string query)
-    {
-        TryInitAnalyzer();
-        return await analyzer!.QueryAsync(imagePath, query);
     }
 }
 
@@ -35,65 +26,50 @@ public partial class VisionService(FunctionService functionService) : Interactiv
     /// <summary>
     /// 截取屏幕并进行视觉理解，将结果反馈给 AI。
     /// </summary>
-    [XmlFunction("look_screen")]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("查看当前屏幕内容。（使用后需等待结果返回）")]
-    public async Task LookScreen(XmlExecutorContext context, string query)
+    public async Task LookScreen(string query)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-
         string screenshotPath = AlifePlatform.Screenshot();
-        string visionInfo = await analyzer!.QueryAsync(screenshotPath, query);
-
-        Poke(visionInfo);
+        Poke($"""
+              【屏幕分析结果】（注意！本结果不能完全作为判断用户行为的依据，因为电脑可能处于挂机状态）
+              - 窗口列表：{AlifePlatform.GetRunningWindowTitles()}
+              - 焦点窗口：{WindowsPlatform.GetActiveWindowTitle()}
+              - 文字识别：{await AlifePlatform.OcrAsync(screenshotPath)}
+              - 深度视觉：{await analyzer!.QueryAsync(screenshotPath, query)}（注意！深度视觉误识别率非常高）
+              """);
     }
 
     /// <summary>
     /// 分析指定路径的图片。
     /// </summary>
-    [XmlFunction("look_image")]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("对指定的图片进行视觉分析。（使用后需等待结果返回）")]
-    public async Task LookImage(XmlExecutorContext context, [Description("图片地址或网址")] string path, string query)
+    public async Task LookImage([Description("图片地址或网址")] string path, string query)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-
         try
         {
             // 处理网络图片
             if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                path = await DownloadImageAsync(path);
+            {
+                string downloaded = $"{AlifePath.TempFolderPath}/vision_download.png";
+                await AlifePlatform.DownloadFileAsync(path, downloaded);
+                path = downloaded;
+            }
 
             string result = await analyzer!.QueryAsync(path, query);
-            Poke($"图片分析结果：{result}");
+            Poke($"""
+                  【图片分析结果】
+                  - 文字识别：{await AlifePlatform.OcrAsync(path)}
+                  - 深度视觉：{result}（注意！深度视觉误识别率非常高）
+                  """);
         }
         catch (Exception ex)
         {
-            Poke($"图片处理失败：{ex.Message}");
-        }
-
-        async Task<string> DownloadImageAsync(string url)
-        {
-            const string Filename = "vision_download.png";
-            string tempPath = $"{AlifePath.TempFolderPath}/{Filename}";
-
-            using HttpRequestMessage request = new(HttpMethod.Get, url);
-            request.Headers.Add("User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            // 针对腾讯多媒体服务器设置 Referer，防止 400/403
-            if (url.Contains("multimedia.nt.qq.com.cn") || url.Contains("qpic.cn"))
-                request.Headers.Add("Referer", "https://q.qq.com/");
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            byte[] data = await response.Content.ReadAsByteArrayAsync();
-            await File.WriteAllBytesAsync(tempPath, data);
-            return tempPath;
+            Poke($"图片分析失败：{ex.Message}");
         }
     }
-
-    protected override string ChatPrefixPrompt => "[视觉识别结果(注意！误识别率非常高，请根据窗口列表、聊天背景、时间等多方面因素，洞察出真正的实际情况)]";
-    readonly HttpClient httpClient = new();
 
     public override async Task AwakeAsync(AwakeContext context)
     {

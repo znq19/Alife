@@ -11,13 +11,21 @@ public class NavigateResult
 
 public class BrowserEngine : IDisposable
 {
+    public async Task WaitToLoadedAsync(TimeSpan timeout)
+    {
+        using var cts = new CancellationTokenSource(timeout);
+        while (!worker.IsLoaded)
+        {
+            await Task.Delay(100, cts.Token);
+        }
+    }
+
     /// <summary>
     /// 跳转到指定页面
     /// </summary>
     public Task<NavigateResult> NavigateAsync(string url)
     {
-        return worker.AddFormTask(async webView =>
-        {
+        return worker.AddFormTask(async webView => {
             var tcs = new TaskCompletionSource<NavigateResult>();
             webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
             webView.CoreWebView2.Navigate(url);
@@ -36,8 +44,7 @@ public class BrowserEngine : IDisposable
     /// </summary>
     public Task<string> ExecuteScriptAsync(string code)
     {
-        return worker.AddFormTask(async webView =>
-        {
+        return worker.AddFormTask(async webView => {
             string wrapperScript =
                 $$$"""
                    (function() {
@@ -104,7 +111,7 @@ public class BrowserEngine : IDisposable
     public async Task<string> ObserveAsync(int page)
     {
         //等待页面稳定
-        while (worker.IsLoading)
+        while (worker.IsNavigating)
         {
             await Task.Delay(300);
         }
@@ -209,23 +216,6 @@ public class BrowserEngine : IDisposable
 
 
         return await ExecuteScriptAsync(jsCode);
-    }
-
-    /// <summary>
-    /// 通过 HttpClient 下载文件到本地
-    /// </summary>
-    public static async Task DownloadFileAsync(string url, string savePath)
-    {
-        using var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
-        var bytes = await client.GetByteArrayAsync(url);
-
-        string? dir = Path.GetDirectoryName(savePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-
-        await File.WriteAllBytesAsync(savePath, bytes);
     }
 
     readonly WebViewWorker worker = new();

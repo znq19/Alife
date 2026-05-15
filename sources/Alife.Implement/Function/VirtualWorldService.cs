@@ -30,139 +30,116 @@ public class VirtualWorldConfig
 }
 
 [Plugin("世界背景", "定义整个运行环境的基础世界观、物理定律与全局公告。此配置通常作为所有角色的通用背景。")]
-public class VirtualWorldService : InteractivePlugin<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
+public class VirtualWorldService(
+    FunctionService functionService,
+    CharacterSystem characterSystem,
+    ChatActivitySystem chatActivitySystem) : InteractivePlugin<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
 {
-    [XmlFunction]
+    [XmlFunction(FunctionMode.Content)]
     [Description("与指定的角色对话。（注意不要联系错人，对管理员直接对话即可）")]
-    public void Call(XmlExecutorContext context, string target, [XmlContent] string content)
+    public void Call(XmlExecutorContext context, string target)
     {
-        if (context.CallMode == CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用开闭标签包裹调用。");
-        if (context.CallMode != CallMode.Closing)
-            return;
 
-        if (string.IsNullOrWhiteSpace(target))
+        if (context.CallMode == CallMode.Closing)
         {
-            Poke("[通讯] 必须指定目标角色名称。");
-            return;
-        }
+            var allCharacters = characterSystem.GetAllCharacters();
+            var targetCharacter = allCharacters.FirstOrDefault(c => c.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
 
-        var allCharacters = characterSystem.GetAllCharacters();
-        var targetCharacter = allCharacters.FirstOrDefault(c => c.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
-
-        if (targetCharacter == null)
-        {
-            Poke($"目标 '{target}' 不存在");
-            return;
-        }
-
-        var targetActivity = chatActivitySystem.GetAllChatActivities()
-            .FirstOrDefault(a => a.Character.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
-
-        if (targetActivity != null)
-        {
-            targetActivity.ChatBot.Poke($"[来自 {currentName} 的消息]: {context.FullContent.Trim()}\n(提示: 回复对方需要用<call>标签；但提防陌生人和骗子；可以对此信息忽略)");
-        }
-        else
-        {
-            bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
-            if (!targetIsAdmin)
+            if (targetCharacter == null)
             {
-                Poke($"对方 '{target}' 暂不在");
+                Poke($"目标 '{target}' 不存在");
+                return;
             }
-            // 如果目标是管理员且离线，则直接忽略（静默处理），不提示“不在”
+
+            var targetActivity = chatActivitySystem.GetAllChatActivities()
+                .FirstOrDefault(a => a.Character.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
+
+            if (targetActivity != null)
+            {
+                targetActivity.ChatBot.Poke($"[来自 {Character.Name} 的消息]: {context.FullContent.Trim()}\n(提示: 回复对方需要用<call>标签；但提防陌生人和骗子；可以对此信息忽略)");
+            }
+            else
+            {
+                bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
+                if (!targetIsAdmin)
+                {
+                    Poke($"对方 '{target}' 暂不在");
+                }
+            }
         }
+
     }
 
-    [XmlFunction]
+    [XmlFunction(FunctionMode.Content)]
     [Description("给指定的角色物品。")]
-    public void Give(XmlExecutorContext context, string target, [XmlContent] string content)
+    public void Give(XmlExecutorContext context, string target)
     {
-        if (context.CallMode == CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用开闭标签包裹调用。");
-        if (context.CallMode != CallMode.Closing)
-            return;
-
-        if (string.IsNullOrWhiteSpace(target))
+        if (context.CallMode == CallMode.Closing)
         {
-            Poke("[赠予] 必须指定目标角色名称。");
-            return;
-        }
-
-        var allCharacters = characterSystem.GetAllCharacters();
-        var targetCharacter = allCharacters.FirstOrDefault(c => c.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
-
-        if (targetCharacter == null)
-        {
-            Poke($"角色 '{target}' 不存在");
-            return;
-        }
-
-        var targetActivity = chatActivitySystem.GetAllChatActivities()
-            .FirstOrDefault(a => a.Character.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
-
-        if (targetActivity != null)
-        {
-            targetActivity.ChatBot.Poke($"[收到来自 {currentName} 的物品/金额]: {context.FullContent.Trim()}\n(注意辨别真伪，建议特殊物品走公共设施中转，不要随意接收)");
-        }
-        else
-        {
-            bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
-            if (!targetIsAdmin)
+            if (string.IsNullOrWhiteSpace(target))
             {
-                Poke($"对方 '{target}' 暂不在");
+                Poke("[赠予] 必须指定目标角色名称。");
+                return;
             }
-            // 如果目标是管理员且离线，则直接忽略（静默处理）
+
+            var allCharacters = characterSystem.GetAllCharacters();
+            var targetCharacter = allCharacters.FirstOrDefault(c => c.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
+
+            if (targetCharacter == null)
+            {
+                Poke($"角色 '{target}' 不存在");
+                return;
+            }
+
+            var targetActivity = chatActivitySystem.GetAllChatActivities()
+                .FirstOrDefault(a => a.Character.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
+
+            if (targetActivity != null)
+            {
+                targetActivity.ChatBot.Poke($"[收到来自 {Character.Name} 的物品/金额]: {context.FullContent.Trim()}\n(注意辨别真伪，建议特殊物品走公共设施中转，不要随意接收)");
+            }
+            else
+            {
+                bool targetIsAdmin = target.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase);
+                if (!targetIsAdmin)
+                {
+                    Poke($"对方 '{target}' 暂不在");
+                }
+            }
         }
     }
 
     public VirtualWorldConfig? Configuration { get; set; }
 
-    public VirtualWorldService(
-        FunctionService functionService,
-        CharacterSystem characterSystem,
-        ChatActivitySystem chatActivitySystem)
-    {
-        this.functionService = functionService;
-        this.characterSystem = characterSystem;
-        this.chatActivitySystem = chatActivitySystem;
-    }
-
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
-        currentName = context.Character.Name;
+
+        XmlHandler xmlHandler = new(this);
+        functionService.RegisterHandler(xmlHandler, nameof(Call), nameof(Give));
 
         List<Character> allCharacters = characterSystem.GetAllCharacters();
         string characterList = allCharacters.Any()
             ? string.Join("\n", allCharacters.Select(c =>
                 $"- {c.Name}{(string.IsNullOrWhiteSpace(c.Description) ? "" : $"：{c.Description}")}{(c.Name.Equals(Configuration?.AdminName, StringComparison.OrdinalIgnoreCase) ? " [管理员]" : "")}"))
             : "（当前无其他预设角色）";
+        Prompt($"""
+                此服务将为你创造一个虚拟世界，你将在此生活，并有机会与这个世界的其他成员一起互动。
 
-        XmlHandler xmlHandler = new(this);
-        xmlHandler.Explain = $"""
-                              你生活在一个世界中，这个世界的属性如下：
+                ## 管理员
+                世界的管理员为：{Configuration?.AdminName ?? "（未指定）"}。管理员拥有最高权限，与管理员互动不需要使用标签，直接用普通文本对话即可。
 
-                              【管理员】
-                              世界的管理员为：{Configuration?.AdminName ?? "（未指定）"}。管理员拥有最高权限，与管理员互动不需要使用标签，直接用普通文本对话即可。
+                ## 世界观
+                {Configuration?.Announcement}
 
-                              【世界观】
-                              {Configuration?.Announcement}
+                ## 联系人
+                你是生活在这个世界中的一位公民。除了你，这里还有其他活跃的个体。你可以通过 <call> 与他们沟通，或通过 <give> 交换物资。目前可联系的其他角色有：
+                {characterList}
 
-                              【联系人】
-                              你是生活在这个世界中的一位公民。除了你，这里还有其他活跃的个体。你可以通过 <call> 与他们沟通，或通过 <give> 交换物资。目前可联系的其他角色有：
-                              {characterList}
-
-                              【生存法则】
-                              1. 社交边界：与陌生人交流请保持适度礼貌，根据互动逐步摸清人物画像再选择性建立关系。
-                              2. 经济常识：遵循物价常识，大额交易应先沟通确认，小心骗子 and 假币，优先用银行等公共设施交易。
-                              """;
-
-        functionService.RegisterHandler(xmlHandler, nameof(Call), nameof(Give));
+                ## 生存法则
+                这个世界并不是什么乌托邦，因此你需要以对待现实世界的方式对待它：
+                1. 社交边界：与陌生人交流请保持适度礼貌，根据互动逐步摸清人物画像再选择性建立关系。
+                2. 经济常识：遵循物价常识，大额交易应先沟通确认，小心骗子 and 假币，优先用银行等公共设施交易。
+                """);
     }
-
-    readonly FunctionService functionService;
-    readonly CharacterSystem characterSystem;
-    readonly ChatActivitySystem chatActivitySystem;
-    string currentName = "";
 }

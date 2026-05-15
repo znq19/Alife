@@ -11,8 +11,7 @@ public partial class PythonService
 {
     public static async Task<string> Python(string path, int timeout = 30, CancellationToken cancellationToken = default)
     {
-        ProcessStartInfo startInfo = new()
-        {
+        ProcessStartInfo startInfo = new() {
             FileName = "python",
             Arguments = $"\"{path}\"",
             UseShellExecute = false,
@@ -31,7 +30,7 @@ public partial class PythonService
         try
         {
             CancellationTokenSource timeCts = new(timeout * 1000);
-            CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeCts.Token);
+            using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeCts.Token);
 
             // 同时开始读取输出和错误流，防止缓冲区满导致进程死锁
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
@@ -45,6 +44,8 @@ public partial class PythonService
         }
         catch (OperationCanceledException)
         {
+            if (cancellationToken.IsCancellationRequested)
+                throw;
             throw new TimeoutException("脚本执行堵塞或超时（注意不要写需要交互的代码，如果需要展示结果等可以单独创建一个进程）");
         }
         finally
@@ -60,27 +61,25 @@ public partial class PythonService
 如果缺少环境你还可以利用`subprocess.check_call([sys.executable, ""-m"", ""pip"", ""install"", package_name])`来安装环境。")]
 public partial class PythonService(FunctionService functionService) : InteractivePlugin<PythonService>
 {
-    [XmlFunction]
+    [XmlFunction(FunctionMode.Content)]
     [Description("执行python脚本（使用后需等待结果返回）（注意：不要写注释判断等非必要内容，用最短的代码，最少的行数写，然后直接执行功能！）。")]
     public async Task Python(XmlExecutorContext context, [XmlContent] string script,
-        [Description("程序预估运行持续时间（单位秒）")] int timeout)
+        [Description("程序预估运行持续时间（单位秒）")] int timeout, CancellationToken cancellationToken)
     {
-        if (context.CallMode != CallMode.Closing)
-            return;
-        if (timeout == 0)
-            throw new Exception("必须提供预估运行时间！");
+        if (context.CallMode == CallMode.Closing)
+        {
+            string filePath = $"{AlifePath.TempFolderPath}/pythonScript.py";
 
-        string filePath = $"{AlifePath.TempFolderPath}/pythonScript.py";
+            await File.WriteAllTextAsync(filePath, context.FullContent.Trim(), cancellationToken);
 
-        await File.WriteAllTextAsync(filePath, context.FullContent.Trim());
-
-        string result = await Python(filePath, timeout, functionService.CancellationToken);
-        Poke("脚本执行完成\n" + result);
+            string result = await Python(filePath, timeout, cancellationToken);
+            Poke("脚本执行完成\n" + result);
+        }
     }
 
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
-        functionService.RegisterHandler(this, "python");
+        functionService.RegisterHandler(this, nameof(Python));
     }
 }

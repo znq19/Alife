@@ -10,6 +10,7 @@ public class BrowserIntegrationTest
     public async Task TestFullSearchWorkflow()
     {
         using var engine = new BrowserEngine();
+        await engine.WaitToLoadedAsync(TimeSpan.FromSeconds(5));
 
         // 1. 初始导航
         var navResult = await engine.NavigateAsync("https://www.midiclouds.com/");

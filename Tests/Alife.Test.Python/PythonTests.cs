@@ -6,12 +6,13 @@ namespace Alife.Test.Python;
 public class PythonTests
 {
     [SetUp]
-    public void Setup() { }
+    public void Setup() {}
 
     [Test]
     public async Task TestExecutePython()
     {
-        string filePath = $"{AlifePath.StorageFolderPath}/pythonScript.py";
-        Console.WriteLine(await PythonService.Python(filePath));
+        string filePath = $"{AlifePath.TempFolderPath}/pythonScript.py";
+        await File.WriteAllTextAsync(filePath, "print('Hello World!')");
+        Assert.That((await PythonService.Python(filePath)).Trim(), Is.EqualTo("Hello World!"));
     }
 }

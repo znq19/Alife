@@ -41,6 +41,7 @@ public class McpService(FunctionService functionService, ILoggerFactory loggerFa
 
             mcpClients.Add(client);
             xmlHandlers.Add(handler);
+            
             functionService.RegisterHandler(handler);
         }
     }

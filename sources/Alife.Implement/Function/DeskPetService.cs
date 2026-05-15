@@ -3,52 +3,48 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Function.DeskPet;
 using Alife.Function.Interpreter;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 
 namespace Alife.Implement;
 
 [Plugin("桌宠交互", "将Live2D桌宠接入AI系统，实现表现力同步和互动反馈。")]
-public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposable
+public class DeskPetService(FunctionService functionService) : InteractivePlugin<DeskPetService>, IAsyncDisposable
 {
-    [XmlFunction]
+    [XmlFunction(FunctionMode.Content)]
     [Description("显示一段气泡文本")]
-    public async Task Speak(XmlExecutorContext context, [XmlContent] string content)
+    public async Task Speak(XmlExecutorContext context, [XmlContent] string content, CancellationToken cancellationToken)
     {
-        if (context.CallMode == CallMode.Reset)
+        switch (context.CallMode)
         {
-            client!.HideBubble();
-            return;
-        }
+            case CallMode.Closing:
+            {
+                if (DateTimeOffset.Now.ToUnixTimeMilliseconds() < lastBubbleEndTime)
+                    await Task.Delay(TimeSpan.FromMilliseconds(lastBubbleEndTime - DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+                client!.HideBubble();
+                break;
+            }
+            case CallMode.Content:
+            {
+                content = content.Trim();
+                if (string.IsNullOrWhiteSpace(content))
+                    break;
+                if (cancellationToken.IsCancellationRequested)
+                    break;
 
-        if (context.CallMode == CallMode.Closing)
-        {
-            if (DateTimeOffset.Now.ToUnixTimeMilliseconds() < lastBubbleEndTime)
-                await Task.Delay(
+                if (DateTimeOffset.Now.ToUnixTimeMilliseconds() < lastBubbleEndTime)
+                    await Task.Delay(
                     TimeSpan.FromMilliseconds(lastBubbleEndTime - DateTimeOffset.Now.ToUnixTimeMilliseconds()));
-            client!.HideBubble();
-        }
-
-        if (context.CallMode != CallMode.Content)
-            return;
-
-        content = content.Trim();
-        if (string.IsNullOrWhiteSpace(content) == false)
-        {
-            if (DateTimeOffset.Now.ToUnixTimeMilliseconds() < lastBubbleEndTime)
-                await Task.Delay(
-                    TimeSpan.FromMilliseconds(lastBubbleEndTime - DateTimeOffset.Now.ToUnixTimeMilliseconds()));
-            client!.ShowBubble(content);
-            lastBubbleEndTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() + content.Length * 150;
+                client!.ShowBubble(content);
+                lastBubbleEndTime = DateTimeOffset.Now.ToUnixTimeMilliseconds() + content.Length * 150;
+                break;
+            }
         }
     }
 
-    [XmlFunction]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("表演一个表情（具体选项见附加说明）")]
-    public void Expression(XmlExecutorContext context, string option)
+    public void Expression(string option)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
         option = option.Trim();
         if (string.IsNullOrWhiteSpace(option))
             return;
@@ -58,12 +54,10 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         client!.PlayExpression(option);
     }
 
-    [XmlFunction]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("表演一个动作（具体选项见附加说明）")]
-    public void Motion(XmlExecutorContext context, string option)
+    public void Motion(string option)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
         option = option.Trim();
         if (string.IsNullOrWhiteSpace(option))
             return;
@@ -73,13 +67,10 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         client.PlayMotion(motion.Group, motion.Index);
     }
 
-    [XmlFunction]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("获取当前屏幕位置（使用后需等待结果返回）")]
-    public async Task Position(XmlExecutorContext context)
+    public async Task Position()
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-
         try
         {
             (double x, double y) = await client!.GetPositionAsync();
@@ -91,13 +82,10 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         }
     }
 
-    [XmlFunction]
+    [XmlFunction(FunctionMode.OneShot)]
     [Description("在屏幕上进行相对移动（注意！该移动方式为相对位置移动，使用前最好先确认当前位置）")]
-    public async Task Move(XmlExecutorContext context, double x = 0, double y = 0, int duration = 1000)
+    public async Task Move(double x = 0, double y = 0, int duration = 1000)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-
         await client!.MoveAsync(x, y, duration);
         (x, y) = await client!.GetPositionAsync();
         Poke($"移动成功，当前位置: x={x}, y={y}");
@@ -114,18 +102,16 @@ public class DeskPetService : InteractivePlugin<DeskPetService>, IAsyncDisposabl
         string supportedExpressionsDescription = string.Join(", ", client.SupportedExpressions);
         string supportedMotionsDescription = string.Join(", ", client.SupportedMotions.Keys);
 
-
-        FunctionService functionService = context.Services.GetRequiredService<FunctionService>();
-        XmlHandler xmlHandler = new(this)
-        {
-            Description = "此服务让你获得一副可控可交互的Live2D身体。（这是你主要输出表情动作的工具，一定要积极使用）",
-            Explain = $"""
-                       - 支持的 {nameof(Expression)}：{supportedExpressionsDescription}
-                       - 支持的 {nameof(Motion)}：{supportedMotionsDescription}
-                       - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
-                       """
-        };
+        XmlHandler xmlHandler = new(this);
         functionService.RegisterHandler(xmlHandler);
+
+        Prompt($"""
+                此服务让你获得一副交互性的Live2D身体。这是你主要的对外输出表情动作等外观信息的工具，需要积极使用。
+
+                - 支持的 {nameof(Expression)}：{supportedExpressionsDescription}
+                - 支持的 {nameof(Motion)}：{supportedMotionsDescription}
+                - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
+                """);
     }
 
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)

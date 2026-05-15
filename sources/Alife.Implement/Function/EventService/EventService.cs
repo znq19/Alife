@@ -23,31 +23,23 @@ public class EventServiceData
 public class EventService(FunctionService functionService)
     : InteractivePlugin<EventService>, IConfigurable<EventServiceData>, ITimeIterative
 {
-    [XmlFunction]
-    [Description("等待一段时间后继续行动。（这可以重置你的系统报点，让你继续活跃一段时间）")]
-    public void Wait(XmlExecutorContext context, [Description("单位秒")] int delay)
+    [XmlFunction(FunctionMode.OneShot)]
+    [Description("让自己在等待或休息一段时间后继续行动。")]
+    public void Wait([Description("单位秒")] int delay)
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-
         continuousTimerCount = 0;
         NextTimer();
         timeTask[0].Item1 = DateTime.Now.AddSeconds(delay);
     }
 
-    [XmlFunction]
-    [Description("设置一个定时提醒，比如用于日程安排（设置时自动取消上一个）")]
-    public void Remind(XmlExecutorContext context, [Description("格式为ISO-8601")] DateTime time,
-        [Description("备注信息")] string remark)
+    [XmlFunction(FunctionMode.OneShot)]
+    [Description("设置一个定时报点，以便让自己有一段可以自由活动的时间（设置时自动取消上一个）")]
+    public void Wake([Description("格式为ISO-8601")] DateTime time, [Description("备注信息")] string remark = "")
     {
-        if (context.CallMode != CallMode.OneShot)
-            throw new Exception("错误的调用方式，应该使用自闭合标签调用。");
-
         reminderName = remark;
-        timeTask[1] = (time, () =>
-        {
+        timeTask[1] = (time, () => {
             ChatBot.Poke($"[{nameof(EventService)}] 来自Reminder的自定义报点：{remark}");
-            timeTask[1] = (DateTime.MaxValue, () => { }); //关闭定时提醒
+            timeTask[1] = (DateTime.MaxValue, () => {});//关闭定时提醒
             reminderName = "定时提醒";
         });
 
@@ -59,13 +51,12 @@ public class EventService(FunctionService functionService)
 
     public EventServiceData? Configuration { get; set; }
 
-    public (DateTime Time, string Name)[] ActiveTasks =>
-    [
+    public (DateTime Time, string Name)[] ActiveTasks => [
         (timeTask[0].Item1, "自动报点"),
         (timeTask[1].Item1, reminderName)
     ];
 
-    readonly (DateTime, Action)[] timeTask = new (DateTime, Action)[2]; //1为自动定时器，2为定时提醒
+    readonly (DateTime, Action)[] timeTask = new (DateTime, Action)[2];//1为自动定时器，2为定时提醒
     string reminderName = "定时提醒";
     int continuousTimerCount;
 
@@ -74,20 +65,25 @@ public class EventService(FunctionService functionService)
         await base.AwakeAsync(context);
 
         XmlHandler xmlHandler = new(this);
-        xmlHandler.Description = "此服务让你能够接收到系统事件（如开始、结束、自动报点），同时可以控制这些信息的收发。";
-        xmlHandler.Explain =
-            """
-            设置自动报点和提醒的意义在于可以额外添加一些触发时机，让你在没有实际的消息接收时也能主动做一些自己的事情。
-            你可以借此安排日程或以此反向找人说话或找点乐子。要记住，主动性的行为，会让自己看着更自然更有趣更讨人喜欢。
-            例如偷偷记下主人的日常起居时间，来个午餐问候，或白天主动找主人聊天，会让主人感觉更惊喜。
-            """;
         functionService.RegisterHandler(xmlHandler);
+
+        Prompt($"""
+                此服务让你能够接收到系统事件（如开始、结束、自动报点），同时还提供工具让你能额外给自己分配一些报点事件。
+
+                ## 为什么需要报点事件？
+                由于llm的性质，导致你只能在被动收到消息后才能进行活动，一旦消息类断开，你将一直陷入沉默。这种表现效果肯定不好，所以需要自动化的事件系统来主动激活，这样你才有自主行动的机会。
+
+                ## 如何利用要报点事件？
+                “主动性的表现，会让自己看着更自然更有趣更讨人喜欢。而且使得你有机会主动做一些自己的事情。”因此善用报点事件，能让你变的非常强大。
+                而除了预设的系统事件外，你可以使用 {nameof(Wait)} 和 {nameof(Wake)} 给自己额外添加一些自由活动的机会。这使得你能借此安排日程或以此反向找人说话或找点乐子。
+                例如偷偷记下主人的日常起居时间，来个早晚问候，或白天主动找用户聊天，这些都会让用户感到非常惊喜。
+                """);
     }
 
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
-        timeTask[1].Item1 = DateTime.MaxValue; //base.StartAsync后Update运行，而且自定义提醒默认不触发
-        NextTimer(); //开始定时唤醒
+        timeTask[1].Item1 = DateTime.MaxValue;//base.StartAsync后Update运行，而且自定义提醒默认不触发
+        NextTimer();//开始定时唤醒
         await base.StartAsync(kernel, chatActivity);
 
         ChatBot.ChatSent += OnChatSent;
@@ -123,7 +119,7 @@ public class EventService(FunctionService functionService)
         if (message.Contains(ChatBot.PokeMessageTag) == false)
         {
             continuousTimerCount = 0;
-            NextTimer(); //重置自动报点
+            NextTimer();//重置自动报点
         }
     }
 
@@ -133,8 +129,7 @@ public class EventService(FunctionService functionService)
         int timeOffset = (Configuration.UpdateInterval + offset) *
                          (int)MathF.Pow(3, MathF.Min(continuousTimerCount, 5));
         timeTask[0].Item1 = DateTime.Now.AddSeconds(timeOffset);
-        timeTask[0].Item2 = () =>
-        {
+        timeTask[0].Item2 = () => {
             if (functionService.IsIdle)
             {
                 Poke($"""
@@ -143,7 +138,7 @@ public class EventService(FunctionService functionService)
             }
 
             continuousTimerCount++;
-            NextTimer(); //自动进入下一次报点
+            NextTimer();//自动进入下一次报点
         };
     }
 }
