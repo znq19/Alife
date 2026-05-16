@@ -26,10 +26,11 @@ public class ChatServiceConfig : ICloneable
         };
     }
 }
+
 [Plugin(
-    "对话能力", "基于OpenAI协议的对话模型功能接入。",
-    url: "https://www.deepseek.com/",
-    editorUI: typeof(ChatServiceUI)
+"对话能力", "基于OpenAI协议的对话模型功能接入。",
+url: "https://www.deepseek.com/",
+editorUI: typeof(ChatServiceUI)
 )]
 public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExecutionSettings
 {
@@ -55,29 +56,16 @@ public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExe
         };
 
         context.KernelBuilder.AddOpenAIChatCompletion(
-            endpoint: new Uri(Configuration!.endpoint),
-            modelId: Configuration!.modelId,
-            apiKey: Configuration!.apiKey,
-            httpClient: httpClient
+        endpoint: new Uri(Configuration!.endpoint),
+        modelId: Configuration!.modelId,
+        apiKey: Configuration!.apiKey,
+        httpClient: httpClient
         );
     }
-
-
-    public void ProvideSettings(PromptExecutionSettings settings)
+    
+    public void ProvideSettings(OpenAIPromptExecutionSettings settings)
     {
-        if (Configuration == null || !Configuration.thinkingEnabled) return;
-
-        if (settings is OpenAIPromptExecutionSettings openAISettings)
-        {
-            // 通过强类型设置，避免 JsonElement 类型错误
-            openAISettings.ReasoningEffort = Configuration.reasoningEffort;
-        }
-        else
-        {
-            // 回退到 ExtensionData
-            settings.ExtensionData ??= new Dictionary<string, object>();
-            settings.ExtensionData["reasoning_effort"] = Configuration.reasoningEffort;
-        }
+        settings.ReasoningEffort = Configuration!.reasoningEffort;
 
         // 设置 DeepSeek 特有的思考模式参数 (通过 extra_body 传递)
         settings.ExtensionData ??= new Dictionary<string, object>();

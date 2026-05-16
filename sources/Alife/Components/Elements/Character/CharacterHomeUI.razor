@@ -116,8 +116,8 @@
         @if (activity != null)
         {
             <Divider>隐含上下文 (Implicit Context / Effective Tools)</Divider>
-            <Card Title="角色当前具备的所有技能" Style="border-radius: 12px; margin-top: 16px;">
-                @foreach (var sysPrompt in activity.GetImplicitContext())
+            <Card Title="函数调用" Style="border-radius: 12px; margin-top: 16px;">
+                @foreach (var sysPrompt in activity.GetImplicitFunctionContext())
                 {
                     <Paragraph Copyable
                                style="white-space: pre-wrap; background: #fafafa; padding: 12px; border-radius: 4px; border: 1px solid #f0f0f0; margin-bottom: 12px;">
@@ -144,15 +144,13 @@
         isLoading = true;
         try
         {
-            Progress<(string, float)> progress = new(tuple =>
-            {
+            Progress<(string, float)> progress = new(tuple => {
                 loadingTask = tuple.Item1;
                 loadingProgress = tuple.Item2;
                 InvokeAsync(UpdateState);
             });
 
-            await Task.Run(async () =>
-            {
+            await Task.Run(async () => {
                 try
                 {
                     activity = await ChatActivitySystem.Play(Character, progress);

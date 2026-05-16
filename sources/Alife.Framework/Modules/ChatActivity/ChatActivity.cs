@@ -157,7 +157,7 @@ public partial class ChatActivity : IAsyncDisposable
         }
     }
 
-    public IEnumerable<string> GetImplicitContext()
+    public IEnumerable<string> GetImplicitFunctionContext()
     {
         return kernelService.Plugins.GetFunctionsMetadata()
             .Select(metadata => metadata.ToOpenAIFunction().ToFunctionDefinition(true))
