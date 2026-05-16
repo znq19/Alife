@@ -21,7 +21,7 @@ public partial class App
         ServiceCollection services = new();
         // 基础 Blazor Desktop 支持
         services.AddWpfBlazorWebView();
-        services.AddBlazorWebViewDeveloperTools(); // 允许 F12
+        services.AddBlazorWebViewDeveloperTools();// 允许 F12
         // UI 库
         services.AddAntDesign();
         // Alife 核心业务系统

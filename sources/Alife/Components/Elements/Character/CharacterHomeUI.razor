@@ -155,15 +155,11 @@
                 {
                     activity = await ChatActivitySystem.Play(Character, progress);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine(e);
+                    activityException = ex;
                 }
             });
-        }
-        catch (Exception ex)
-        {
-            activityException = ex;
         }
         finally
         {

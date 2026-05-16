@@ -1,64 +1,108 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
-:: Auto Request Administrator Privileges
+:: Auto Request Administrator Privileges (Silent fallback)
 net session >nul 2>&1 || (powershell -Command "Start-Process -FilePath '%~dpnx0' -Verb RunAs" & exit)
 
 cd /d "%~dp0"
-title Alife Launcher [Private Runtime Mode]
-echo [Alife] System Initializing...
+title Alife Launcher [Private Runtime Mode - Silent]
+
+echo ===================================================
+echo [Alife] System Initialization and Silent Setup
+echo ===================================================
+echo.
 
 :: 1. Check Visual C++ & .NET Desktop Runtime
-powershell -Command "if(Test-Path \"$env:SystemRoot\System32\vcruntime140.dll\"){exit 0}else{exit 1}" || call :INSTALL "Visual C++" "https://aka.ms/vs/17/release/vc_redist.x64.exe" "/install /quiet /norestart"
-dotnet --list-runtimes | findstr "Microsoft.WindowsDesktop.App [9-99]" >nul || call :INSTALL ".NET 9 Desktop" "https://aka.ms/dotnet/9.0/windowsdesktop-runtime-win-x64.exe" "/quiet /norestart"
+echo [Alife] [Step 1/4] Checking System Dependencies...
+
+:: === [Check VC++] ===
+powershell -Command "if(Test-Path \"$env:SystemRoot\System32\vcruntime140.dll\"){exit 0}else{exit 1}" >nul 2>&1
+if not errorlevel 1 goto :VC_READY
+
+echo [Alife] Missing Dependency: Visual C++. Starting auto-installation...
+echo [Alife] Downloading Visual C++...
+powershell -Command "Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile '%TEMP%\vc_setup.exe'"
+echo [Alife] Installing Visual C++ (Silent Mode)...
+start /wait "" "%TEMP%\vc_setup.exe" /install /quiet /norestart
+if exist "%TEMP%\vc_setup.exe" del "%TEMP%\vc_setup.exe"
+echo [Alife] Visual C++ installed successfully.
+
+:VC_READY
+echo [Alife] Visual C++ Runtime is ready.
+
+:: === [Check .NET] ===
+:: 使用纯 PowerShell 检测，彻底抛弃容易导致崩溃的 cmd 管道符 (|)
+powershell -Command "if (Get-Command dotnet -ErrorAction SilentlyContinue) { $r = dotnet --list-runtimes; if ($r -match 'Microsoft.WindowsDesktop.App') { exit 0 } } exit 1" >nul 2>&1
+if not errorlevel 1 goto :DOTNET_READY
+
+echo [Alife] Missing Dependency: .NET 9 Desktop. Starting auto-installation...
+echo [Alife] Downloading .NET 9 Desktop...
+powershell -Command "Invoke-WebRequest -Uri 'https://aka.ms/dotnet/9.0/windowsdesktop-runtime-win-x64.exe' -OutFile '%TEMP%\dotnet_setup.exe'"
+echo [Alife] Installing .NET 9 Desktop (Silent Mode)...
+start /wait "" "%TEMP%\dotnet_setup.exe" /quiet /norestart
+if exist "%TEMP%\dotnet_setup.exe" del "%TEMP%\dotnet_setup.exe"
+echo [Alife] .NET 9 Desktop installed successfully.
+
+:DOTNET_READY
+echo [Alife] .NET Desktop Runtime is ready.
+echo.
 
 :: 2. Setup Forced Private Python Environment
+echo [Alife] [Step 2/4] Verifying Private Python Environment...
 set "PY_DIR=%~dp0Runtime\Python312"
 
-if not exist "!PY_DIR!\python.exe" (
-    echo [Alife] Downloading Private Python 3.12...
-    if not exist "!PY_DIR!" mkdir "!PY_DIR!"
-    powershell -Command "Invoke-WebRequest -Uri 'https://repo.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip' -OutFile '%TEMP%\py.zip'"
-    echo [Alife] Extracting Python...
-    powershell -Command "Expand-Archive -Path '%TEMP%\py.zip' -DestinationPath '!PY_DIR!' -Force"
-    del "%TEMP%\py.zip"
-    
-    :: Fix .pth file (enable site-packages)
-    echo [Alife] Configuring path environment...
-    powershell -Command "$p = Join-Path '!PY_DIR!' 'python312._pth'; (Get-Content $p) | ForEach-Object { $_ -replace '#import site', 'import site' } | Set-Content $p"
-    
-    :: Install Pip
-    echo [Alife] Installing Pip...
-    powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%TEMP%\get-pip.py'"
-    "!PY_DIR!\python.exe" "%TEMP%\get-pip.py" --no-warn-script-location --index-url https://mirrors.aliyun.com/pypi/simple/
-    del "%TEMP%\get-pip.py"
-)
+if exist "%PY_DIR%\python.exe" goto :PYTHON_READY
 
-:: 3. PATH Injection & Launch
-:: Use private runtime and its scripts directly
-set "PATH=!PY_DIR!;!PY_DIR!\Scripts;%PATH%"
+echo [Alife] Python environment not found. Initiating silent download...
+if not exist "%PY_DIR%" mkdir "%PY_DIR%"
+
+echo [Alife] Downloading Python 3.12.10...
+powershell -Command "Invoke-WebRequest -Uri 'https://repo.huaweicloud.com/python/3.12.10/python-3.12.10-embed-amd64.zip' -OutFile '%TEMP%\py.zip'"
+
+echo [Alife] Extracting Python to Private Runtime...
+powershell -Command "Expand-Archive -Path '%TEMP%\py.zip' -DestinationPath '%PY_DIR%' -Force"
+if exist "%TEMP%\py.zip" del "%TEMP%\py.zip"
+
+:: Fix .pth file (enable site-packages)
+echo [Alife] Configuring site-packages mapping (.pth)...
+powershell -Command "$p = Join-Path '%PY_DIR%' 'python312._pth'; (Get-Content $p) | ForEach-Object { $_ -replace '#import site', 'import site' } | Set-Content $p"
+
+:: Install Pip
+echo [Alife] Downloading and installing Pip silently...
+powershell -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%TEMP%\get-pip.py'"
+"%PY_DIR%\python.exe" "%TEMP%\get-pip.py" --no-warn-script-location --index-url https://mirrors.aliyun.com/pypi/simple/ >nul 2>&1
+if exist "%TEMP%\get-pip.py" del "%TEMP%\get-pip.py"
+
+echo [Alife] Python environment setup complete.
+
+:PYTHON_READY
+echo [Alife] Private Python environment is ready.
+echo.
+
+:: 3. PATH Injection & Setup
+echo [Alife] [Step 3/4] Injecting Variables and Updating Packages...
+set "PATH=%PY_DIR%;%PY_DIR%\Scripts;%PATH%"
 set "PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/"
 
-echo [Alife] Isolated environment ready.
-python --version
-python -m pip install pip setuptools wheel >nul 2>&1
-
-if exist "Outputs\Alife\Alife.exe" (
-    "Outputs\Alife\Alife.exe"
-) else (
-    echo [Error] Alife.exe not found.
-)
+echo [Alife] Updating basic Python tools (pip, setuptools, wheel)...
+python -m pip install --upgrade pip setuptools wheel >nul 2>&1
+echo [Alife] Isolated environment injected successfully.
 echo.
-echo [Alife] Process ended.
+
+:: 4. Launch Application
+echo [Alife] [Step 4/4] Launching Application...
+if not exist "Outputs\Alife\Alife.exe" goto :NO_EXE
+
+echo [Alife] Starting Alife.exe...
+echo ===================================================
+"Outputs\Alife\Alife.exe"
+goto :END_APP
+
+:NO_EXE
+echo [Error] Outputs\Alife\Alife.exe not found!
+
+:END_APP
+echo.
+echo [Alife] Application process ended.
 pause
 exit /b
-
-:INSTALL
-echo [Warning] %~1 is missing.
-echo [Alife] Downloading and installing %~1...
-powershell -Command "Invoke-WebRequest -Uri '%~2' -OutFile '%TEMP%\setup.exe'"
-start /wait "" "%TEMP%\setup.exe" %~3
-del "%TEMP%\setup.exe"
-echo [Success] %~1 installed.
-echo.
-goto :eof

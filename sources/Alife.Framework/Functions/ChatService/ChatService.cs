@@ -4,25 +4,13 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace Alife.Framework;
 
-public class ChatServiceConfig : ICloneable
+public class ChatServiceConfig
 {
-    public string endpoint = "";
-    public string modelId = "";
+    public string endpoint = "https://api.deepseek.com/v1";
+    public string modelId = "deepseek-v4-flash";
     public string apiKey = "";
     public bool thinkingEnabled = true;
     public string reasoningEffort = "high";
-
-
-    public object Clone()
-    {
-        return new ChatServiceConfig() {
-            endpoint = endpoint,
-            modelId = modelId,
-            apiKey = apiKey,
-            thinkingEnabled = thinkingEnabled,
-            reasoningEffort = reasoningEffort
-        };
-    }
 }
 
 [Plugin(
@@ -60,7 +48,7 @@ public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExe
         httpClient: httpClient
         );
     }
-    
+
     public void ProvideSettings(OpenAIPromptExecutionSettings settings)
     {
         settings.ReasoningEffort = Configuration!.reasoningEffort;

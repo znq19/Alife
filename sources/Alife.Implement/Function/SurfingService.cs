@@ -4,9 +4,9 @@ using Alife.Framework;
 using Alife.Function.Browser;
 using Alife.Function.Interpreter;
 
-namespace Alife.Implement.Function;
+namespace Alife.Implement;
 
-[Plugin("网上冲浪", "让 AI 像人一样操控浏览器：打开网页、观察页面、点击、打字、滚动、执行脚本。")]
+[Plugin("网上冲浪", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。")]
 [Description(@"你拥有一个真实的浏览器窗口，可以借此进行网上冲浪，从而每天学点新知识，找点新话题。
 提示：若遇到验证或登录，一定要尝试请求主人协助，不然总被反爬就没意义了。此外优先使用搜索引擎（谷歌 > 必应 > 百度）来明确需求，再行动。")]
 public class SurfingService(FunctionService functionService)

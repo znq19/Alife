@@ -45,7 +45,7 @@ public class PluginSystem : IDisposable
         string[] pluginPaths = Directory.GetFiles(pluginRoot, "*.dll", SearchOption.AllDirectories);
 
         //加载插件
-        HashSet<string> currentAssemblies = System.Runtime.Loader.AssemblyLoadContext.Default.Assemblies.Select(assembly => assembly.FullName).ToHashSet()!;
+        HashSet<string> currentAssemblies = AssemblyLoadContext.Default.Assemblies.Select(assembly => assembly.FullName).ToHashSet()!;
         foreach (string pluginPath in pluginPaths)
         {
             try
@@ -69,8 +69,12 @@ public class PluginSystem : IDisposable
 
         // 重新扫描所有已加载程序集中的 IPlugin
         pluginTypes.Clear();
-        IEnumerable<Assembly> allAssemblies = AssemblyLoadContext.Default.Assemblies.Concat(pluginContext.Assemblies);
-        foreach (Assembly assembly in allAssemblies)
+        Assembly[] beInspectedAssemblies = pluginContext.Assemblies
+            //附带官方插件
+            .Append(Assembly.Load("Alife.Framework"))
+            .Append(Assembly.Load("Alife.Implement"))
+            .ToArray();
+        foreach (Assembly assembly in beInspectedAssemblies)
         {
             foreach (Type type in assembly.GetTypes())
             {
@@ -108,6 +112,9 @@ public class PluginSystem : IDisposable
         pluginTypes = new Dictionary<string, Type>();
         pluginFolder = storageSystem.GetObject("PluginSystem/PluginFolder", new StringFolder("全部插件"))!;
 
+        //预热程序集，因为插件可能依赖Alife自身的程序集，结果Alife本身目前未用到，导致未加载
+        PreloadAllAssemblies();
+
         ReloadPlugins();
     }
 
@@ -125,5 +132,34 @@ public class PluginSystem : IDisposable
         //剩下的就是还没有的插件，添加到根目录
         foreach (var typeName in currentPlugins)
             pluginFolder.Strings.Add(typeName);
+    }
+
+    void PreloadAllAssemblies()
+    {
+        var loadedAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var queue = new Queue<Assembly>();
+        queue.Enqueue(Assembly.GetEntryAssembly()!);
+        while (queue.Count > 0)
+        {
+            var assembly = queue.Dequeue();
+            foreach (var reference in assembly.GetReferencedAssemblies())
+            {
+                // 如果这个程序集还没被加载过
+                if (!loadedAssemblies.Contains(reference.FullName))
+                {
+                    try
+                    {
+                        // 强制加载它
+                        var loaded = Assembly.Load(reference);
+                        queue.Enqueue(loaded);
+                        loadedAssemblies.Add(reference.FullName);
+                    }
+                    catch
+                    {
+                        // 忽略加载失败的程序集（有些可能是环境相关的）
+                    }
+                }
+            }
+        }
     }
 }

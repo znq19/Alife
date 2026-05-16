@@ -151,7 +151,7 @@ public class XmlStreamParser
         {
             if (tagBuffer.Length != 0)
             {
-                Error?.Invoke(currentTagName ?? "无名标签", new Exception("检测到标签不完整，请检查语法格式是否正确完整。"));
+                Error?.Invoke(currentTagName ?? "无名标签", new Exception("检测到没有关闭的标签，请检查语法格式是否正确完整。"));
             }
         }
 

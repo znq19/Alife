@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: Target directory set to ../Outputs (on your Desktop) to keep it separate from project folder
-set "DIST_DIR=..\Outputs"
+set "DIST_DIR=..\共享文件\Alife-桌宠代理\Outputs"
 echo [System] Starting Unified Publish Workflow...
 
 :: 1. Cleanup target directory (removes old pollution)
@@ -19,10 +19,6 @@ dotnet publish "Sources\Alife\Alife.csproj" -c Release -o "%DIST_DIR%\Alife" --s
 :: 3. Publish DeskPet module
 echo [2/2] Publishing DeskPet Module...
 dotnet publish "Sources\Alife.Function\Alife.Function.DeskPet\Alife.Function.DeskPet.csproj" -c Release -o "%DIST_DIR%\Alife.Function.DeskPet" --self-contained false /p:PublishSelfContained=false
-
-:: 4. Copying secondary assets
-echo [Asset] Copying extra assets and scripts...
-@REM copy "Sources\Alife.Function\Alife.Function.Vision\vision_bridge.py" "%DIST_DIR%\Alife\" /y >nul
 
 :: 5. Final pollution check and cleanup (Safety Net for Alife)
 echo [Clean] Running final runtime pollution check...
