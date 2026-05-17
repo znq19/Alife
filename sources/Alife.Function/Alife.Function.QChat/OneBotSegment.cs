@@ -16,14 +16,18 @@ public static class OneBotSegment
             ? $"[群聊 {groupLabel}, 发言人 {sayerLabel}]"
             : $"[私聊 {sayerLabel}]";
     }
-    public static string GetSpeakerTag(this OneBotMessageEvent message)
+    public static string GetSpeakerTag(this OneBotBasicMessageEvent basicMessage)
     {
-        string sayerLabel = $"{message.UserId}({message.Sender?.Nickname})";
-        return $"[{sayerLabel}]";
+        string sayerLabel = basicMessage is OneBotMessageEvent messageEvent
+            ? $"{basicMessage.UserId}({messageEvent.Sender?.Nickname})"
+            : $"{basicMessage.UserId}";
+        return (basicMessage.GroupId == 0 ? "\n[私聊]" : "") + $"[{sayerLabel}]";
     }
-    public static string GetGroupTag(this OneBotMessageEvent message)
+    public static string GetGroupTag(this OneBotBasicMessageEvent basicMessage)
     {
-        string groupLabel = $"{message.GroupId}({message.GroupName})";
+        string groupLabel = basicMessage is OneBotMessageEvent messageEvent
+            ? $"{basicMessage.GroupId}({messageEvent.GroupName})"
+            : $"{basicMessage.GroupId}";
         return $"[{groupLabel}]";
     }
 
@@ -36,7 +40,7 @@ public static class OneBotSegment
             ? elem.ToCQString()
             : messageEvent.RawMessage;
         content = FilterFace(content);
-        content = FilterAt(content, oneBotClient.BotId);
+        content = FilterAt(content);
         content = await FilterReply(content, oneBotClient);
         content = await FilterFile(content, messageEvent.GroupId, oneBotClient);
         content = FilterForward(content);
@@ -50,7 +54,7 @@ public static class OneBotSegment
     {
         string text = content.ToCQString();
         text = FilterFace(text);
-        text = FilterAt(text, oneBotClient.BotId);
+        text = FilterAt(text);
         text = FilterForward(text, true);
         text = FilterImage(text);
         return text;
@@ -120,9 +124,8 @@ public static class OneBotSegment
         string label = isNested ? "嵌套转发消息" : "转发消息";
         return Regex.Replace(text, @"\[CQ:forward,.*?id=(?<id>[^,\]]+).*?\]", $"[{label}: ${{id}}]");
     }
-    public static string FilterAt(string text, long botId)
+    public static string FilterAt(string text)
     {
-        text = Regex.Replace(text, $@"\[CQ:at,.*?qq={botId}[^\]]*\]", "@我");
         return Regex.Replace(text, @"\[CQ:at,.*?qq=(?<qq>\d+)[^\]]*\]", "@${qq}");
     }
     public static async Task<string> FilterReply(string text, OneBotClient client)

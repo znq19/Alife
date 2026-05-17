@@ -14,14 +14,18 @@ public record QChatConfig
     public string Url { get; set; } = "ws://127.0.0.1:3001";
     public long BotId { get; set; }
     public long OwnerId { get; set; }
-    public bool DebounceEnabled { get; set; }
-    public float FlushInterval { get; set; } = 15f;
-    public int MaxBufferMessages { get; set; }
-    public string WakingWords { get; set; } = "";
-    public float ProactiveChatProbability { get; set; }
     public string AppendChatPrompt { get; set; } = "（注意！QQ消息必须极简回复（0-20字）来保证自然感，同时群聊消息要选择性忽略，避免刷屏。此外注意分清语境，群聊环境人声嘈杂，不要回复与自己无关的内容）";
-    public bool CloseGroupAfterReply { get; set; }
-    public float AutoCloseMinutes { get; set; } = 4f;
+    //群监听唤醒
+    public string IgnoredGroup { get; set; } = "";//完全屏蔽消息的群，不会收到这些群的任何信息
+    public string WakingWords { get; set; } = "";//原始群消息中触发开启群消息监听的唤醒词，以逗号分隔
+    public float ProactiveChatProbability { get; set; }//收到原始群消息时自动激活群消息监听的概率
+    //群监听缓存
+    public int MaxBufferMessages { get; set; } = -1;//最大群消息暂存数量，发生溢出时会立即推送，-1表示无限
+    public float FlushInterval { get; set; } = 15f;//推送倒计时，隔一段时间推送暂存的群消息
+    public bool DebounceEnabled { get; set; }//消息防抖，接收消息后重置推送倒计时，继续等待消息
+    //群监听关闭
+    public bool CloseGroupAfterReply { get; set; }//AI回复后立即关闭群消息监听
+    public float AutoCloseMinutes { get; set; } = 4f;//长时间不触发唤醒条件时，自动关闭群消息监听的时间
 }
 
 public class GroupState
@@ -177,6 +181,8 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             {
                 groupAwakingWords = Configuration!.WakingWords.Split(',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                ignoredGroup = Configuration!.IgnoredGroup.Split(',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             }
         }
     }
@@ -189,11 +195,12 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         await oneBotClient.ConnectAsync();
     }
 
-    OneBotClient? oneBotClient;
-    string[]? groupAwakingWords;
-    readonly Dictionary<long, GroupState> groupStates = new();
     QChatConfig? configuration;
+    OneBotClient? oneBotClient;
     protected override string ChatPrefixPrompt => $"[回复请用qchat及相关标签]{Configuration?.AppendChatPrompt}";
+    string[] groupAwakingWords = [];
+    string[] ignoredGroup = [];
+    readonly Dictionary<long, GroupState> groupStates = new();
 
     public override async Task AwakeAsync(AwakeContext context)
     {
@@ -246,7 +253,6 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
                 你的表情库存储路径在 {emoteBase}，你也可以在其中存储自己的表情。直接存储在根目录将作为独立表情，存储到子文件夹，则作为分类。
                 """);
     }
-
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
         await base.StartAsync(kernel, chatActivity);
@@ -267,8 +273,6 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             // ignored
         }
     }
-
-
     public async ValueTask DisposeAsync()
     {
         if (oneBotClient != null)
@@ -277,7 +281,6 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             await oneBotClient.DisposeAsync();
         }
     }
-
     void ITimeIterative.OnUpdate(ref float seconds)
     {
         // 自动推送消息
@@ -303,15 +306,31 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     {
         try
         {
-            if (oneBotEvent is not OneBotMessageEvent messageEvent)
+            if (oneBotEvent is not OneBotBasicMessageEvent basicMessageEvent)
+                return;
+            if (ignoredGroup.Contains(basicMessageEvent.GroupId.ToString()))
                 return;
 
-            string speaker = (messageEvent.GroupId == 0 ? "\n[私聊] " : "") + messageEvent.GetSpeakerTag();
-            string content = await messageEvent.GetReadableMessage(oneBotClient!);
-            string formatted = $"{speaker}：{content}";
-            await HandleFormattedMessage(messageEvent, formatted);
+            if (basicMessageEvent is OneBotPokeEvent pokeEvent)
+            {
+                string speaker = pokeEvent.GetSpeakerTag();
+                string content = $"戳了戳 {pokeEvent.TargetId}";
+                string formatted = $"{speaker} {content}";
+                await HandleFormattedMessage(basicMessageEvent, formatted, true);
+            }
 
-            async Task HandleFormattedMessage(OneBotMessageEvent messageEvent, string formatted)
+            if (basicMessageEvent is OneBotMessageEvent messageEvent)
+            {
+                string speaker = messageEvent.GetSpeakerTag();
+                string content = await messageEvent.GetReadableMessage(oneBotClient!);
+                string formatted = $"{speaker}：{content}";
+                bool isAwakening = messageEvent.GetAtID() == oneBotClient!.BotId ||
+                                   groupAwakingWords.Any(word =>
+                                       messageEvent.RawMessage.Contains(word, StringComparison.OrdinalIgnoreCase));
+                await HandleFormattedMessage(messageEvent, formatted, isAwakening);
+            }
+
+            async Task HandleFormattedMessage(OneBotBasicMessageEvent messageEvent, string formatted, bool isAwakening)
             {
                 if (messageEvent.MessageType == OneBotMessageType.Private)//私聊消息
                 {
@@ -325,10 +344,6 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
                     GroupState state = GetGroupInfo(messageEvent.GroupId);
                     state.Tag = messageEvent.GetGroupTag();
 
-                    // 检查是否被 @ 或匹配唤醒词
-                    bool isAwakening = messageEvent.GetAtID() == oneBotClient!.BotId ||
-                                       groupAwakingWords!.Any(word =>
-                                           messageEvent.RawMessage.Contains(word, StringComparison.OrdinalIgnoreCase));
                     if (isAwakening && state.IsEnabled == false)
                         QGroup(messageEvent.GroupId, true);
 
@@ -360,7 +375,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
         state.MessageBuffer.Add(formatted);
         if (Configuration!.DebounceEnabled)
             state.LastFlushedTime = DateTime.Now;
-        if (Configuration!.MaxBufferMessages > 0 && state.MessageBuffer.Count >= Configuration.MaxBufferMessages)
+        if (Configuration!.MaxBufferMessages != -1 && state.MessageBuffer.Count > Configuration.MaxBufferMessages)
             FlushGroupBuffer(state);
     }
 
@@ -415,7 +430,9 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     {
         if (groupStates.TryGetValue(groupId, out GroupState? groupInfo) == false)
         {
-            groupInfo = new GroupState();
+            groupInfo = new GroupState {
+                Tag = groupId.ToString()
+            };
             groupStates[groupId] = groupInfo;
         }
 

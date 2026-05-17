@@ -2,7 +2,7 @@
 
 <div style="padding: 24px; height: 100%; overflow-y: auto;">
     <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 24px;">
-        <Title Level="4" Style="margin: 0;">完整历史与记忆检查</Title>
+        <Title Level="4" Style="margin: 0;">完整上下文信息检查</Title>
         <Space>
             <SpaceItem>
                 <RadioGroup @bind-Value="historyRoleFilter">
@@ -31,9 +31,10 @@
                                     <span>@@@context.AuthorName</span>
                                 }
                             </div>
-                            <Button Type="@ButtonType.Text" Danger Icon="@IconType.Outline.Delete" Size="@ButtonSize.Small"
+                            <Button Type="@ButtonType.Text" Danger Icon="@IconType.Outline.Delete"
+                                    Size="@ButtonSize.Small"
                                     Disabled="@(Activity?.ChatBot.IsChatting ?? false)"
-                                    OnClick="@(() => DeleteMessage(context))" />
+                                    OnClick="@(() => DeleteMessage(context))"/>
                         </div>
                         <Paragraph
                             Style="@($"margin: 0; white-space: pre-wrap; padding: 12px; border-radius: 4px; border: 1px solid #f0f0f0; {(IsKeyMemory(context) ? "background: #fffbe6; border-color: #ffe58f;" : "background: #f9f9f9;")}")">

@@ -12,9 +12,9 @@ namespace Alife.Implement;
 
 public record MemoryConfig
 {
-    public int Threshold { get; set; } = 100;
-    public int BatchSize { get; set; } = 60;
-    public float Probability { get; set; } = 0.3f;
+    public int Threshold { get; set; } = 80;
+    public int BatchSize { get; set; } = 50;
+    public float Probability { get; set; } = 0.4f;
     public int MaxCompressionLevel { get; set; } = 7;
 }
 

@@ -164,20 +164,32 @@ public class OneBotClient(string url) : IAsyncDisposable
                 return null;
             }
 
-            // 手动检测 post_type 以处理 System.Text.Json 的多态限制
-            if (!doc.RootElement.TryGetProperty("post_type", out JsonElement typeElem)) return null;
-
+            string? type = doc.RootElement.TryGetProperty("post_type", out JsonElement typeElem) ? typeElem.GetString() : "";
+            string? subType = doc.RootElement.TryGetProperty("sub_type", out JsonElement subtypeElem) ? subtypeElem.GetString() : "";
             var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            string type = typeElem.GetString() ?? "";
-            return type switch
+            switch (type)
             {
-                "message" => doc.RootElement.Deserialize<OneBotMessageEvent>(options),
-                "message_sent" => doc.RootElement.Deserialize<OneBotMessageSentEvent>(options),
-                "meta_event" => doc.RootElement.Deserialize<OneBotMetaEvent>(options),
-                "notice" => doc.RootElement.Deserialize<OneBotNoticeEvent>(options),
-                "request" => doc.RootElement.Deserialize<OneBotRequestEvent>(options),
-                _ => null
-            };
+                case "message":
+                    return doc.RootElement.Deserialize<OneBotMessageEvent>(options);
+                case "message_sent":
+                    return doc.RootElement.Deserialize<OneBotMessageSentEvent>(options);
+                case "meta_event":
+                    return doc.RootElement.Deserialize<OneBotMetaEvent>(options);
+                case "notice":
+                {
+                    switch (subType)
+                    {
+                        case "poke":
+                            return doc.RootElement.Deserialize<OneBotPokeEvent>(options);
+                        default:
+                            return doc.RootElement.Deserialize<OneBotNoticeEvent>(options);
+                    }
+                }
+                case "request":
+                    return doc.RootElement.Deserialize<OneBotRequestEvent>(options);
+                default:
+                    return null;
+            }
         }
         catch (Exception ex)
         {

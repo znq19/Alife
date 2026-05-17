@@ -31,6 +31,18 @@ public abstract record OneBotBaseEvent
     public long SelfId { get; init; }
 }
 
+public record OneBotBasicMessageEvent : OneBotBaseEvent
+{
+    [JsonPropertyName("user_id")]
+    public long UserId { get; init; }
+
+    [JsonPropertyName("group_id")]
+    public long GroupId { get; init; }
+
+    [JsonPropertyName("message_type")]
+    public OneBotMessageType MessageType => GroupId == 0 ? OneBotMessageType.Private : OneBotMessageType.Group;
+}
+
 public record OneBotSender
 {
     [JsonPropertyName("user_id")]
@@ -43,16 +55,8 @@ public record OneBotSender
     public string Card { get; init; } = "";
 }
 
-public record OneBotMessageEvent : OneBotBaseEvent
+public record OneBotMessageEvent : OneBotBasicMessageEvent
 {
-    [JsonPropertyName("message_type")]
-    public OneBotMessageType MessageType { get; init; }
-
-    [JsonPropertyName("user_id")]
-    public long UserId { get; init; }
-
-    [JsonPropertyName("group_id")]
-    public long GroupId { get; init; }
 
     [JsonPropertyName("group_name")]
     public string? GroupName { get; init; }
@@ -98,19 +102,22 @@ public record OneBotNoticeFile
     public string? Url { get; init; }
 }
 
-public record OneBotNoticeEvent : OneBotBaseEvent
+public record OneBotNoticeEvent : OneBotBasicMessageEvent
 {
     [JsonPropertyName("notice_type")]
     public string? NoticeType { get; init; }
 
-    [JsonPropertyName("user_id")]
-    public long UserId { get; init; }
-
-    [JsonPropertyName("group_id")]
-    public long GroupId { get; init; }
+    [JsonPropertyName("sub_type")]
+    public string? SubType { get; init; }
 
     [JsonPropertyName("file")]
     public OneBotNoticeFile? File { get; init; }
+}
+
+public record OneBotPokeEvent : OneBotNoticeEvent
+{
+    [JsonPropertyName("target_id")]
+    public long TargetId { get; init; }
 }
 
 public record OneBotRequestEvent : OneBotBaseEvent

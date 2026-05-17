@@ -142,35 +142,31 @@ public class MyPlugin(FunctionService functionService, ILogger<MyPlugin> logger)
 
 #### 核心底座
 
-- **对话能力 (`ChatService`)**：OpenAI 协议适配层。专门针对 DeepSeek 等模型优化了思考过程（Thinking）的字段捕获，并强制 HTTP
-  1.1 以确保长流式输出的稳定性。
-- **函数调用 (`FunctionService`)**：基于 XML 的流式解析与执行引擎。通过 `XmlStreamExecutor` 实现高实时的工具调用，支持多级流式嵌套，让
-  AI 能够“边想边做”。
+- **对话能力 (`ChatService`)**：接入兼容 OpenAI 协议的 llm 模型，并专门针对 DeepSeek 进行了测试优化，其他模型兼容性暂不明确。
+- **函数调用 (`FunctionService`)**：实现一种基于Xml的流式函数调用，支持多条嵌套，开闭标签，注释转义等各种Xml特性，且与SemanticKernel兼容。
 
 #### 环境搭建
 
-- **消息过滤 (`MessageProcessService`)**：统一的消息前处理过滤器。负责向 AI 动态注入当前时间戳、全局提示词及响应格式约束，确保输出风格的一致性。
-- **主动事件 (`EventService`)**：基于时间轮询的自我意识激发系统。定时向 AI 投喂“系统报点”，驱动其在空闲时产生好奇心、发起话题或进行自主学习。
-- **持久记忆 (`MemoryService`)**：分层记忆管理系统。利用向量检索与 LLM 自动摘要技术，将对话历史自动压缩并归档至 L0-LMax
-  不同层级，确保长期记忆的可溯源与永久保留。
-- **世界背景 (`VirtualWorldService`)**：多角色社交协议。模拟了一个具有物理法则和物价体系的虚拟世界，支持不同 AI
-  角色间跨进程的消息通讯（Call）与物资交换（Give）。
+- **消息过滤 (`MessageProcessService`)**：消息预处理器，实现对原生输入消息的提示词包装，例如注入时间戳，规定输出风格等。
+- **主动事件 (`EventService`)**：让AI能感知到系统事件，并阶梯性发送定时事件，配合提示词，驱使其在空闲时产生好奇心、发起话题或进行自主学习。
+- **持久记忆 (`MemoryService`)**：基于 bge-small-zh-v1.5 + duckDb
+  实现记忆存储向量化检索等功能实现一种以多级缓存和自然底数为灵感的稳定可靠的上下文压缩系统，并；支持回溯检索插入记忆。
+- **世界背景 (`VirtualWorldService`)**：为AI提供一个建议的虚拟世界背景，以及跨活动间的消息通讯能力，丰富AI的活动项目，增强真实感。
 
 #### 对外表达
 
-- **桌宠交互 (`DeskPetService`)**：Live2D 角色驱动系统。将 AI 的意图转化为表情、动作和气泡字幕，并支持根据分辨率自动适配屏幕位置。
-- **语音对话 (`SpeechService`)**：本地离线 STT + 在线 Edge-TTS 方案。具备智能噪声抑制与双工切换逻辑，支持 AI
-  在说话时自动暂停识别，实现低延迟的语音交互。
-- **QQ 聊天 (`QChatService`)**：接入 OneBot v11 协议。实现 QQ 私聊与群聊的收发，具备群消息去抖缓冲机制与表情包库集成，让 AI
-  轻松融入社交圈。
+- **桌宠交互 (`DeskPetService`)**：基于 WPF + WebView2 + pixi-live2d-display 实现的一套live2D桌宠应用。支持表情动作播放，气泡文字，鼠标交互，位置交互。
+- **语音对话 (`SpeechService`)**：基于 sherpa-onnx-sense-voice + silero-vad + Windows.AudioGraph 实现可实时通话的高质量语音识别。基于
+  python.edge-tts + 流式xml函数调用 实现低延迟的高质量语音合成。
+- **QQ 聊天 (`QChatService`)**：基于 OneBot v11 协议。实现常见的 QQ 消息收发功能。搭建了一套专门的群聊机制，确保 AI
+  能适应群聊环境。让 QQ 也能成为 AI 的一种娱乐方式。
 
 #### 实用工具
 
-- **网上冲浪 (`SurfingService`)**：利用 WebView2 封装的浏览器引擎。赋予 AI 真实的上网能力，支持通过观察 DOM 结构（Observe）和执行
-  JS 脚本（RunJS）来像真人一样操控网页。
-- **脚本执行 (`PythonService`)**：原生 Python 运行环境。允许 AI 动态生成并执行 Python 代码，支持 `pip` 自动安装依赖，是 AI
-  处理复杂任务、绘图及办公自动化的“瑞士刀”。
-- **视觉感知 (`VisionService`)**：集成多模态视觉模型（VLM）。支持屏幕截图分析与本地/网络图片理解，让 AI 能够“看见”主人的桌面和分享的瞬间。
+- **网上冲浪 (`SurfingService`)**：基于 WebView2 模拟的一套真实浏览器环境，并格式化网页使其易于 AI 阅读。让 AI
+  可以像人类一样按需翻阅网站，点击输入交互元素，使其可以从事网页任务，并有效避免防爬。
+- **脚本执行 (`PythonService`)**：基于 Alife 自身的 Python 环境，让 AI 拥有自行编写执行脚本的能力，以此实现各种复杂任务。
+- **视觉感知 (`VisionService`)**：基于 InternVL2_5-1B 实现的一套本地低配图像识别功能，并配合简单的窗口统计和OCR，使其识别失败时也能获取到有用信息。
 
 #### 扩展增强
 
