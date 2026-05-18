@@ -36,7 +36,10 @@ public partial class VisionService(FunctionService functionService) : Interactiv
               【屏幕分析结果】（注意！本结果不能完全作为判断用户行为的依据，因为电脑可能处于挂机状态）
               - 窗口列表：{AlifePlatform.GetRunningWindowTitles()}
               - 焦点窗口：{WindowsPlatform.GetActiveWindowTitle()}
-              - 深度视觉：{await analyzer!.QueryAsync(screenshotPath, query, cancellationToken: cancellationTokenSource.Token)}（注意！深度视觉误识别率非常高）
+              - 深度视觉：{await analyzer!.QueryAsync(
+              screenshotPath,
+              $"{query}(当前焦点窗口：{WindowsPlatform.GetActiveWindowTitle()})",
+              cancellationToken: cancellationTokenSource.Token)}（注意！深度视觉误识别率非常高）
               """);
     }
 
