@@ -95,7 +95,7 @@
   - 重构 `SpeechSynthesizerBase` 基类，收拢音频队列控制与播放逻辑。
   - 完成 `SpeechService` 配置化改造，采用“Awake 时决定合成引擎类型，属性更改仅同步更新参数”的设计，避免热切换时频繁重载大型模型。
   - **TTS 语音质量与日志优化**：修复了双语分词映射错误（音译像东北话）问题，主动对双语 `lexicon.txt` 进行了去重（消除 1300+ 行加载警告），并在 C# 端设计了 `SanitizeText` 过滤器防范 OOV 报错。完成前端 TTS UI 优化，重命名 VITS 长度参数，引入了模糊搜索的角色 ID 映射选择 Modal。
-- [2026-05-19] Genie-TTS (GPT-SoVITS) 三引擎融合: 引入了基于 python 桥接的 Genie-TTS 高拟真克隆合成引擎，设计了模型自动提取和 predefined feibi 自动 fallback 功能，并在 portable 环境中以 pure-python jieba 替代编译依赖的 jieba_fast，彻底解决了离线中文字音字形转换（G2P）运行环境瓶颈。
+- [2026-05-19] Genie-TTS (GPT-SoVITS) 三引擎融合: 引入了基于 python 桥接的 Genie-TTS 高拟真克隆合成引擎，设计了模型自动提取和 predefined feibi 自动 fallback 功能。在 `genie_bridge.py` 中通过 `jieba_fast` 动态重定向至 pure-python `jieba` 的垫片彻底扫清了非便携式 Python 环境下的编译障碍；并且通过将 `split_sentence` 设为 `False` 解决了 GPT-SoVITS 分句切片带来的长静音叠加（消除断断续续感），实现了极高拟真的平滑语音合成。
 
 ## 5. 经验教训与技巧 (Lessons Learned & Tips)
 

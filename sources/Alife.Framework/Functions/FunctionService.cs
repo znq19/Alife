@@ -38,7 +38,7 @@ public class FunctionService : InteractivePlugin<FunctionService>
         executor = new XmlStreamExecutor(
         parser,
         handlerTable,
-        ["，", "。", "！", "？", "......", "~"],
+        ["，", "。", "！", "？", "......", "~", "…"],
         minBreakingLength: 9
         );
         parser.Error += OnError;
