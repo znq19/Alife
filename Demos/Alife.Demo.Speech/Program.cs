@@ -2,9 +2,8 @@ using Alife.Basic;
 using Alife.Framework;
 using Alife.Implement;
 
-
 Character character = new() {
-    Name = "SpeechMao",
+    Name = "SpeechTest",
     Prompt = "你是一个桌面上名为真央的 AI 语音助手。你非常活泼，喜欢模仿猫娘（说话带喵）。\n" +
              "主人正在通过语音或文字与你交流。请保持回答简短有力（回复控制在 30 字以内），适合语音播报。\n",
     Plugins = [
@@ -14,7 +13,11 @@ Character character = new() {
     ]
 };
 
-DemoSuite suite = await DemoSuite.InitializeAsync(character);
+DemoSuite suite = await DemoSuite.InitializeAsync(character, system => {
+    system.SetConfiguration(typeof(SpeechService), new SpeechConfig() {
+        SynthesizerType = SpeechSynthesizerType.Genie
+    }, character.StorageKey);
+});
 
 AlifeTerminal.LogInfo("规则：插上耳机激活语音识别，拔掉耳机自动待机保护隐私。");
 AlifeTerminal.Log("----------------------------------------");

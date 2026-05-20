@@ -26,14 +26,47 @@ public static class WindowsPlatform
         }
     }
 
-    public static bool IsLocked()
+    public static bool IsLocking()
     {
-        IntPtr hDesktop = WindowsNative.OpenInputDesktop(0, false, (uint)WindowsNative.DesktopSwitchdesktop);
+        IntPtr hDesktop = WindowsNative.OpenInputDesktop(0, false, WindowsNative.DesktopReadobjects);
         if (hDesktop == IntPtr.Zero)
         {
             return true;
         }
-        WindowsNative.CloseDesktop(hDesktop);
+
+        try
+        {
+            uint needed = 0;
+            WindowsNative.GetUserObjectInformation(hDesktop, WindowsNative.UoiName, IntPtr.Zero, 0, out needed);
+            if (needed > 0)
+            {
+                IntPtr ptr = System.Runtime.InteropServices.Marshal.AllocHGlobal((int)needed);
+                try
+                {
+                    if (WindowsNative.GetUserObjectInformation(hDesktop, WindowsNative.UoiName, ptr, needed, out _))
+                    {
+                        string name = System.Runtime.InteropServices.Marshal.PtrToStringUni(ptr) ?? string.Empty;
+                        if (string.Equals(name, "Default", StringComparison.OrdinalIgnoreCase) == false)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                finally
+                {
+                    System.Runtime.InteropServices.Marshal.FreeHGlobal(ptr);
+                }
+            }
+        }
+        catch
+        {
+            return true;
+        }
+        finally
+        {
+            WindowsNative.CloseDesktop(hDesktop);
+        }
+
         return false;
     }
 

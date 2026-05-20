@@ -39,7 +39,7 @@ public class QChatFunctionTests
 
         // 使用一个网图进行测试
         const string TestImageUrl = "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png";
-        await client.SendPrivateImage(lastPrivateUserId, TestImageUrl);
+        await client.SendPrivateMessage(lastPrivateUserId,$"[CQ:image,file={TestImageUrl}]");
 
         MessageBoxResult result = MessageBox.Show("Bot 是否发送了一张图片（Google Logo）给你？", "图片发送验证", MessageBoxButton.YesNo);
         Assert.That(result, Is.EqualTo(MessageBoxResult.Yes));
@@ -126,7 +126,7 @@ public class QChatFunctionTests
     {
         await EnsureGroupAnchor();
 
-        await client.SendGroupImage(lastGroupId, "https://www.baidu.com/img/flexible/logo/pc/result.png");
+        await client.SendGroupMessage(lastGroupId, $"[CQ:image,file=https://www.baidu.com/img/flexible/logo/pc/result.png]");
 
         MessageBoxResult result = MessageBox.Show("Bot 是否在群里发送了一张图片（百度 Logo）？", "群图片验证", MessageBoxButton.YesNo);
         Assert.That(result, Is.EqualTo(MessageBoxResult.Yes));

@@ -28,6 +28,7 @@
   <Folder Name="/Tests/">
     <Project Path="Tests/Alife.Test.DeskPet/Alife.Test.DeskPet.csproj" />
     <Project Path="Tests/Alife.Test.Interpreter/Alife.Test.Interpreter.csproj" />
+    <Project Path="Tests/Alife.Test.Speech/Alife.Test.Speech.csproj" />
     <Project Path="Tests\Alife.Test.Browser\Alife.Test.Browser.csproj" />
     <Project Path="Tests\Alife.Test.Python\Alife.Test.Python.csproj" />
     <Project Path="Tests\Alife.Test.QChat\Alife.Test.QChat.csproj" />

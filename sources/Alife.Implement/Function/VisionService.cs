@@ -40,9 +40,9 @@ public partial class VisionService(FunctionService functionService)
     [Description("查看当前屏幕内容。（使用后需等待结果返回）")]
     public async Task LookScreen([Description("请尽可能提供完整的上下文背景以辅助视觉分析")] string prompt)
     {
-        if (AlifePlatform.IsLocked)
+        if (AlifePlatform.IsLocking())
         {
-            Poke("【屏幕分析结果】当前电脑处于息屏状态，无法获取屏幕内容，用户应该不在电脑前。");
+            Poke("【屏幕分析结果】当前电脑处于锁屏状态，无法获取屏幕内容，用户应该不在电脑前。");
             return;
         }
 

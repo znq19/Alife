@@ -96,6 +96,11 @@
   - 完成 `SpeechService` 配置化改造，采用“Awake 时决定合成引擎类型，属性更改仅同步更新参数”的设计，避免热切换时频繁重载大型模型。
   - **TTS 语音质量与日志优化**：修复了双语分词映射错误（音译像东北话）问题，主动对双语 `lexicon.txt` 进行了去重（消除 1300+ 行加载警告），并在 C# 端设计了 `SanitizeText` 过滤器防范 OOV 报错。完成前端 TTS UI 优化，重命名 VITS 长度参数，引入了模糊搜索的角色 ID 映射选择 Modal。
 - [2026-05-19] Genie-TTS (GPT-SoVITS) 三引擎融合: 引入了基于 python 桥接的 Genie-TTS 高拟真克隆合成引擎，设计了模型自动提取和 predefined feibi 自动 fallback 功能。在 `genie_bridge.py` 中通过 `jieba_fast` 动态重定向至 pure-python `jieba` 的垫片彻底扫清了非便携式 Python 环境下的编译障碍；并且通过将 `split_sentence` 设为 `False` 解决了 GPT-SoVITS 分句切片带来的长静音叠加（消除断断续续感），实现了极高拟真的平滑语音合成。
+- [2026-05-20] 修复 Windows 锁屏检测: 重新实现 `WindowsPlatform.IsLocked()`，通过 `GetUserObjectInformation` 查询当前活动输入桌面名称是否不为 `"Default"`，完美解决了 Windows 在锁屏（Win+L）时无法正确判定锁屏状态的问题。
+- [2026-05-20] 解决 Genie-TTS 文本重复与断断续续冲突: 重新开启了 `split_sentence=True` 选项以避免长文本自回归模型注意力漂移造成的发音鬼畜重复。同时在 `genie_bridge.py` 中对 `TTSPlayer` 的 `_save_session_audio` 方法进行了猴子补丁，在合并前自动裁剪每个子句音频片段 of 起止静音，并注入 150ms 间隔，实现了不拖沓且无鬼畜重复的高品质克隆声音生成。
+- [2026-05-20] VITS 与 Genie-TTS 的 Python 原生化及 GPU 优先加速:
+  - 将 VITS 的音频合成完全重构为 Python 进程桥接方式（`vits_bridge.py`），利用 `numpy` 与内置 `wave` 执行句级/句内自适应切分（40字以内）、静音裁剪与 150ms 间隔拼接。
+  - 在 `vits_bridge.py` 与 `genie_bridge.py` 中增加了首选 GPU 执行的逻辑，通过动态检测 `onnxruntime.get_available_providers()` 绑定 `CUDAExecutionProvider` 或 `DmlExecutionProvider`，有 GPU 时自动使用 GPU 加速，彻底消除了由于单次直接调用 C# Wrapper 传超长文本导致的异常，也排除了 C# dll 潜在的底层限制。
 
 ## 5. 经验教训与技巧 (Lessons Learned & Tips)
 

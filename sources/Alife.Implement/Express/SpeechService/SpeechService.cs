@@ -19,9 +19,9 @@ public class SpeechConfig
     public SpeechSynthesizerType SynthesizerType { get; set; } = SpeechSynthesizerType.Edge;
     public string EdgeVoiceTone { get; set; } = "zh-CN-XiaoyiNeural";
     public int VitsSpeakerId { get; set; } = 142;
-    public float VitsNoiseScale { get; set; } = 0.42f;
-    public float VitsNoiseScaleW { get; set; } = 0.57f;
-    public float VitsLengthScale { get; set; } = 1.7f;
+    public float VitsNoiseScale { get; set; } = 0.6f;
+    public float VitsNoiseScaleW { get; set; } = 0.668f;
+    public float VitsLengthScale { get; set; } = 1.2f;
 }
 
 public partial class SpeechService
@@ -59,9 +59,6 @@ public partial class SpeechService(FunctionService functionService)
                     catch (OperationCanceledException) {}
                     break;
                 case CallMode.Closing:
-                    break;
-                case CallMode.Content:
-                {
                     content = content.Trim();
                     if (string.IsNullOrWhiteSpace(content))
                         break;
@@ -70,6 +67,10 @@ public partial class SpeechService(FunctionService functionService)
 
                     if (synthesizer != null)
                         await synthesizer.SpeakAsync(content, cancellationToken);
+                    break;
+                case CallMode.Content:
+                {
+         
                     break;
                 }
             }
@@ -92,7 +93,9 @@ public partial class SpeechService(FunctionService functionService)
                 else if (synthesizer is VitsSpeechSynthesizer vits)
                 {
                     vits.SpeakerId = configuration.VitsSpeakerId;
-                    vits.Speed = 1.0f / configuration.VitsLengthScale;
+                    vits.NoiseScale = configuration.VitsNoiseScale;
+                    vits.NoiseScaleW = configuration.VitsNoiseScaleW;
+                    vits.LengthScale = configuration.VitsLengthScale;
                 }
             }
         }

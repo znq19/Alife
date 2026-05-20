@@ -23,6 +23,8 @@ internal static class WindowsNative
     
     public const int JobObjectLimitKillOnJobClose = 0x2000;
     public const int DesktopSwitchdesktop = 0x0100;
+    public const int DesktopReadobjects = 0x0001;
+    public const int UoiName = 2;
     #endregion
 
     #region Delegates
@@ -128,5 +130,8 @@ internal static class WindowsNative
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool CloseDesktop(IntPtr hDesktop);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern bool GetUserObjectInformation(IntPtr hObj, int nIndex, IntPtr pvInfo, uint nLength, out uint lpnLengthNeeded);
     #endregion
 }

@@ -20,15 +20,12 @@ public static class AlifePlatform
     /// <summary>
     /// 判断当前系统是否处于锁屏/息屏状态。
     /// </summary>
-    public static bool IsLocked
+    public static bool IsLocking()
     {
-        get
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return WindowsPlatform.IsLocked();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return WindowsPlatform.IsLocking();
 
-            return false;
-        }
+        return false;
     }
 
     public static void Notice(string title, string message)
