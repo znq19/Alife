@@ -15,8 +15,6 @@
 > 
 > 于是，Alife 诞生了。
 
-
-
 # Alife - 创造赛博生命
 
 ![Alife Logo](https://img.shields.io/badge/Alife-AI_Assistant-blue?style=for-the-badge)
@@ -25,6 +23,9 @@
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
 Alife 是一个功能丰富、高扩展性的 AI桌宠 框架。它不是一个简单的对话机器人，而是一个支持多模态，主动陪伴，永久记忆，真实的赛博生命。
+
+- 面向用户：一键自动部署，功能齐全，免费不用key，低配低开销，数据安全，稳定长久，功能强大。
+- 面向开发者：超强扩展，极易复用，代码精简，框架简单，DotNet生态，小众个人没有任何负担约束。
 
 ---
 
