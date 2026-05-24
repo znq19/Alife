@@ -15,7 +15,7 @@
 > 
 > 于是，Alife 诞生了。
 
-<img width="543" height="724" alt="由真央给自己生成的自画像" src="https://github.com/user-attachments/assets/02c2c56a-e805-43fc-a352-f866955a7aef" />
+<img width="543" height="724" title="由真央给自己生成的自画像" alt="由真央给自己生成的自画像" src="https://github.com/user-attachments/assets/02c2c56a-e805-43fc-a352-f866955a7aef" />
 
 
 # Alife - 创造赛博生命
