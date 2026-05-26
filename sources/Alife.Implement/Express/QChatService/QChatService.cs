@@ -15,6 +15,7 @@ public record QChatConfig
 {
     public string Url { get; set; } = "ws://127.0.0.1:3001";
     public string Token { get; set; } = "";
+    public int AutoReconnectSeconds { get; set; } = 60;//自动尝试重连的间隔（秒）
     public long BotId { get; set; }
     public long OwnerId { get; set; }
     public string AppendChatPrompt { get; set; } = "（注意！QQ消息必须极简回复（0-20字）来保证自然感，同时群聊消息要选择性忽略，避免刷屏。此外注意分清语境，群聊环境人声嘈杂，不要回复与自己无关的内容，回复时请加上CQat标签）";
@@ -29,6 +30,7 @@ public record QChatConfig
     //群监听关闭
     public bool CloseGroupAfterReply { get; set; }//AI回复后立即关闭群消息监听
     public float AutoCloseMinutes { get; set; } = 4f;//长时间不触发唤醒条件时，自动关闭群消息监听的时间
+    //自动重连
 }
 
 public class GroupState
@@ -221,6 +223,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
     string[] groupAwakingWords = [];
     string[] ignoredGroup = [];
     readonly Dictionary<long, GroupState> groupStates = new();
+    DateTime lastReconnectAttemptTime = DateTime.MinValue;
 
     public override async Task AwakeAsync(AwakeContext context)
     {
@@ -327,6 +330,30 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             if (info.IsEnabled && (DateTime.Now - info.LastActivityTime).TotalMinutes > Configuration!.AutoCloseMinutes)
             {
                 QGroup(groupId, false);
+            }
+        }
+
+        // 自动重连
+        int reconnectSeconds = Configuration!.AutoReconnectSeconds;
+        if (reconnectSeconds > 0)
+        {
+            if ((DateTime.Now - lastReconnectAttemptTime).TotalSeconds >= reconnectSeconds && IsConnected == false)
+            {
+                lastReconnectAttemptTime = DateTime.Now;
+                _ = TryAutoReconnectAsync();
+
+                async Task TryAutoReconnectAsync()
+                {
+                    try
+                    {
+                        logger.LogInformation("[QChatService] 自动重连中...");
+                        await ReconnectAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning("[QChatService] 自动重连失败: {Message}", ex.Message);
+                    }
+                }
             }
         }
     }

@@ -158,6 +158,13 @@
             <InputPassword @bind-Value="@Configuration.Token" placeholder="如果服务端配置了access_token，在此填入"/>
             <Text Type="TextElementType.Secondary" Style="font-size: 11px;">留空表示无需认证。</Text>
         </FormItem>
+        <FormItem Label="自动重连间隔（秒）">
+            <AntDesign.InputNumber @bind-Value="@Configuration.AutoReconnectSeconds"
+                                   Style="width: 100%;"/>
+            <Text Type="TextElementType.Secondary" Style="font-size: 11px;">
+                断开连接后，每隔此时间自动尝试重连。设为 0 表示禁用自动重连。
+            </Text>
+        </FormItem>
         <FormItem Label="机器人 ID">
             <Input @bind-Value="@Configuration.BotId" Style="width: 100%;"/>
         </FormItem>
@@ -217,7 +224,7 @@
                 开启后当收到新的群消息时，会重置发送倒计时。
             </Text>
         </FormItem>
-        
+
         @* ───── 群消息关闭 ───── *@
         <Divider>群消息接收关闭条件</Divider>
         <FormItem Label="自动休眠时间 (分钟)">

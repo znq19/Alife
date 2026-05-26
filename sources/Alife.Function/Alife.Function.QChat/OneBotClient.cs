@@ -29,7 +29,7 @@ public class OneBotClient(string url, string token = "") : IAsyncDisposable
     /// <summary>
     /// 是否已连接。
     /// </summary>
-    public bool IsConnected => BotId != 0;
+    public bool IsConnected => ws.State == WebSocketState.Open && BotId != 0;
 
     /// <summary>
     /// WebSocket 地址。
