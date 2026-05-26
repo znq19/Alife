@@ -16,6 +16,7 @@ public enum SpeechSynthesizerType
 
 public class SpeechConfig
 {
+    public bool EnabledRecognition { get; set; } = true;
     public SpeechSynthesizerType SynthesizerType { get; set; } = SpeechSynthesizerType.Edge;
     public string EdgeVoiceTone { get; set; } = "zh-CN-XiaoyiNeural";
     public int VitsSpeakerId { get; set; } = 551;
@@ -40,7 +41,30 @@ public partial class SpeechService
 public partial class SpeechService(FunctionService functionService)
     : InteractivePlugin<SpeechService>, IAsyncDisposable, IConfigurable<SpeechConfig>
 {
+    public SpeechConfig? Configuration
+    {
+        get => configuration;
+        set
+        {
+            configuration = value;
+            if (configuration != null && synthesizer != null)
+            {
+                if (synthesizer is EdgeSpeechSynthesizer edge)
+                {
+                    edge.VoiceTone = configuration.EdgeVoiceTone;
+                }
+                else if (synthesizer is VitsSpeechSynthesizer vits)
+                {
+                    vits.SpeakerId = configuration.VitsSpeakerId;
+                    vits.NoiseScale = configuration.VitsNoiseScale;
+                    vits.NoiseScaleW = configuration.VitsNoiseScaleW;
+                    vits.LengthScale = configuration.VitsLengthScale;
+                }
+            }
+        }
+    }
     public SpeechSynthesizer? Synthesizer => synthesizer;
+    public bool IsSynthesizing => synthesizer?.IsSpeaking ?? false;
 
     [XmlFunction(FunctionMode.Content, order: -10)]
     [Description("将文本以语音方式输出。")]
@@ -73,32 +97,6 @@ public partial class SpeechService(FunctionService functionService)
         }
         catch (OperationCanceledException) {}
     }
-
-    public SpeechConfig? Configuration
-    {
-        get => configuration;
-        set
-        {
-            configuration = value;
-            if (configuration != null && synthesizer != null)
-            {
-                if (synthesizer is EdgeSpeechSynthesizer edge)
-                {
-                    edge.VoiceTone = configuration.EdgeVoiceTone;
-                }
-                else if (synthesizer is VitsSpeechSynthesizer vits)
-                {
-                    vits.SpeakerId = configuration.VitsSpeakerId;
-                    vits.NoiseScale = configuration.VitsNoiseScale;
-                    vits.NoiseScaleW = configuration.VitsNoiseScaleW;
-                    vits.LengthScale = configuration.VitsLengthScale;
-                }
-            }
-        }
-    }
-
-    public bool IsSynthesizing => synthesizer?.IsSpeaking ?? false;
-    public bool IsReceiving { get; set; } = true;
 
     protected override string ChatPrefixPrompt => "[语音识别的信息，请用Speak回复]";
     SpeechSynthesizer? synthesizer;
@@ -179,7 +177,7 @@ public partial class SpeechService(FunctionService functionService)
 
     void OnRecognized(string text)
     {
-        if (IsReceiving)
+        if (configuration!.EnabledRecognition)
             Chat(text);
     }
 }

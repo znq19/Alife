@@ -162,7 +162,7 @@
             <AntDesign.InputNumber @bind-Value="@Configuration.AutoReconnectSeconds"
                                    Style="width: 100%;"/>
             <Text Type="TextElementType.Secondary" Style="font-size: 11px;">
-                断开连接后，每隔此时间自动尝试重连。设为 0 表示禁用自动重连。
+                当机器人ID不为0时，断开连接后，每隔此时间自动尝试重连；设为0表示禁用自动重连。
             </Text>
         </FormItem>
         <FormItem Label="机器人 ID">

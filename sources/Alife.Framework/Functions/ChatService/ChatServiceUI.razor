@@ -38,6 +38,13 @@
                 </RadioGroup>
             </FormItem>
         }
+        <Divider>高级配置 (可选)</Divider>
+        <FormItem Label="自定义请求头 (JSON 格式)">
+            <TextArea @bind-Value="@Configuration.customHeaders" Rows="3" Placeholder='{"Authorization": "Bearer XXX", "X-Custom-Header": "value"}' />
+        </FormItem>
+        <FormItem Label="自定义请求体附加字段 (JSON 格式)">
+            <TextArea @bind-Value="@Configuration.customBody" Rows="3" Placeholder='{"image_detail": "high", "top_p": 0.9}' />
+        </FormItem>
     </Form>
 
     <Modal Title="探测到的模型列表"

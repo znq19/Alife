@@ -84,13 +84,20 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
                 }
             }
 
-            if (type == OneBotMessageType.Group)
+            try
             {
-                OnAIGroupActivity(targetId);
-                await oneBotClient!.SendGroupMessage(targetId, message);
+                if (type == OneBotMessageType.Group)
+                {
+                    OnAIGroupActivity(targetId);
+                    await oneBotClient!.SendGroupMessage(targetId, message);
+                }
+                else
+                    await oneBotClient!.SendPrivateMessage(targetId, message);
             }
-            else
-                await oneBotClient!.SendPrivateMessage(targetId, message);
+            catch (Exception ex)
+            {
+                Poke($"[QQ消息发送失败] {ex.Message}");
+            }
         }
     }
 
@@ -109,13 +116,20 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
 
         file = file.Replace('\\', '/');
         string fileName = Path.GetFileName(file);
-        if (type == OneBotMessageType.Group)
+        try
         {
-            OnAIGroupActivity(targetId);
-            await oneBotClient!.UploadGroupFile(targetId, file, fileName);
+            if (type == OneBotMessageType.Group)
+            {
+                OnAIGroupActivity(targetId);
+                await oneBotClient!.UploadGroupFile(targetId, file, fileName);
+            }
+            else
+                await oneBotClient!.UploadPrivateFile(targetId, file, fileName);
         }
-        else
-            await oneBotClient!.UploadPrivateFile(targetId, file, fileName);
+        catch (Exception ex)
+        {
+            Poke($"[QQ文件发送失败] {ex.Message}");
+        }
     }
 
     [XmlFunction(FunctionMode.OneShot)]
@@ -167,13 +181,20 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
             throw new Exception("图片不存在");
 
         image = image.Replace('\\', '/');
-        if (type == OneBotMessageType.Group)
+        try
         {
-            OnAIGroupActivity(targetId);
-            await oneBotClient!.SendGroupMessage(targetId, $"[CQ:image,file={image}]");
+            if (type == OneBotMessageType.Group)
+            {
+                OnAIGroupActivity(targetId);
+                await oneBotClient!.SendGroupMessage(targetId, $"[CQ:image,file={image}]");
+            }
+            else
+                await oneBotClient!.SendPrivateMessage(targetId, $"[CQ:image,file={image}]");
         }
-        else
-            await oneBotClient!.SendPrivateMessage(targetId, $"[CQ:image,file={image}]");
+        catch (Exception ex)
+        {
+            Poke($"[QQ图片发送失败] {ex.Message}");
+        }
     }
 
     [XmlFunction(FunctionMode.OneShot)]
@@ -335,7 +356,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
 
         // 自动重连
         int reconnectSeconds = Configuration!.AutoReconnectSeconds;
-        if (reconnectSeconds > 0)
+        if (reconnectSeconds > 0 && Configuration.BotId != 0)
         {
             if ((DateTime.Now - lastReconnectAttemptTime).TotalSeconds >= reconnectSeconds && IsConnected == false)
             {
@@ -346,7 +367,7 @@ public class QChatService(FunctionService functionService, ILogger<QChatService>
                 {
                     try
                     {
-                        logger.LogInformation("[QChatService] 自动重连中...");
+                        logger.LogInformation("[QChatService] 自动重连");
                         await ReconnectAsync();
                     }
                     catch (Exception ex)

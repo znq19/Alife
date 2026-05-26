@@ -14,8 +14,7 @@ public static class McpXmlAdapter
         Action<string, string>? resultCallback = null,
         ILoggerFactory? loggerFactory = null)
     {
-        StdioClientTransport clientTransport = new(new StdioClientTransportOptions
-        {
+        StdioClientTransport clientTransport = new(new StdioClientTransportOptions {
             Name = config.Name,
             Command = config.Command,
             Arguments = config.Arguments
@@ -31,8 +30,7 @@ public static class McpXmlAdapter
             functions.Add(function);
         }
 
-        XmlHandler handler = new()
-        {
+        XmlHandler handler = new() {
             Name = config.Name,
             Description = config.Description,
             Functions = functions,
@@ -67,9 +65,9 @@ public static class McpXmlAdapter
             CallToolResult result = await client.CallToolAsync(tool.Name, arguments, cancellationToken: cancellationToken);
 
             string resultText = string.Join("\n",
-                result.Content
-                    .Where(block => block is TextContentBlock)
-                    .Select(block => ((TextContentBlock)block).Text));
+            result.Content
+                .Where(block => block is TextContentBlock)
+                .Select(block => ((TextContentBlock)block).Text));
 
             if (result.IsError == true)
                 throw new Exception(resultText);
@@ -77,8 +75,7 @@ public static class McpXmlAdapter
             resultCallback?.Invoke(name, resultText);
         }
 
-        return new XmlFunction
-        {
+        return new XmlFunction {
             Name = name,
             Description = description,
             Parameters = parameters,
@@ -139,7 +136,9 @@ public static class McpXmlAdapter
             string jsonType = "string";
             string? paramDescription = null;
 
-            if (prop.Value.TryGetProperty("type", out JsonElement typeElem))
+            if (prop.Value.TryGetProperty("enum", out JsonElement enumElement))
+                jsonType = "enum" + enumElement;
+            else if (prop.Value.TryGetProperty("type", out JsonElement typeElem))
                 jsonType = typeElem.GetString() ?? "string";
             if (prop.Value.TryGetProperty("description", out JsonElement descElem))
                 paramDescription = descElem.GetString();
@@ -149,8 +148,7 @@ public static class McpXmlAdapter
             if (isRequired == false)
                 paramTypeLabel += "[可选]";
 
-            parameters.Add(new XmlParameter
-            {
+            parameters.Add(new XmlParameter {
                 Name = paramName,
                 Description = paramDescription,
                 Type = paramTypeLabel,

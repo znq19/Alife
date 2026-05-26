@@ -1,5 +1,4 @@
 using System.Text;
-using Alife.Framework;
 using Newtonsoft.Json.Linq;
 
 namespace Alife.Framework;
@@ -9,17 +8,15 @@ namespace Alife.Framework;
 /// 自动识别并捕获思维链内容（reasoning_content, thought, thinking 等），
 /// 将其统一封装为带前缀的 content 字段，确保 UI 层能够显示思考过程。
 /// </summary>
-public class OpenAICompatibleHandler : DelegatingHandler
+public class OpenAICompatibleHandler(HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
 {
-    private static readonly string[] ReasoningKeys = { 
-        "reasoning_content", 
-        "thought", 
-        "thinking", 
+    static readonly string[] ReasoningKeys = [
+        "reasoning_content",
+        "thought",
+        "thinking",
         "thought_content",
         "reasoning"
-    };
-
-    public OpenAICompatibleHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
+    ];
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -37,17 +34,10 @@ public class OpenAICompatibleHandler : DelegatingHandler
         return response;
     }
 
-    class CompatibleStreamWrapper : Stream
+    class CompatibleStreamWrapper(Stream innerStream) : Stream
     {
-        readonly Stream innerStream;
-        readonly StreamReader reader;
+        readonly StreamReader reader = new(innerStream, Encoding.UTF8);
         readonly MemoryStream outputBuffer = new();
-
-        public CompatibleStreamWrapper(Stream innerStream)
-        {
-            this.innerStream = innerStream;
-            this.reader = new StreamReader(innerStream, Encoding.UTF8);
-        }
 
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
@@ -70,7 +60,7 @@ public class OpenAICompatibleHandler : DelegatingHandler
             return count;
         }
 
-        private string ProcessLine(string line)
+        string ProcessLine(string line)
         {
             if (!line.StartsWith("data: ")) return line;
 
@@ -95,7 +85,7 @@ public class OpenAICompatibleHandler : DelegatingHandler
                             {
                                 deltaObj["content"] = $"{ChatBot.ThinkContentPrefix}{val}";
                                 deltaObj.Remove(key);
-                                break; // 匹配到一个即可
+                                break;// 匹配到一个即可
                             }
                         }
                     }

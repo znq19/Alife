@@ -88,7 +88,7 @@ public class WebViewWorker : IDisposable
         try
         {
             //初始化基本环境
-            string userDataFolder = Path.Combine(AlifePath.StorageFolderPath, "WebView2Data");
+            string userDataFolder = Path.Combine(AlifePath.RuntimeFolderPath, "WebView2Data");
             if (!Directory.Exists(userDataFolder))
                 Directory.CreateDirectory(userDataFolder);
             var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);

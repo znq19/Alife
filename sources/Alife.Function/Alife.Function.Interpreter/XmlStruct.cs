@@ -69,7 +69,7 @@ public class XmlHandler
                 bool isCanNull = Nullable.GetUnderlyingType(parameterInfo.ParameterType) != null;
                 Type parameterType = isCanNull ? parameterInfo.ParameterType.GenericTypeArguments[0] : parameterInfo.ParameterType;
                 string parameterTypeName = parameterType.IsEnum ? string.Join(" | ", parameterType.GetEnumNames()) : parameterType.Name;
-                if (isCanNull)
+                if (parameterInfo.HasDefaultValue)
                     parameterTypeName += "[可选]";
 
                 normalParameters.Add(new XmlParameter() {

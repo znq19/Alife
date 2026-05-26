@@ -7,19 +7,19 @@ public static class OneBotExtensions
 {
     public static async Task SendPrivateMessage(this OneBotClient client, long userId, string message)
     {
-        await client.SendActionAsync("send_private_msg", new { user_id = userId, message });
+        await client.CallActionAsync<object>("send_private_msg", new { user_id = userId, message });
     }
     public static async Task SendGroupMessage(this OneBotClient client, long groupId, string message)
     {
-        await client.SendActionAsync("send_group_msg", new { group_id = groupId, message });
+        await client.CallActionAsync<object>("send_group_msg", new { group_id = groupId, message });
     }
     public static async Task UploadPrivateFile(this OneBotClient client, long userId, string filePath, string name)
     {
-        await client.SendActionAsync("upload_private_file", new UploadFileParams { UserId = userId, File = filePath, Name = name });
+        await client.CallActionAsync<object>("upload_private_file", new UploadFileParams { UserId = userId, File = filePath, Name = name });
     }
     public static async Task UploadGroupFile(this OneBotClient client, long groupId, string filePath, string name)
     {
-        await client.SendActionAsync("upload_group_file", new UploadFileParams { GroupId = groupId, File = filePath, Name = name });
+        await client.CallActionAsync<object>("upload_group_file", new UploadFileParams { GroupId = groupId, File = filePath, Name = name });
     }
 
     /// <summary>

@@ -48,15 +48,14 @@ public partial class MemoryService(FunctionService functionService)
         [Description("用于精确匹配的单关键词")] string keyword,
         [Description("用于语义匹配的自然描述")] string description,
         [Description("要搜索的存档层级，建议从高到低搜索，比如先搜3再搜2，逐步缩小搜索范围")] int level,
-        [Description("格式为ISO-8601")] DateTime? startTime,
-        [Description("格式为ISO-8601")] DateTime? endTime,
+        [Description("格式为ISO-8601")] DateTime startTime,
+        [Description("格式为ISO-8601")] DateTime endTime,
         [Description("可选，搜索条数")] int count = 5)
     {
         keyword = keyword.Trim();
         if (keyword.Contains(' '))
             throw new Exception("不支持使用空格拆分多关键词搜索！");
-        if (endTime != null)
-            endTime += TimeSpan.FromDays(1);//包含当前天
+        endTime += TimeSpan.FromDays(1);//包含当前天
 
         List<SearchResult> results = await memoryManager.SearchMemory(level, keyword, description, count, startTime, endTime);
 

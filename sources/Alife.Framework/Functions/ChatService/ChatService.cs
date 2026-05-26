@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.SemanticKernel;
 using System.Net;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace Alife.Framework;
@@ -12,6 +14,8 @@ public class ChatServiceConfig
     public string apiKey = "";
     public bool thinkingEnabled = true;
     public string reasoningEffort = "high";
+    public string customHeaders = "";
+    public string customBody = "";
 }
 
 [Plugin(
@@ -19,7 +23,7 @@ public class ChatServiceConfig
 url: "https://www.deepseek.com/",
 editorUI: typeof(ChatServiceUI)
 )]
-public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExecutionSettings
+public class ChatService(ILogger<ChatService> logger) : Plugin, IConfigurable<ChatServiceConfig>, IProvideExecutionSettings
 {
     public ChatServiceConfig? Configuration { get; set; }
 
@@ -28,7 +32,7 @@ public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExe
         await base.AwakeAsync(context);
 
         // 强制使用 HTTP 1.1 以解决某些提供者（如 DeepSeek）在流式传输时可能出现的 HttpIOException
-        SocketsHttpHandler handler = new SocketsHttpHandler {
+        SocketsHttpHandler handler = new() {
             SslOptions = new System.Net.Security.SslClientAuthenticationOptions {
                 RemoteCertificateValidationCallback = delegate { return true; }
             },
@@ -42,6 +46,25 @@ public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExe
             DefaultRequestVersion = HttpVersion.Version11,
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
         };
+
+        if (!string.IsNullOrWhiteSpace(Configuration!.customHeaders))
+        {
+            try
+            {
+                var headers = JsonSerializer.Deserialize<Dictionary<string, string>>(Configuration.customHeaders);
+                if (headers != null)
+                {
+                    foreach (var header in headers)
+                    {
+                        httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "解析自定义请求头失败");
+            }
+        }
 
         context.KernelBuilder.AddOpenAIChatCompletion(
         endpoint: new Uri(Configuration!.endpoint),
@@ -62,5 +85,24 @@ public class ChatService : Plugin, IConfigurable<ChatServiceConfig>, IProvideExe
         settings.ExtraBody["thinking"] = new {
             type = Configuration!.thinkingEnabled ? "enabled" : "disabled"
         };
+
+        if (!string.IsNullOrWhiteSpace(Configuration!.customBody))
+        {
+            try
+            {
+                var bodyDict = JsonSerializer.Deserialize<Dictionary<string, object>>(Configuration.customBody);
+                if (bodyDict != null)
+                {
+                    foreach (var kvp in bodyDict)
+                    {
+                        settings.ExtraBody[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "解析自定义请求体失败");
+            }
+        }
     }
 }
