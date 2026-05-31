@@ -93,7 +93,7 @@ public class PetFunctionTests
     [OneTimeSetUp]
     public async Task Setup()
     {
-        server = new PetServer("Mao/Mao.model3.json");
+        server = new PetServer("Mao");
         server.OnInteracted += key => recordedInteractions.Add(key);
         server.OnInput += text => recordedInputs.Add(text);
         await server.WaitReadyAsync();

@@ -12,8 +12,9 @@ using Microsoft.SemanticKernel;
 namespace Alife.Function.DeskPet;
 
 [Plugin("桌宠交互", "将Live2D桌宠接入AI系统，实现表现力同步和互动反馈。",
-defaultCategory: "Alife 官方/交互方式")]
-public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlugin<DeskPetService>, IAsyncDisposable
+    defaultCategory: "Alife 官方/交互方式",
+    EditorUI = typeof(DeskPetServiceUI))]
+public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlugin<DeskPetService>, IAsyncDisposable, IConfigurable<DeskPetServiceConfig>
 {
     [XmlFunction(FunctionMode.Content)]
     [Description("显示一段气泡文本")]
@@ -96,6 +97,8 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlug
         Poke($"移动成功，当前位置: x={x}, y={y}");
     }
 
+    public DeskPetServiceConfig? Configuration { get; set; }
+
     PetServer? client;
     long lastBubbleEndTime;
 
@@ -103,7 +106,10 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlug
     {
         await base.AwakeAsync(context);
 
-        client = new PetServer("Mao/Mao.model3.json");
+        string modelName = Configuration?.ModelName;
+        if (string.IsNullOrWhiteSpace(modelName))
+            modelName = "Mao";
+        client = new PetServer(modelName);
         string supportedExpressionsDescription = string.Join(", ", client.SupportedExpressions);
         string supportedMotionsDescription = string.Join(", ", client.SupportedMotions.Keys);
 

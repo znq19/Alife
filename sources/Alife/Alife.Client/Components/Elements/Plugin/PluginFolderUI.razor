@@ -74,6 +74,7 @@
 
     RenderFragment RenderFolder(StringFolder folder, StringFolder? parent) => __builder => {
         <TreeNode TItem="object"
+                  Expanded="true"
                   key="@folder.GetHashCode().ToString()"
                   DataItem="@((object)folder)"
                   Selectable="false">

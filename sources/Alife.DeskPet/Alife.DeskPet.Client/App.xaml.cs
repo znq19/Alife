@@ -21,7 +21,10 @@ public partial class App
 
             base.OnStartup(startupEvent);
 
-            PetModelMetadata metadata = PetModelMetadata.Load(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/model/Mao/Mao.model3.json"));
+            string[] args = Environment.GetCommandLineArgs();
+            string defaultModel = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/model/Mao/Mao.model3.json");
+            string modelPath = args.Length > 1 ? args[1] : defaultModel;
+            PetModelMetadata metadata = PetModelMetadata.Load(modelPath);
             MainWindow mainWindow = await DeskPet.MainWindow.Create();
             PetProcess petProcess = new(Console.Out, Console.In); //与客户端的通讯
             PetBridge bridge = new(mainWindow.WebView, metadata); //与前端的通讯
