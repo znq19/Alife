@@ -2,6 +2,12 @@ using Alife.Framework;
 
 namespace Alife.Components.Services;
 
+public class ChatSettings
+{
+    public string UserTag { get; set; } = "[管理员]";
+    public int MaxMessageCount { get; set; } = 200;
+}
+
 public class ChatMessage
 {
     public string? Content { get; set; }
@@ -9,6 +15,7 @@ public class ChatMessage
     public bool IsUser { get; set; }
     public bool IsInputting { get; set; }
 }
+
 /// <summary>
 /// UI层的聊天消息状态管理。在角色激活后立即挂接事件，确保后台对话也能被记录。
 /// 采用名称索引以确保在活动重启（Character对象被Clone）时记录依然能够持久。
@@ -17,6 +24,33 @@ public class ChatMessageService
 {
     public event Action<string>? OnMessageChanged;
     public event Action<string>? OnUserMessageSent;
+
+    public string MessageTag
+    {
+        get => settings.UserTag;
+        set
+        {
+            settings.UserTag = value;
+            SaveSettings();
+        }
+    }
+    public int MaxMessageCount
+    {
+        get => settings.MaxMessageCount;
+        set
+        {
+            settings.MaxMessageCount = value;
+            SaveSettings();
+        }
+    }
+
+    public ChatMessageService(ChatActivitySystem system, StorageSystem storage)
+    {
+        this.storage = storage;
+        settings = storage.GetObject(SettingsKey, new ChatSettings())!;
+        system.Activated += OnActivityActivated;
+        system.Destroyed += OnActivityDestroyed;
+    }
 
     public ChatBot? GetChatBot(string name)
     {
@@ -35,6 +69,11 @@ public class ChatMessageService
             list.Clear();
         }
     }
+    public void SendMessage(string name, string message)
+    {
+        if (chatbotMap.TryGetValue(name, out ChatBot? bot))
+            bot.Chat(MessageTag + message);
+    }
 
     public string GetDraft(string name) => draftMap.GetValueOrDefault(name) ?? "";
     public void SetDraft(string name, string draft) => draftMap[name] = draft;
@@ -43,22 +82,27 @@ public class ChatMessageService
     readonly Dictionary<string, List<ChatMessage>> messagesMap = new();
     readonly Dictionary<string, ChatBot> chatbotMap = new();
 
-    public ChatMessageService(ChatActivitySystem system)
+    const string SettingsKey = "ChatSettings";
+    readonly StorageSystem storage;
+    readonly ChatSettings settings;
+
+    void SaveSettings()
     {
-        system.Activated += OnActivityCreated;
-        system.Destroyed += OnActivityDestroyed;
-    }
-    void OnActivityDestroyed(ChatActivity activity)
-    {
-        string name = activity.Character.Name;
-        chatbotMap.Remove(name);
+        storage.SetObject(SettingsKey, settings);
     }
 
+    void TrimMessages(string name)
+    {
+        if (messagesMap.TryGetValue(name, out List<ChatMessage>? list) && list.Count > settings.MaxMessageCount)
+        {
+            list.RemoveRange(0, list.Count - settings.MaxMessageCount);
+        }
+    }
     /// <summary>
     /// 确保指定Activity的ChatBot事件已挂接到UI消息列表。
     /// 幂等操作，重复调用安全。
     /// </summary>
-    void OnActivityCreated(ChatActivity activity)
+    void OnActivityActivated(ChatActivity activity)
     {
         string name = activity.Character.Name;
         List<ChatMessage> messages = GetMessages(name);
@@ -68,6 +112,7 @@ public class ChatMessageService
             {
                 messages.Add(new ChatMessage { Content = message, IsUser = true });
                 messages.Add(new ChatMessage { IsUser = false, IsInputting = true });
+                TrimMessages(name);
             }
 
             OnMessageChanged?.Invoke(name);
@@ -97,5 +142,10 @@ public class ChatMessageService
                 OnMessageChanged?.Invoke(name);
             }
         };
+    }
+    void OnActivityDestroyed(ChatActivity activity)
+    {
+        string name = activity.Character.Name;
+        chatbotMap.Remove(name);
     }
 }

@@ -47,10 +47,9 @@ public class ChatActivitySystem
             character, configurationSystem, pluginSystem, progress,
             appendObjects.ToArray()
             );
-            Activated?.Invoke(chatActivity);
-
             await chatActivity.Launch(progress);
             activities.Add(character.Name, chatActivity);
+            Activated?.Invoke(chatActivity);
         }
         catch (Exception ex)
         {

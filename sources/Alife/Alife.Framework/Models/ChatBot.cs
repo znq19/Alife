@@ -17,12 +17,12 @@ public class ChatBot : IAsyncDisposable
     public const string ThinkContentPrefix = "__THINK__";
     public const string PokeMessageTag = "[来自系统的杂项消息推送]";
 
-    public event Func<string, string>? ChatSend;
-    public event Func<string, string>? PokeSend;
-    public event Action<string>? ChatSent;
-    public event Action<string>? ChatReceived;
-    public event Action<string>? ReasoningReceived;
-    public event Action? ChatOver;
+    public event Func<string, string>? PokeSend;//Poke消息过滤
+    public event Func<string, string>? ChatSend;//消息过滤
+    public event Action<string>? ChatSent;//消息发送前
+    public event Action<string>? ChatReceived;//消息接收到
+    public event Action<string>? ReasoningReceived;//思考消息接收到
+    public event Action? ChatOver;//消息结束
 
     public event Action<ChatMessageContent>? ChatHistoryAdd;
     public event Action<ChatTokenUsage>? TokenUsed;

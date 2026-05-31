@@ -189,10 +189,11 @@ public class PluginSystem
     }
     public void SaveData()
     {
-        storageSystem.SetObject("PluginSystem/PluginFolder", pluginFolder);
+        storageSystem.SetObject(pluginSystemConfig, pluginFolder);
     }
 
     readonly string pluginRoot = Path.Combine(AlifePath.StorageFolderPath, "Plugins");
+    readonly string pluginSystemConfig = "PluginCategory";
     readonly StorageSystem storageSystem;
     readonly Dictionary<string, Type> pluginTypes;
     readonly StringFolder pluginFolder;
@@ -205,7 +206,7 @@ public class PluginSystem
         this.storageSystem = storageSystem;
 
         pluginTypes = new Dictionary<string, Type>();
-        pluginFolder = storageSystem.GetObject("PluginSystem/PluginFolder", new StringFolder("全部插件"))!;
+        pluginFolder = storageSystem.GetObject(pluginSystemConfig, new StringFolder("全部插件"))!;
 
         //预热程序集，因为插件可能依赖Alife自身的程序集，结果Alife本身目前未用到，导致未加载
         PreloadAllAssemblies();

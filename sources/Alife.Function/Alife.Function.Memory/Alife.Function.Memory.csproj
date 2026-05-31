@@ -1,9 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
     <ItemGroup>
-        <PackageReference Include="Microsoft.SemanticKernel" Version="1.76.0" />
-        <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" Version="1.74.0-alpha" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-        <PackageReference Include="DuckDB.NET.Data.Full" Version="1.5.0" />
+        <PackageReference Include="DuckDB.NET.Data.Full" Version="1.5.3" />
+        <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" Version="1.77.0-alpha" />
     </ItemGroup>
 
     <ItemGroup>

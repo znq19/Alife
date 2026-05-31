@@ -42,27 +42,15 @@ public class VitsSpeechModel :
         return await Task.Run(() => {
             using (Py.GIL())
             {
-                dynamic synthesize = pythonModule.GetAttr("synthesize");
-                dynamic result = synthesize(
+                return pythonModule.InvokeMethod(
+                "synthesize",
                 new PyString(text),
                 new PyString(outputPath),
                 new PyInt(Configuration!.SpeakerId),
                 new PyFloat(Configuration!.NoiseScale),
                 new PyFloat(Configuration!.NoiseScaleW),
                 new PyFloat(Configuration!.LengthScale)
-                );
-
-                string status = result["status"];
-                if (status == "ok")
-                {
-                    string resultPath = result["result"];
-                    if (File.Exists(resultPath))
-                        return resultPath;
-                }
-
-                string message = result["message"];
-                AlifeTerminal.LogWarning($"VITS synthesis failed: {message}");
-                return null;
+                ).As<string?>();
             }
         }, cancellationToken);
     }
@@ -74,6 +62,7 @@ public class VitsSpeechModel :
         import sys, os, json, traceback
         import numpy as np
         import torch
+        import wave
         from torch import no_grad, LongTensor
 
         from models import SynthesizerTrn
@@ -134,19 +123,14 @@ public class VitsSpeechModel :
 
         def synthesize(text, output_path, speaker_id=0, noise_scale=0.6, noise_scale_w=0.668, length_scale=1.2):
             """合成语音到指定路径，返回 {"status": "ok", "result": path} 或 {"status": "error", "message": ...}"""
-            try:
-                sr, audio = vits(text, 0, speaker_id, noise_scale, noise_scale_w, length_scale)
-                audio_int16 = (audio * 32767).astype(np.int16)
-                import wave
-                with wave.open(output_path, 'wb') as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2)
-                    wf.setframerate(sr)
-                    wf.writeframes(audio_int16.tobytes())
-                return {'status': 'ok', 'result': output_path}
-            except Exception:
-                return {'status': 'error', 'message': traceback.format_exc()}
-
+            sr, audio = vits(text, 0, speaker_id, noise_scale, noise_scale_w, length_scale)
+            audio_int16 = (audio * 32767).astype(np.int16)
+            with wave.open(output_path, 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sr)
+                wf.writeframes(audio_int16.tobytes())
+            return output_path
         """";
 
     public VitsSpeechModel()

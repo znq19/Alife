@@ -10,15 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AntDesign" Version="1.6.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="9.0.0" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Wpf" Version="9.0.120" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Alife.LanguageModel\Alife.LanguageModel.csproj" />
     <ProjectReference Include="..\Alife.Framework\Alife.Framework.csproj" />
-    <!-- <ProjectReference Include="..\..\Alife.Function\**\*.csproj" /> -->
+    <ProjectReference Include="..\..\Alife.Function\**\*.csproj" />
   </ItemGroup>
 
 </Project>

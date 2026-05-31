@@ -1,6 +1,5 @@
 @implements IDisposable
 @inject IJSRuntime JsRuntime
-@inject ConfigurationSystem ConfigurationSystem
 @inject ChatMessageService ChatMessageService
 
 <Flex Style="height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden;"
@@ -10,9 +9,13 @@
     <Flex Justify="@FlexJustify.SpaceBetween" Align="@FlexAlign.Center"
           Style="padding: 8px 16px; background: rgba(0,0,0,0.02); border-bottom: 1px solid #f0f0f0;">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">我的称呼:</AntDesign.Text>
-            <Input @bind-Value="@adminTag" Placeholder="管理员" Size="@InputSize.Small"
+            <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">消息标签:</AntDesign.Text>
+            <Input @bind-Value="ChatMessageService.MessageTag" Placeholder=""
+                   Size="@InputSize.Small"
                    Style="width: 100px; border-radius: 4px;"/>
+            <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">最大条数:</AntDesign.Text>
+            <AntDesign.InputNumber @bind-Value="ChatMessageService.MaxMessageCount" Min="10" Max="10000"
+                                   Size="@InputSize.Small" Style="width: 80px; border-radius: 4px;"/>
         </div>
         <Button Icon="@IconType.Outline.Clear"
                 Type="@ButtonType.Link"
@@ -163,6 +166,7 @@
         flex-shrink: 0;
         z-index: 10;
     }
+
     .chat-splitter::before {
         content: '';
         position: absolute;
@@ -175,9 +179,11 @@
         border-radius: 2px;
         transition: background 0.2s;
     }
+
     .chat-splitter:hover::before {
         background: #40a9ff;
     }
+
     .chat-splitter:active::before {
         background: #1890ff;
     }
@@ -359,7 +365,7 @@
         el.value = val.substring(0, start) + text + val.substring(end);
         el.selectionStart = el.selectionEnd = start + text.length;
         el.focus();
-        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('input', {bubbles: true}));
     };
 </script>
 @using Alife.Components.Services
@@ -372,10 +378,12 @@
 
     [Parameter] public string CharacterName { get; set; } = "";
 
-    string adminTag = "管理员";
     string inputText = "";
-    bool isWorking = false;
+    bool isWorking;
     List<ChatMessage>? messages;
+    string lastCharacterName = "";
+    bool isDisposed;
+    bool shouldPreventDefault;
 
     protected override void OnInitialized()
     {
@@ -386,6 +394,38 @@
         ChatMessageService.OnUserMessageSent += OnUserMessageSent;
 
         _ = UpdateStatusLoop();
+    }
+    protected override void OnParametersSet()
+    {
+        if (lastCharacterName != CharacterName)
+        {
+            // 保存旧角色的草稿
+            if (!string.IsNullOrEmpty(lastCharacterName))
+                ChatMessageService.SetDraft(lastCharacterName, inputText);
+
+            // 加载新角色的草稿
+            inputText = ChatMessageService.GetDraft(CharacterName);
+            lastCharacterName = CharacterName;
+        }
+
+        messages = ChatMessageService.GetMessages(CharacterName);
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JsRuntime.InvokeVoidAsync("setupChatScroll");
+        }
+        await JsRuntime.InvokeVoidAsync("setupSplitter");
+    }
+    public void Dispose()
+    {
+        isDisposed = true;
+        if (!string.IsNullOrEmpty(CharacterName))
+            ChatMessageService.SetDraft(CharacterName, inputText);
+
+        ChatMessageService.OnMessageChanged -= OnMessageChanged;
+        ChatMessageService.OnUserMessageSent -= OnUserMessageSent;
     }
 
     async Task UpdateStatusLoop()
@@ -402,55 +442,34 @@
                     await InvokeAsync(StateHasChanged);
                 }
             }
-            await Task.Delay(250);
+            await Task.Delay(200);
         }
     }
-
-    protected override void OnParametersSet()
+    
+    async Task HandlePaste()
     {
-        if (lastCharacterName != CharacterName)
+        string? content = NativeClipboard.GetPastedContent();
+        if (content != null)
         {
-            // 保存旧角色的草稿
-            if (!string.IsNullOrEmpty(lastCharacterName))
-                ChatMessageService.SetDraft(lastCharacterName, inputText);
-
-            // 加载新角色的草稿
-            inputText = ChatMessageService.GetDraft(CharacterName);
-            lastCharacterName = CharacterName;
+            await JsRuntime.InvokeVoidAsync("insertTextAtCursor", "chatInput", content);
         }
-
-        messages = ChatMessageService.GetMessages(CharacterName);
     }
-
-    string lastCharacterName = "";
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    void HandleNativeKeyDown(KeyboardEventArgs e)
     {
-        if (firstRender)
+        // 关键：在 keydown 阶段判断是否需要拦截换行
+        shouldPreventDefault = e is { Key: "Enter", ShiftKey: false };
+
+        if (shouldPreventDefault && !e.IsComposing)
         {
-            await JsRuntime.InvokeVoidAsync("setupChatScroll");
+            _ = OnSend();
         }
-        await JsRuntime.InvokeVoidAsync("setupSplitter");
     }
-
-    public void Dispose()
-    {
-        isDisposed = true;
-        if (!string.IsNullOrEmpty(CharacterName))
-            ChatMessageService.SetDraft(CharacterName, inputText);
-
-        ChatMessageService.OnMessageChanged -= OnMessageChanged;
-        ChatMessageService.OnUserMessageSent -= OnUserMessageSent;
-    }
-
-    bool isDisposed = false;
-
+    
     void OnMessageChanged(string name)
     {
         if (name == CharacterName)
             InvokeAsync(StateHasChanged);
     }
-
     void OnUserMessageSent(string name)
     {
         if (name == CharacterName)
@@ -463,50 +482,18 @@
 
         StateHasChanged();
     }
-
-    bool shouldPreventDefault = false;
-
-    async Task HandlePaste()
-    {
-        string? content = NativeClipboard.GetPastedContent();
-        if (content != null)
-        {
-            await JsRuntime.InvokeVoidAsync("insertTextAtCursor", "chatInput", content);
-        }
-    }
-
-    void HandleNativeKeyDown(KeyboardEventArgs e)
-    {
-        // 关键：在 keydown 阶段判断是否需要拦截换行
-        shouldPreventDefault = (e.Key == "Enter" && !e.ShiftKey);
-
-        if (shouldPreventDefault && !e.IsComposing)
-        {
-            _ = OnSend();
-        }
-    }
-
     async Task OnSend()
     {
-        // 彻底绕过不同步的 C# 变量，直接从 DOM 获取最新值并清空
-        string text = await JsRuntime.InvokeAsync<string>("eval", "var el = document.getElementById('chatInput'); var val = el.value; if(el) el.value = ''; val;");
-
-        // 同步清空 C# 变量，防止下次 logic 干扰
+        string rawInputText = await JsRuntime.InvokeAsync<string>(
+        "eval", "var el = document.getElementById('chatInput'); var val = el.value; if(el) el.value = ''; val;"
+        );// 彻底绕过不同步的 C# 变量，直接从 DOM 获取最新值并清空
         inputText = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(text))
-        {
+        if (string.IsNullOrWhiteSpace(rawInputText))
             return;
-        }
 
-        string formattedText = $"[{adminTag}]: {text.Trim()}";
-
-        ChatBot? chatBot = ChatMessageService.GetChatBot(CharacterName);
-        if (chatBot != null)
-        {
-            chatBot.Chat(formattedText);
-            ChatMessageService.SetDraft(CharacterName, "");// 发送成功后清空草稿
-        }
+        ChatMessageService.SendMessage(CharacterName, rawInputText.Trim());
+        ChatMessageService.SetDraft(CharacterName, "");// 发送成功后清空草稿
 
         await JsRuntime.InvokeVoidAsync("forceScrollBottom");
     }

@@ -122,51 +122,7 @@ public static class WindowsPlatform
         }
         return "Unknown";
     }
-
-    public static string Screenshot()
-    {
-        int left = WindowsNative.GetSystemMetrics(WindowsNative.SmXvirtualscreen);
-        int top = WindowsNative.GetSystemMetrics(WindowsNative.SmYvirtualscreen);
-        int width = WindowsNative.GetSystemMetrics(WindowsNative.SmCxvirtualscreen);
-        int height = WindowsNative.GetSystemMetrics(WindowsNative.SmCyvirtualscreen);
-
-        if (width <= 0 || height <= 0)
-        {
-            left = 0;
-            top = 0;
-            width = WindowsNative.GetSystemMetrics(WindowsNative.SmCxscreen);
-            height = WindowsNative.GetSystemMetrics(WindowsNative.SmCyscreen);
-        }
-
-        using System.Drawing.Bitmap bitmap = new(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-        using System.Drawing.Graphics graphics = System.Drawing.Graphics.FromImage(bitmap);
-        graphics.CopyFromScreen(left, top, 0, 0, new System.Drawing.Size(width, height), System.Drawing.CopyPixelOperation.SourceCopy);
-
-        const int MaxSide = 800;
-        string path = $"{AlifePath.TempFolderPath}/vision_screen.png";
-
-        if (width > MaxSide || height > MaxSide)
-        {
-            float scale = Math.Min((float)MaxSide / width, (float)MaxSide / height);
-            int newWidth = (int)(width * scale);
-            int newHeight = (int)(height * scale);
-
-            using System.Drawing.Bitmap resized = new(newWidth, newHeight);
-            using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(resized))
-            {
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                g.DrawImage(bitmap, 0, 0, newWidth, newHeight);
-            }
-            resized.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-        }
-        else
-        {
-        bitmap.Save(path, System.Drawing.Imaging.ImageFormat.Png);
-        }
-
-        return path;
-    }
-
+    
     public static string GetRunningWindowTitles()
     {
         List<string> titles = new();

@@ -59,14 +59,6 @@ public static class AlifePlatform
         throw new PlatformNotSupportedException("当前平台暂不支持执行命令行。");
     }
 
-    public static string Screenshot()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return WindowsPlatform.Screenshot();
-
-        throw new PlatformNotSupportedException("当前平台暂不支持截屏。");
-    }
-
     public static string GetRunningWindowTitles()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
