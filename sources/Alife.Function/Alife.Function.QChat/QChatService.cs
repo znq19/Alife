@@ -52,9 +52,9 @@ public class GroupState
                 - https://luckylillia.com（推荐）
                 - https://napneko.github.io
                 """,
-defaultCategory: "Alife 官方/交互方式",
-editorUI: typeof(QChatServiceUI), LaunchOrder = 10)]
-public class QChatService(XmlFunctionCaller functionService, ILogger<QChatService> logger, ISpeechModel speechModel) :
+    defaultCategory: "Alife 官方/交互方式",
+    editorUI: typeof(QChatServiceUI), LaunchOrder = 10)]
+public class QChatService(XmlFunctionCaller functionService, ILogger<QChatService> logger, ISpeechModel? speechModel = null) :
     InteractivePlugin<QChatService>,
     IAsyncDisposable,
     ITimeIterative,
@@ -62,7 +62,7 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
 {
     [XmlFunction(FunctionMode.Content)]
     [Description("将文本以QQ消息输出（注意！群聊环境对话需用“[CQ:at,qq=发送者ID]”来显式回复）")]
-    public async Task QChat(XmlExecutorContext ctx, OneBotMessageType type, long targetId, bool voice = false)
+    public async Task QChat(XmlExecutorContext ctx, OneBotMessageType type, long targetId, [Description("将文本转为语音发送")] bool voice = false)
     {
         if (ctx.CallMode == CallMode.Closing)
         {
@@ -219,9 +219,9 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
             if (configuration != null)
             {
                 groupAwakingWords = Configuration!.WakingWords.Split(',',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 ignoredGroup = Configuration!.IgnoredGroup.Split(',',
-                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             }
         }
     }
@@ -422,7 +422,7 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
         else if (state.IsEnabled == false)
             QGroup(groupId, true);
     }
-    
+
     async Task HandleFormattedMessage(OneBotBasicMessageEvent messageEvent, string formatted, bool isAwakening)
     {
         if (messageEvent.MessageType == OneBotMessageType.Private)//私聊消息
@@ -451,7 +451,7 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
             }
         }
     }
-    
+
     void BufferGroupMessage(GroupState state, string formatted)
     {
         state.MessageBuffer.Add(formatted);
@@ -478,7 +478,7 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
         state.MessageBuffer.Clear();
         Poke(cachedMessage);
     }
-    
+
     public void QGroup(long groupId, bool enabled)
     {
         GroupState state = GetGroupInfo(groupId);

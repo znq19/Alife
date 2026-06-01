@@ -147,6 +147,7 @@
         _ = Task.Run(async () => {
             try
             {
+                SaveSettings();
                 await ChatActivitySystem.Activate(Character);
             }
             catch (Exception ex)

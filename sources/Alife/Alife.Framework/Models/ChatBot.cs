@@ -30,9 +30,9 @@ public class ChatBot : IAsyncDisposable
     public bool IsChatting => chatSemaphore.CurrentCount == 0;
     public CancellationTokenSource ChatBreakTokenSource => chatBreakSource;
 
-    public Task RequestChatAsync(CancellationToken cancellationToken = default)
+    public async Task RequestChatAsync(CancellationToken cancellationToken = default)
     {
-        return chatSemaphore.WaitAsync(cancellationToken);
+        await chatSemaphore.WaitAsync(cancellationToken);
     }
 
     public void ReleaseChat()
@@ -47,7 +47,7 @@ public class ChatBot : IAsyncDisposable
             await chatBreakSource.CancelAsync();
         }
 
-        await chatSemaphore.WaitAsync();
+        await RequestChatAsync();
         try
         {
             chatBreakSource = new CancellationTokenSource();
@@ -63,7 +63,6 @@ public class ChatBot : IAsyncDisposable
 
             message = message.Trim();
             llmAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
-
 
             ChaseChatHistory();
 
@@ -125,7 +124,6 @@ public class ChatBot : IAsyncDisposable
                         }
                     }
 
-
                     if (metaData.TryGetValue("Usage", out object? usage))
                     {
                         if (usage is ChatTokenUsage chatTokenUsage)
@@ -157,7 +155,7 @@ public class ChatBot : IAsyncDisposable
         }
         finally
         {
-            chatSemaphore.Release();
+            ReleaseChat();
         }
     }
 
@@ -191,9 +189,9 @@ public class ChatBot : IAsyncDisposable
 
     public async Task ImplicitChatAsync(string message)
     {
-        await chatSemaphore.WaitAsync();
+        await RequestChatAsync();
         ChatHistory.AddUserMessage(message);
-        chatSemaphore.Release();
+        ReleaseChat();
     }
 
     public void UpdateHistoryEndIndex()
@@ -234,6 +232,14 @@ public class ChatBot : IAsyncDisposable
         while (IsChatting || !messageCache.IsEmpty)
         {
             await TryFlushMessageCache();
+
+            // 在WPF中awaiter的实现是推送给UI线程（主线程）执行任务，而不是线程池。
+            // 这导致很多继体需要在同一个线程中处理。如果其中一个卡死，那后面就无法执行，因此存在死锁的风险。
+            // 比如XmlFunctionCall在每次发消息都会申请锁，因此IsChatting始终为true，结果为ture时该代码成了死循环，卡死了主线程
+            // 结果XmlFunctionCall用于释放的续体正好也被推送到主线程的队尾，然而他永远等不到释放的机会。
+            // 互相等待对方，但永远等不到，于是构成了死锁。
+            // 利用 Task.Yield，则可以释放线程，将自己重新插入到队尾，于是 Xml 就可以释放他的信号量了。
+            await Task.Yield();
         }
     }
 
