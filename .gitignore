@@ -16,7 +16,6 @@
 !/Build.ps1
 !/Publish.ps1
 !/Launch.ps1
-!/点我启动.cmd
 
 obj/
 bin/

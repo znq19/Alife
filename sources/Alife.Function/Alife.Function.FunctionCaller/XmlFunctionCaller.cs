@@ -9,8 +9,8 @@ using Microsoft.SemanticKernel;
 namespace Alife.Function.FunctionCaller;
 
 [Plugin("Xml函数执行器", "提供一种Xml函数调用框架，可以将注册其中的函数，暴露给AI，并指导其用Xml标签调用。",
-defaultCategory: "Alife 官方/功能底座",
-launchOrder: -1000)]
+    defaultCategory: "Alife 官方/功能底座",
+    launchOrder: -1000)]
 public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractivePlugin<XmlFunctionCaller>
 {
     public bool IsIdle => executor.IsInactive;
@@ -43,17 +43,17 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveP
         //创建xml解析执行器等
         parser = new XmlStreamParser(plainAreas.ToArray());
         executor = new XmlStreamExecutor(
-        parser,
-        handlerTable,
-        ["，", "。", "！", "？", "......", "~", "…"],
-        minBreakingLength: 9
+            parser,
+            handlerTable,
+            ["，", "。", "！", "？", "......", "~", "…"],
+            minBreakingLength: 9
         );
         parser.Error += OnError;
         executor.Error += OnError;
 
         chatActivity.ChatBot.ChatReceived += OnChatReceived;
         chatActivity.ChatBot.ChatSent += OnChatSent;
-
+        
         Prompt($"""
                 默认情况下你仅支持输出普通文本，但由于各种插件服务的存在，使得你还拥有通过输出特定的xml标签执行功能调用的能力。
 

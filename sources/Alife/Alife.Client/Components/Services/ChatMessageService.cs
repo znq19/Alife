@@ -50,6 +50,7 @@ public class ChatMessageService
         settings = storage.GetObject(SettingsKey, new ChatSettings())!;
         system.ActivatingCreated += OnActivityCreated;
         system.Destroyed += OnActivityDestroyed;
+        system.ActivationFailed += OnActivationFailed;
     }
 
     public ChatBot? GetChatBot(string name)
@@ -142,6 +143,10 @@ public class ChatMessageService
                 OnMessageChanged?.Invoke(name);
             }
         };
+    }
+    void OnActivationFailed(Character arg1, Exception arg2)
+    {
+        chatbotMap.Remove(arg1.Name);
     }
     void OnActivityDestroyed(ChatActivity activity)
     {

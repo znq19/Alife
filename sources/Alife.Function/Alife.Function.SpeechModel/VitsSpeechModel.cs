@@ -11,8 +11,8 @@ using Microsoft.Extensions.Logging;
 namespace Alife.Function.Speech;
 
 [Plugin("VITS语音合成", "基于VITS的本地离线语音合成引擎",
-defaultCategory: "Alife 官方/模型接入/语音模型",
-EditorUI = typeof(VitsSpeechModelUI))]
+    defaultCategory: "Alife 官方/模型接入/语音模型",
+    EditorUI = typeof(VitsSpeechModelUI))]
 public class VitsSpeechModel(
     ILogger<VitsSpeechModel> logger
 ) :
@@ -45,8 +45,8 @@ public class VitsSpeechModel(
         try
         {
             return await pythonPipe!.InvokeAsync<string>("synthesize", text, outputPath,
-            Configuration.SpeakerId, Configuration.NoiseScale,
-            Configuration.NoiseScaleW, Configuration.LengthScale);
+                Configuration.SpeakerId, Configuration.NoiseScale,
+                Configuration.NoiseScaleW, Configuration.LengthScale);
         }
         catch (Exception ex)
         {
@@ -130,8 +130,11 @@ public class VitsSpeechModel(
 
     public async Task AwakeAsync(AwakeContext context)
     {
-        AlifePlatform.Command("python", $"-m pip install -r {Path.Combine(RuntimeFolder, "requirements.txt").Replace(Path.DirectorySeparatorChar, '/')}");
+        string requirements = Path.Combine(RuntimeFolder, "requirements.txt");
+        if (File.Exists(requirements) == false)
+            throw new Exception("缺少VITS模型文件，请前往插件页按要求操作！");
 
+        AlifePlatform.Command("python", $"-m pip install -r {Path.Combine(RuntimeFolder, "requirements.txt").Replace(Path.DirectorySeparatorChar, '/')}");
         pythonPipe = new("vits_speech", pythonCode);
         pythonPipe.OnStderr += line => logger.LogWarning(line);
         await pythonPipe.StartAsync();
