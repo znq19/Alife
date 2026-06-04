@@ -7,8 +7,8 @@ using Alife.Platform;
 namespace Alife.Function.Speech;
 
 [Plugin("SenseVoice语音识别", "基于SenseVoice的本地语音识别引擎",
-defaultCategory: "Alife 官方/模型接入/听觉模型",
-EditorUI = typeof(SenseVoiceAuditoryModelUI))]
+    defaultCategory: "Alife 官方/模型接入/听觉模型",
+    EditorUI = typeof(SenseVoiceAuditoryModelUI))]
 public class SenseVoiceAuditoryModel :
     IAuditoryModel,
     IDisposable,
@@ -30,15 +30,16 @@ public class SenseVoiceAuditoryModel :
     public event Action<string>? Recognized;
     public void AcceptWaveform(float[] samples)
     {
-        lock (vad)
+        var detector = vad;
+        lock (detector)
         {
-            vad.AcceptWaveform(samples);
-            while (vad.IsEmpty() == false)
+            detector.AcceptWaveform(samples);
+            while (detector.IsEmpty() == false)
             {
-                SpeechSegment segment = vad.Front();
+                SpeechSegment segment = detector.Front();
                 if (segment.Samples is { Length: > 0 })
                     ProcessSegment(segment.Samples);
-                vad.Pop();
+                detector.Pop();
             }
         }
     }
@@ -54,30 +55,33 @@ public class SenseVoiceAuditoryModel :
         stream.AcceptWaveform(16000, samples);
         recognizer.Decode(stream);
 
-        if (string.IsNullOrWhiteSpace(stream.Result.Text) == false)
-            Recognized?.Invoke(stream.Result.Text);
+        string text = stream.Result.Text;
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+        if (text == "。")
+            return;
+        Recognized?.Invoke(text);
     }
 
     public SenseVoiceAuditoryModel()
     {
-        // 下载语音识别模型
         string senseVoicePath = AlifeModel.EnsureModelExisting(SenseVoiceId);
+        string vadModelPath = AlifeModel.EnsureModelExisting(VadId, "silero_vad.onnx");
+
         OfflineRecognizerConfig config = new();
         config.ModelConfig.SenseVoice.Model = Path.Combine(senseVoicePath, "model.int8.onnx");
-        config.ModelConfig.SenseVoice.Language = "zh";
-        config.ModelConfig.SenseVoice.UseInverseTextNormalization = 1;
+        config.ModelConfig.SenseVoice.Language = Configuration?.Language ?? "zh";
+        config.ModelConfig.SenseVoice.UseInverseTextNormalization = (Configuration?.UseInverseTextNormalization ?? true) ? 1 : 0;
         config.ModelConfig.Tokens = Path.Combine(senseVoicePath, "tokens.txt");
-        config.ModelConfig.NumThreads = 1;
+        config.ModelConfig.NumThreads = Configuration?.NumThreads ?? 1;
         config.ModelConfig.Debug = 0;
         recognizer = new OfflineRecognizer(config);
 
-        // 下载语音检测模型
-        string vadModelPath = AlifeModel.EnsureModelExisting(VadId, "silero_vad.onnx");
         VadModelConfig vadConfig = new();
         vadConfig.SileroVad.Model = vadModelPath;
-        vadConfig.SileroVad.Threshold = 0.4f;
-        vadConfig.SileroVad.MinSilenceDuration = 0.3f;
-        vadConfig.SileroVad.MinSpeechDuration = 0.25f;
+        vadConfig.SileroVad.Threshold = Configuration?.VadThreshold ?? 0.5f;
+        vadConfig.SileroVad.MinSilenceDuration = Configuration?.VadMinSilenceDuration ?? 0.5f;
+        vadConfig.SileroVad.MinSpeechDuration = Configuration?.VadMinSpeechDuration ?? 0.25f;
         vadConfig.SampleRate = 16000;
         vad = new VoiceActivityDetector(vadConfig, bufferSizeInSeconds: 30);
     }

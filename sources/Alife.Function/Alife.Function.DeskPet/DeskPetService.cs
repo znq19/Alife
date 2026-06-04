@@ -97,7 +97,15 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlug
         Poke($"移动成功，当前位置: x={x}, y={y}");
     }
 
-    protected override string ChatPrefixPrompt => "[请使用DeskPet的功能回复]";
+
+    protected override string ChatTextFilter(string text)
+    {
+        return $"""
+                {text}
+                (请使用DeskPet功能响应)
+                """;
+    }
+
 
     public DeskPetServiceConfig? Configuration { get; set; }
 
@@ -133,7 +141,7 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlug
 
         await client!.WaitReadyAsync();
         client.OnInput += Chat;
-        client.OnInteracted += text => Poke("交互：" + text);
+        client.OnInteracted += text => Chat("交互：" + text);
 
         // 启动状态轮询
         _ = UpdateStatusLoop(chatActivity.ChatBot);

@@ -22,7 +22,7 @@ public record QChatConfig
     public int AutoReconnectSeconds { get; set; } = 60;//自动尝试重连的间隔（秒）
     public long BotId { get; set; }
     public long OwnerId { get; set; }
-    public string AppendChatPrompt { get; set; } = "（注意！QQ消息必须极简回复（0-20字）来保证自然感，同时群聊消息要选择性忽略，避免刷屏。此外注意分清语境，群聊环境人声嘈杂，不要回复与自己无关的内容，回复时请加上CQat标签）";
+    public string AppendChatPrompt { get; set; } = "（QQ消息必须极简回复（0-20字）来保证自然感，同时群聊消息要选择性忽略，避免刷屏。此外注意分清语境，群聊环境人声嘈杂，不要回复与自己无关的内容，回复时请加上CQat标签）";
     //群监听唤醒
     public string IgnoredGroup { get; set; } = "";//完全屏蔽消息的群，不会收到这些群的任何信息
     public string WakingWords { get; set; } = "";//原始群消息中触发开启群消息监听的唤醒词，以逗号分隔
@@ -210,6 +210,22 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
         Poke(formatted);
     }
 
+    public async Task ReconnectAsync()
+    {
+        oneBotClient!.Url = Configuration!.Url;
+        oneBotClient.Token = Configuration.Token;
+        await oneBotClient.ConnectAsync();
+    }
+    protected override string ChatTextFilter(string text)
+    {
+        return $"""
+                [QQ消息]
+                {text}
+                ({Configuration?.AppendChatPrompt})
+                (请用QChatService功能响应)
+                """;
+    }
+
     public QChatConfig? Configuration
     {
         get => configuration;
@@ -228,16 +244,8 @@ public class QChatService(XmlFunctionCaller functionService, ILogger<QChatServic
     public bool IsConnected => oneBotClient is { IsConnected: true };
     public IReadOnlyDictionary<long, GroupState> GroupStates => groupStates;
 
-    public async Task ReconnectAsync()
-    {
-        oneBotClient!.Url = Configuration!.Url;
-        oneBotClient.Token = Configuration.Token;
-        await oneBotClient.ConnectAsync();
-    }
-
     QChatConfig? configuration;
     OneBotClient? oneBotClient;
-    protected override string ChatPrefixPrompt => $"[请用QChat相关功能回复]{Configuration?.AppendChatPrompt}";
     string[] groupAwakingWords = [];
     string[] ignoredGroup = [];
     readonly Dictionary<long, GroupState> groupStates = new();

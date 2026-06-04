@@ -66,7 +66,10 @@ public abstract class InteractivePlugin : ISystemEvent
 
 public class InteractivePlugin<T> : InteractivePlugin
 {
-    protected virtual string ChatPrefixPrompt => $"[来自{typeof(T).Name}的消息]";
+    protected virtual string ChatTextFilter(string text)
+    {
+        return $"[来自{typeof(T).Name}的消息]{text}";
+    }
 
     protected void Prompt(string prompt)
     {
@@ -80,21 +83,21 @@ public class InteractivePlugin<T> : InteractivePlugin
 
     protected void Poke(string message)
     {
-        ChatBot.Poke($"{ChatPrefixPrompt}{message}");
+        ChatBot.Poke(ChatTextFilter(message));
     }
 
     protected void Chat(string message)
     {
-        ChatBot.Chat($"{ChatPrefixPrompt}{message}");
+        ChatBot.Chat(ChatTextFilter(message));
     }
 
     protected Task ChatAsync(string message)
     {
-        return ChatBot.ChatAsync($"{ChatPrefixPrompt}{message}");
+        return ChatBot.ChatAsync(ChatTextFilter(message));
     }
 
     protected Task ImplicitChatAsync(string message)
     {
-        return ChatBot.ImplicitChatAsync($"{ChatPrefixPrompt}{message}");
+        return ChatBot.ImplicitChatAsync(ChatTextFilter(message));
     }
 }

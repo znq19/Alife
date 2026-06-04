@@ -8,7 +8,7 @@ namespace Alife.Function.MessageFilter;
 public class MessageFilterData
 {
     public bool EnableTimestamp { get; set; } = true;
-    public string MessageAppend { get; set; } = "（请简洁回复，禁用旁白、emoji）";
+    public string MessageAppend { get; set; } = "(请简洁回复，禁用旁白、emoji)";
     public string PokeAppend { get; set; } = "";
     public int MaxMessageLength { get; set; } = 5000;
 }

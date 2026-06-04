@@ -23,11 +23,17 @@ public class SystemEventServiceConfig
 }
 
 [Plugin("主动事件", "让AI可以获取到各种系统事件的提醒。",
-defaultCategory: "Alife 官方/生活环境",
-LaunchOrder = 100, EditorUI = typeof(SystemEventServiceUI))]
+    defaultCategory: "Alife 官方/生活环境",
+    LaunchOrder = 100, EditorUI = typeof(SystemEventServiceUI))]
 public class SystemEventService(XmlFunctionCaller functionService)
     : InteractivePlugin<SystemEventService>, IConfigurable<SystemEventServiceConfig>, ITimeIterative
 {
+    public SystemEventServiceConfig? Configuration { get; set; }
+    public (DateTime Time, string Name)[] ActiveTasks => [
+        (timeTask[0].Item1, "自动报点"),
+        (timeTask[1].Item1, "")
+    ];//暴露给UI的数据
+
     [XmlFunction(FunctionMode.OneShot)]
     [Description("让自己在等待或休息一段时间后继续行动。")]
     public void EWait([Description("单位秒")] int delay)
@@ -41,11 +47,10 @@ public class SystemEventService(XmlFunctionCaller functionService)
     [Description("设置一个定时报点，以便让自己有一段可以自由活动的时间（设置时自动取消上一个）")]
     public void EWake([Description("格式为ISO-8601")] DateTime time, [Description("备注信息")] string remark = "")
     {
-        reminderName = remark;
+        ActiveTasks[1].Name = remark;
         timeTask[1] = (time, () => {
-            ChatBot.Poke($"[{nameof(SystemEventService)}] 来自Reminder的自定义报点：{remark}");
+            Poke($"EWake报点：{remark}");
             timeTask[1] = (DateTime.MaxValue, () => {});//关闭定时提醒
-            reminderName = "定时提醒";
         });
 
         continuousTimerCount = 0;
@@ -54,15 +59,14 @@ public class SystemEventService(XmlFunctionCaller functionService)
         Poke($"已在 {time} 设置触发器");
     }
 
-    public SystemEventServiceConfig? Configuration { get; set; }
+    protected override string ChatTextFilter(string text)
+    {
+        return $"[系统报点]{text}";
+    }
 
-    public (DateTime Time, string Name)[] ActiveTasks => [
-        (timeTask[0].Item1, "自动报点"),
-        (timeTask[1].Item1, reminderName)
-    ];
+
 
     readonly (DateTime, Action)[] timeTask = new (DateTime, Action)[2];//1为自动定时器，2为定时提醒
-    string reminderName = "定时提醒";
     int continuousTimerCount;
 
     public override async Task AwakeAsync(AwakeContext context)
@@ -95,17 +99,17 @@ public class SystemEventService(XmlFunctionCaller functionService)
 
         if (ChatHistory.All(content => content.Role != AuthorRole.Assistant))
         {
-            await ChatAsync("系统提示：这是你第一次启动，初次见面，用上你丰富的能力，华丽的向用户打个招呼吧。");
+            await ChatAsync("程序已启动（这是你第一次启动，初次见面，用上你丰富的能力，华丽的向用户打个招呼吧）");
         }
         else
         {
-            await ChatAsync($"系统报点：程序已重启。{Configuration!.StartPrompt}");
+            await ChatAsync($"程序已重启。{Configuration!.StartPrompt}");
         }
     }
 
     public override async Task DestroyAsync()
     {
-        await ChatAsync($"系统报点：程序即将关闭。{Configuration!.DestroyPrompt}");
+        await ChatAsync($"程序即将关闭。{Configuration!.DestroyPrompt}");
 
         await base.DestroyAsync();
     }
@@ -133,12 +137,14 @@ public class SystemEventService(XmlFunctionCaller functionService)
         int offset = Random.Shared.Next(-Configuration!.UpdateRandomOffset, Configuration.UpdateRandomOffset);
         int timeOffset = (Configuration.UpdateInterval + offset) *
                          (int)MathF.Pow(3, MathF.Min(continuousTimerCount, 4));
+        int nextTime = Configuration.UpdateInterval * (int)MathF.Pow(3, MathF.Min(continuousTimerCount + 1, 4));
         timeTask[0].Item1 = DateTime.Now.AddSeconds(timeOffset);
         timeTask[0].Item2 = () => {
             if (functionService.IsIdle)
             {
                 Poke($"""
-                      系统报点：定时自动报点。{Configuration!.UpdatePrompt}
+                      定时自动报点。{Configuration!.UpdatePrompt}
+                      (下次自动报点约 {nextTime / 60} 分钟后，如果你想尽快重新活跃，可以使用<{nameof(EWait)}>或<{nameof(EWake)}>重置)
                       """);
             }
 

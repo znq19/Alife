@@ -11,8 +11,8 @@ using NAudio.Wave;
 namespace Alife.Function.Speech;
 
 [Plugin("语音说话", "为AI增加语音转文字输出的能力。",
-defaultCategory: "Alife 官方/交互方式",
-EditorUI = typeof(SpeechServiceUI))]
+    defaultCategory: "Alife 官方/交互方式",
+    EditorUI = typeof(SpeechServiceUI))]
 [Description("此服务让你获得能将文字以语音形式输出的能力。")]
 public class SpeechService(
     XmlFunctionCaller functionService,
@@ -23,7 +23,7 @@ public class SpeechService(
     public bool IsSpeaking => playAudioTask is { IsCompleted: false };
 
     [XmlFunction(FunctionMode.Content, order: -10)]
-    [Description("将文本以语音方式输出。")]
+    [Description("将文本以语音方式输出（这应该是你默认对外的交互方式）")]
     public async Task Speak(XmlExecutorContext context, CancellationToken cancellationToken)
     {
         try
@@ -121,5 +121,4 @@ public class SpeechService(
                 tcs.TrySetResult();
         }
     }
-
 }

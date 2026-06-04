@@ -13,8 +13,8 @@ using Microsoft.SemanticKernel;
 namespace Alife.Function.Speech;
 
 [Plugin("语音识别", "为AI增加语音识别能力。",
-defaultCategory: "Alife 官方/交互方式",
-EditorUI = typeof(AuditoryServiceUI))]
+    defaultCategory: "Alife 官方/交互方式",
+    EditorUI = typeof(AuditoryServiceUI))]
 [Description("此服务让你获得将语音转换为文字的能力。")]
 public class AuditoryService(IAuditoryModel auditoryModel) :
     InteractivePlugin<AuditoryService>,
@@ -74,6 +74,15 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
         graph?.Dispose();
         graph = null;
         IsRunning = false;
+    }
+
+    protected override string ChatTextFilter(string text)
+    {
+        return $"""
+                [语音识别消息]
+                {text}
+                (请使用<speak>回复)
+                """;
     }
 
     [DllImport("user32.dll")]
@@ -180,6 +189,6 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
     }
     void OnRecognized(string text)
     {
-        ChatBot.Chat(Configuration!.ResultPrefixPrompt + text);
+        Chat(text);
     }
 }

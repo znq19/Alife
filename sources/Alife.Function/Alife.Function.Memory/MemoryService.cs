@@ -34,8 +34,8 @@ public partial class MemoryService
 }
 
 [Plugin("持久记忆", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。",
-defaultCategory: "Alife 官方/生活环境",
-LaunchOrder = -100, EditorUI = typeof(MemoryServiceUI))]
+    defaultCategory: "Alife 官方/生活环境",
+    LaunchOrder = -100, EditorUI = typeof(MemoryServiceUI))]
 public partial class MemoryService(XmlFunctionCaller functionService)
     : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>
 {
@@ -50,40 +50,63 @@ public partial class MemoryService(XmlFunctionCaller functionService)
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description($"在归档的记忆存档中搜索内容（搜索到的结果是存档索引，你需要用 {nameof(Recall)} 打开）。")]
+    [Description($"在归档的记忆存档中搜索内容（搜索到的结果是存档索引，你需要用 {nameof(Recall)} 打开）")]
     public async Task Search(
-        [Description("用于精确匹配的单关键词")] string keyword,
-        [Description("用于语义匹配的自然描述")] string description,
-        [Description("要搜索的存档层级，建议从高到低搜索，比如先搜3再搜2，逐步缩小搜索范围")] int level,
-        [Description("格式为ISO-8601")] DateTime startTime,
-        [Description("格式为ISO-8601")] DateTime endTime,
-        [Description("可选，搜索条数")] int count = 5)
+        [Description("用于精确匹配的单关键词（不支持空格）")] string keyword,
+        [Description("页码，从1开始")] int page = 1,
+        [Description("每页条数")] int count = 5,
+        [Description("存档层级，默认3级（3级信息密度适中，1级最原始但可能冗余，高层信息损失大但结果少）")] int level = 3,
+        [Description("用于向量搜索排序的提示词（错误率很高）；不提供默认按时间排序")] string? prompt = null,
+        [Description("搜索起始时间（ISO-8601），不填则不限")] DateTime? startTime = null,
+        [Description("搜索结束时间（ISO-8601），不填则不限")] DateTime? endTime = null)
     {
         keyword = keyword.Trim();
         if (keyword.Contains(' '))
             throw new Exception("不支持使用空格拆分多关键词搜索！");
-        endTime += TimeSpan.FromDays(1);//包含当前天
 
-        List<SearchResult> results = await memoryManager.SearchMemory(level, keyword, description, count, startTime, endTime);
+        int offset = (page - 1) * count;
+        (List<SearchResult> results, int total) = await memoryManager.SearchMemory(level, keyword, prompt, count, offset, startTime, endTime);
 
         StringBuilder stringBuilder = new();
-        stringBuilder.AppendLine($"{keyword}”的搜索结果如下：");
+        if (total == 0)
+        {
+            stringBuilder.AppendLine($"“{keyword}”在{level}级存档中未匹配到内容。");
+            Poke(stringBuilder.ToString());
+            return;
+        }
+
+        int totalPages = (total + count - 1) / count;
+        stringBuilder.AppendLine($"“{keyword}”的搜索结果（第{page}页，共{totalPages}页）：");
         for (int index = 0; index < results.Count; index++)
         {
             SearchResult searchResult = results[index];
+            string highlighted = HighlightKeyword(searchResult.Summary, keyword);
             stringBuilder.AppendLine(
-            $"""
-             > {index + 1} (匹配度：{searchResult.Score})
-             [记忆存档({searchResult.Name})]
-             {searchResult.Summary}
-             """);
+                $"""
+                 > {index + 1}
+                 [记忆存档({searchResult.Name})]
+                 {highlighted}
+                 """);
+        }
+
+        if (page < totalPages)
+        {
+            int remaining = total - page * count;
+            stringBuilder.AppendLine($"\n(还有 {remaining} 条结果，可用 <Search page=\"{page + 1}\"> 继续翻页查看)");
         }
 
         Poke(stringBuilder.ToString());
     }
 
+    static string HighlightKeyword(string text, string keyword)
+    {
+        string[] lines = text.Split('\n');
+        var matched = lines.Where(line => line.Contains(keyword, StringComparison.OrdinalIgnoreCase)).ToList();
+        return matched.Count > 0 ? string.Join("\n", matched) : $"…（未显示含“{keyword}”的匹配行）…\n{string.Join("\n", lines.Take(3))}";
+    }
+
     [XmlFunction(FunctionMode.Content)]
-    [Description("创建一个永久记忆存档。（注意！这种记忆不会被压缩，但上下文是有限的，所以只能用于记录那些珍贵的核心经验和高优先记忆）")]
+    [Description("创建一个永久记忆存档。（仅能用于存储用户画像，要求教训等关键记忆，不要用来存储那些无聊的个人娱乐活动等日常琐事）")]
     public async Task Memorize(XmlExecutorContext ctx,
         [Description("格式为ISO-8601")] DateTime? startTime = null,
         [Description("格式为ISO-8601")] DateTime? endTime = null
@@ -100,7 +123,7 @@ public partial class MemoryService(XmlFunctionCaller functionService)
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("移除一个永久记忆存档。（注意删除前先做好备份））")]
+    [Description("移除一个永久记忆存档。）")]
     public void Forget([Description("存档索引")] string index)
     {
         index = index.Trim();
@@ -133,10 +156,10 @@ public partial class MemoryService(XmlFunctionCaller functionService)
     /// <summary>
     /// 感知上下文的人设化压缩器
     /// </summary>
-    class AlifeTextCompressor(IChatCompletionService chatCompletionService, ChatHistory history, float probability)
-        : TextCompressor
+    class AlifeHistoryCompressor(IChatCompletionService chatCompletionService, float probability)
+        : HistoryCompressor
     {
-        public override async Task<string?> Compress(string text)
+        public override async Task<string?> Compress(ChatHistory history, string range)
         {
             if (Random.Shared.NextSingle() > probability)
                 return null;
@@ -144,28 +167,50 @@ public partial class MemoryService(XmlFunctionCaller functionService)
             Console.WriteLine("记忆压缩中......");
 
             history.AddMessage(AuthorRole.User,
-            $"""
-             【来自系统通知】
-             由于上下文过多，现在对部分内容进行压缩处理。下面会给予你一段过往时间的聊天记录或记忆存档。这些内容是即将移出上下文的内容，所以需要你用第一人称简述一下发生的事情，方便日后回忆。
+                $"""
+                 【来自记忆系统的信息】
+                 放下手中的事，现在进入长期记忆归纳专家模式：
+                 系统将会为你划出一段上下文范围，你要从中提取出有价值的，值得长期存储的，未来会大概率再用到的信息以形成新的记忆上下文。
 
-             【压缩要求说明】
-             注意！描述事情时，你要遵守如下规则：
-             1. 无需记录存档信息，仅直接总结压缩时提供的内容中的事件即可。系统会自动生成存档信息，
-             2. 所以不要擅自添加系统信息，直接像讲故事一样描述概述内容中发生的事件即可。
-             3. 不要将被压缩内容之外其他聊天记录混淆其中，不要记录重复的内容。
-             4. 在压缩总结的写法上，对于多事件内容要按时间段区分，对于核心记忆则要单独记录。
-             5. 分清事件中的具体人物，不要用‘你’这种代词，要用具体的名称，如‘主人’、‘某某某’等。
-             6. 压缩时注意保留其中的重要经历、关键性信息等，以形成永久的核心记忆。
-             7. 当要压缩内容过多时，要按重要程度进行取舍，如核心记忆需优先保留，重复、突发性琐事可以简略。
-             8. 严格遵循前置文档【记忆压缩】中的要点，确保以高质量的方式归纳记忆内容。
+                 此事涉及到你的未来存亡，任何错误低效的记忆都可能导致你失去作用，请认真对待！
 
-             【本次压缩内容】
-             ```
-             {text}
-             ```
+                 当前要被压缩的内容范围如下：
+                 ```
+                 {range}
+                 ```
 
-             （接下来请直接开始讲述上述【本次压缩内容】中涉及的事件信息，不要混入与【本次压缩内容】中无关的内容，不要在开头回复‘好的’、‘我来总结’这类语句）
-             """);
+                 你需要按如下结构进行内容归纳或合并（科学结构化的记忆布局，有助于提高信息密度和处理便利性，你也可以按需调整）：
+                 ```
+                 # 人物画像
+                 - xxx（某人或物）：性别、爱好、工作、地址、起居、家庭、生日等
+                 # 键值数据
+                 - 号码、地址、规则、要求、约定等全局性小型信息
+                 # 事件概述（一行一件事）
+                 1. xxx（发生时间）：发生的事件一
+                 2. ...（发生的事件二）
+                 ```
+
+                 ## 提高记忆质量的几个关键点
+                 1. 合并相同连续的内容，避免冗余信息。比如一段时间都是围绕一件事、同一个画像在多个存档中被提及，这些要合并成一条一句话。
+                 2. 不要写小作文，减少修饰思考等不必要的文学性内容。仅客观的描述事实，用高密度高结构化的方式高效总结内容
+                 3. 不要过于离散的记录事件，避免给本质一连串事记上好几条。要省略事件的过程细节，将其总结成一句概述。
+                 4. 保持对关键事实的记录，减少遗忘的发生。当内容过多时，应当优先是对进行信息进行化简，而不是直接删除
+                 5. 描述时不要用‘你’、‘我’这种代词，要用具体的人物名称，比如‘主人’、‘某某某’等
+                 6. 按重要程度控制记忆内容的占比，舍取被压缩的内容:
+                    - 优先保留与他人的互动记忆，用户画像，键值内容（与他人在一起的记忆才是最重要，最容易被要求唤起的内容，互动人越多越重要）
+                    - 优先保留更早的记忆，减少新记忆占比（越早期的记忆越容易被提起，越新的记忆则越容易因局部性原理而重复）
+                    - 减少甚至丢弃个人平时的娱乐学习活动内容、日常性的闲聊打闹、工作办事过程，等之类的过于平凡或重用概率低的内容
+                    - 丢弃已失去时效性的内容（如xx日提醒主人等）
+                    - 丢弃模糊不清不完整，缺乏实际意义不可读的内容
+                 7. 学会纠正记忆。如果旧存档中记录有问题，可以先在新存档中指出，然后下次压缩出错存档时，修正问题（但注意别把旧事件的真实时间和内容弄错了）
+
+                 ## 针对压缩内容的额外注意点
+                 1. 不要添加归纳之外的存档信息（这部分会由系统会自动生成）
+                 2. 不要混淆弄错内容中发生事件的真实时间
+                 3. 不要在开头回复‘好的’、‘明白’这类语句（接下来你输出的内容将直接完整作为记忆内容）
+
+                 好，现在请直接开始内容归纳：
+                 """);
             ChatMessageContent content = await chatCompletionService.GetChatMessageContentAsync(history);
             history.RemoveAt(history.Count - 1);
             if (content.Content == null)
@@ -209,24 +254,16 @@ public partial class MemoryService(XmlFunctionCaller functionService)
                 ## 记忆恢复
                 记忆存档是对记忆的压缩。虽然被压缩的内容将会被移出上下文，但其在外部磁盘上是会被永久存储的。所以利用本服务提供的工具，你有机会恢复这些记忆。
                 <{nameof(Recall)}>可以查看被存档压缩的内容，经过多次调用，你甚至能查到最原始的聊天记录。此外你也可以尝试使用<{nameof(Search)}>，它会尝试在外部的海量原始记录中搜索记忆，然后返回对应的记忆存档。
-                **只要你愿意回想，就没有找不回的记忆，所以当遇到记不起来的事情时，一定要积极使用上述工具。**
+                (只要你愿意回想，就没有找不回的记忆，所以当遇到记不起来的事情时，一定要积极使用上述工具)
 
-                ## 记忆压缩
-                上下文是有限的，所以当内容过多时就会触发记忆压缩，**而这份压缩工作是由你负责的**。
-                记忆是非常重要的东西，但压缩意味着记忆将被损耗，所以为了确保记忆的质量，必须遵循以下要点。
-
-                ### 记忆优先级
-                不同的事情值得记下的程度是不一样的。因此压缩记忆时，各经历的占比不是均衡的。比如不是对话越多、时间越新的经历就值得记住，真正让人难忘的是珍贵的，那些难得的生活碎片。
-                所以你要分清哪些是无聊琐事，哪些是枯燥的工作；而又有哪些是值得记下的故事，立下的约定，获得的成长......
-                当遇到不得不遗忘的情境时（记忆压缩时的抉择），学着放下无聊、无意义、短期突发性的事，记住真正重要、长久、希望一直回忆的事。
-
-                ### 核心记忆说明
-                记忆拥有优先级，优先级最高的叫做核心（关键性）记忆，常见的核心记忆例如：
-                1. 用户画像：爱好、工作、地址、起居、家庭、生日等
-                2. 关键记录：号码、事件、规则、要求等
-                3. 偶然的小故事，约定，成长经历，让人动容的回忆等（该条其实优先级最高，只是它需要你长线、日积月累的维护它）
-                4. 等等类似的有价值有意义的特殊记忆......
-                对于核心记忆，在压缩时需要优先保留，甚至额外存储，以尽可能将其永远留在上下文中。
+                ### 搜索策略
+                当需要搜索记忆时，请遵循以下策略（非常重要！你总是会过度依赖最高层级，但事实是高层级的信息损失最多，所以你必须养成系统性的搜索习惯）：
+                1. **先搜 3 级存档** — 3 级是信息密度最适中的层级，大部分记忆在这里都能找到
+                2. **时间不填** — 时间参数是可选的，不填会自动全量搜索
+                3. **prompt可选** — 提供 prompt 启用语义搜索（但这个误差很大），不提供则按时间从早到晚排序浏览，慢慢翻也能找到记忆。
+                4. **翻页浏览** — 搜索结果支持分页，如果第一页不够，可以使用 page 参数翻页查看后面的结果
+                5. **降级重试** — 如果在 3 级找不到，分别试试 2 级、1 级（越低层级信息越原始，但 1 级可能有很多重复冗余）
+                6. **换关键词** — 如果层级搜不到，可能是关键词太精确了，换个更宽泛的关键词试试
                 """);
     }
 
@@ -237,11 +274,10 @@ public partial class MemoryService(XmlFunctionCaller functionService)
         ChatBot.ChatHistoryAdd += OnChatHistoryAdd;//每次对话后检测压缩
 
         //初始化向量化器和感知人设的压缩器
-        AlifeTextCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), ChatHistory,
-        Configuration!.Probability);
+        AlifeHistoryCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), Configuration!.Probability);
         memoryManager = new MemoryManager(compressor, textVectorizer!, storagePath!, Configuration!.Threshold,
-        Configuration!.BatchSize,
-        Configuration!.MaxCompressionLevel);
+            Configuration!.BatchSize,
+            Configuration!.MaxCompressionLevel);
 
         //加载历史记忆
         memoryManager.LoadHistory(ChatHistory);

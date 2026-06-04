@@ -117,40 +117,62 @@ public class MemoryStorage
 
     /// <summary>
     /// 功能3：原生的 DuckDB 侧全库综合高能搜索。直接下推余弦计算并依靠索引剪枝！
+    /// 当 question 为空时，退化为纯关键词搜索并按时间从早到晚排序。
     /// </summary>
-    public async Task<List<SearchResult>> SearchAsync(int level, string keyword, string question, int topK = 5, DateTimeOffset? minTime = null, DateTimeOffset? maxTime = null)
+    public async Task<(List<SearchResult> Results, int Total)> SearchAsync(int level, string keyword, string? question, int topK = 5, int offset = 0, DateTimeOffset? minTime = null, DateTimeOffset? maxTime = null)
     {
         await using DuckDBConnection connection = new DuckDBConnection($"Data Source={dbPath}");
         connection.Open();
 
-        // 执行混合搜索：向量余弦相似度 + 精准子串包含超级加分
-        float[] queryVector = await vectorizer.VectorizeAsync(question);
-        string vectorLiteral = "[" + string.Join(",", queryVector.Select(f => f.ToString("R", System.Globalization.CultureInfo.InvariantCulture))) + "]";
         await using DuckDBCommand command = connection.CreateCommand();
-        command.CommandText = $@"
+
+        object minVal = minTime.HasValue ? minTime.Value.ToUnixTimeMilliseconds() : DBNull.Value;
+        object maxVal = maxTime.HasValue ? maxTime.Value.ToUnixTimeMilliseconds() : DBNull.Value;
+        command.Parameters.Add(new DuckDBParameter(minVal));
+        command.Parameters.Add(new DuckDBParameter(maxVal));
+        command.Parameters.Add(new DuckDBParameter(level));
+        command.Parameters.Add(new DuckDBParameter($"%{keyword}%"));
+
+        if (!string.IsNullOrEmpty(question))
+        {
+            float[] queryVector = await vectorizer.VectorizeAsync(question);
+            string vectorLiteral = "[" + string.Join(",", queryVector.Select(f => f.ToString("R", System.Globalization.CultureInfo.InvariantCulture))) + "]";
+            command.CommandText = $@"
                 SELECT Name, Level, Summary, Content, StartTime, EndTime, 
                        (
                          array_cosine_similarity(Vector, {vectorLiteral}::FLOAT[512]) 
                          + (CASE WHEN Summary ILIKE $4 THEN 1.0 ELSE 0.0 END)
-                       )::Double as Score
+                        )::REAL as Score,
+                       COUNT(*) OVER() as Total
                 FROM MemoryStorage 
                 WHERE ($1 IS NULL OR EndTime >= $1) 
                   AND ($2 IS NULL OR StartTime <= $2)
                   AND Level = $3
+                  AND Summary ILIKE $4
                 ORDER BY Score DESC
-                LIMIT {topK}
+                LIMIT {topK} OFFSET {offset}
             ";
-
-        object minVal = minTime.HasValue ? minTime.Value.ToUnixTimeMilliseconds() : DBNull.Value;
-        object maxVal = maxTime.HasValue ? maxTime.Value.ToUnixTimeMilliseconds() : DBNull.Value;
-        command.Parameters.Add(new DuckDBParameter(minVal));// $1
-        command.Parameters.Add(new DuckDBParameter(maxVal));// $2
-        command.Parameters.Add(new DuckDBParameter(level));// $3
-        command.Parameters.Add(new DuckDBParameter($"%{keyword}%"));// $4
+        }
+        else
+        {
+            command.CommandText = $@"
+                SELECT Name, Level, Summary, Content, StartTime, EndTime, 
+                       0.0::REAL as Score,
+                       COUNT(*) OVER() as Total
+                FROM MemoryStorage 
+                WHERE ($1 IS NULL OR EndTime >= $1) 
+                  AND ($2 IS NULL OR StartTime <= $2)
+                  AND Level = $3
+                  AND Summary ILIKE $4
+                ORDER BY EndTime ASC
+                LIMIT {topK} OFFSET {offset}
+            ";
+        }
 
         await using DuckDBDataReader reader = command.ExecuteReader();
 
         List<SearchResult> results = new();
+        int total = 0;
         while (reader.Read())
         {
             string name = reader.GetString(0);
@@ -158,12 +180,13 @@ public class MemoryStorage
             string content = reader.GetString(3);
             long startMs = reader.GetInt64(4);
             long endMs = reader.GetInt64(5);
-            float score = (float)reader.GetDouble(6);
+            float score = reader.GetFloat(6);
+            total = reader.GetInt32(7);
             results.Add(new SearchResult(name, level, summary, content,
             DateTimeOffset.FromUnixTimeMilliseconds(startMs),
             DateTimeOffset.FromUnixTimeMilliseconds(endMs), score));
         }
-        return results;
+        return (results, total);
     }
 
     readonly string rootPath;
