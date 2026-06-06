@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
     <ItemGroup>
         <PackageReference Include="DuckDB.NET.Data.Full" Version="1.5.3" />
-        <PackageReference Include="Microsoft.SemanticKernel.Connectors.Onnx" Version="1.77.0-alpha" />
     </ItemGroup>
 
     <ItemGroup>

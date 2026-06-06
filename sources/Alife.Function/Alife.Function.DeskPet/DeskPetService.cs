@@ -11,14 +11,16 @@ using Microsoft.SemanticKernel;
 
 namespace Alife.Function.DeskPet;
 
-[Module("桌宠交互", "将Live2D桌宠接入AI系统，实现表现力同步和互动反馈。",
+[Module("桌宠交互", @"将Live2D桌宠接入AI系统，实现表现力同步和互动反馈（仅支持Cubism 3及以上版本的live2D模型）
+可选模型下载地址：
+https://github.com/imuncle/live2d",
     defaultCategory: "Alife 官方/交互方式",
     EditorUI = typeof(DeskPetServiceUI))]
 public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModule<DeskPetService>, IAsyncDisposable, IConfigurable<DeskPetServiceConfig>
 {
     [XmlFunction(FunctionMode.Content)]
     [Description("显示一段气泡文本")]
-    public async Task Speak(XmlExecutorContext context, [XmlContent] string content, CancellationToken cancellationToken)
+    public async Task Say(XmlExecutorContext context, [XmlContent] string content, CancellationToken cancellationToken)
     {
         switch (context.CallMode)
         {
@@ -49,25 +51,25 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModu
 
     [XmlFunction(FunctionMode.OneShot)]
     [Description("表演一个表情（具体选项见附加说明）")]
-    public void Expression(string option)
+    public void Exp(string opt)
     {
-        option = option.Trim();
-        if (string.IsNullOrWhiteSpace(option))
+        opt = opt.Trim();
+        if (string.IsNullOrWhiteSpace(opt))
             return;
-        if (client!.SupportedExpressions.Contains(option) == false)
+        if (client!.SupportedExpressions.Contains(opt) == false)
             throw new Exception("选项不存在");
 
-        client!.PlayExpression(option);
+        client!.PlayExpression(opt);
     }
 
     [XmlFunction(FunctionMode.OneShot)]
     [Description("表演一个动作（具体选项见附加说明）")]
-    public void Motion(string option)
+    public void Mot(string opt)
     {
-        option = option.Trim();
-        if (string.IsNullOrWhiteSpace(option))
+        opt = opt.Trim();
+        if (string.IsNullOrWhiteSpace(opt))
             return;
-        if (client!.SupportedMotions.TryGetValue(option, out (string Group, int Index) motion) == false)
+        if (client!.SupportedMotions.TryGetValue(opt, out (string Group, int Index) motion) == false)
             throw new Exception("选项不存在");
 
         client.PlayMotion(motion.Group, motion.Index);
@@ -75,7 +77,7 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModu
 
     [XmlFunction(FunctionMode.OneShot)]
     [Description("获取当前屏幕位置（使用后需等待结果返回）")]
-    public async Task Position()
+    public async Task Pos()
     {
         try
         {
@@ -121,7 +123,9 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModu
             modelName = "Mao";
         client = new PetServer(modelName);
         string supportedExpressionsDescription = string.Join(", ", client.SupportedExpressions);
+        if (string.IsNullOrEmpty(supportedExpressionsDescription)) supportedExpressionsDescription = $"当前不支持<{nameof(Exp)}>功能";
         string supportedMotionsDescription = string.Join(", ", client.SupportedMotions.Keys);
+        if (string.IsNullOrEmpty(supportedMotionsDescription)) supportedMotionsDescription = $"当前不支持<{nameof(Mot)}>功能";
 
         XmlHandler xmlHandler = new(this);
         functionService.RegisterHandler(xmlHandler);
@@ -129,8 +133,8 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModu
         Prompt($"""
                 此服务让你获得一副交互性的Live2D身体。这是你主要的对外输出表情动作等外观信息的工具，需要积极使用。
 
-                - 支持的 {nameof(Expression)}：{supportedExpressionsDescription}
-                - 支持的 {nameof(Motion)}：{supportedMotionsDescription}
+                - 支持的 {nameof(Exp)}：{supportedExpressionsDescription}
+                - 支持的 {nameof(Mot)}：{supportedMotionsDescription}
                 - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
                 """);
     }

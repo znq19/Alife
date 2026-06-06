@@ -18,7 +18,7 @@
         "File": "expressions/exp_03.exp3.json"
       },
       {
-        "Name": "繁星眼",
+        "Name": "开心",
         "File": "expressions/exp_04.exp3.json"
       },
       {
@@ -176,7 +176,7 @@
     "rotate": [
       {
         "text": "呜哇... 别转了，真央要变旋风猫娘了喵！(＠_＠;)",
-        "exp": "繁星眼",
+        "exp": "开心",
         "mtn": {
           "group": "TapBody",
           "index": 0
@@ -184,7 +184,7 @@
       },
       {
         "text": "旋转，跳跃，我不停歇... 停！真央真的不行了喵！",
-        "exp": "繁星眼",
+        "exp": "开心",
         "mtn": {
           "group": "TapBody",
           "index": 0
@@ -202,7 +202,7 @@
       },
       {
         "text": "天、天旋地转喵... 救喵命啊！",
-        "exp": "繁星眼",
+        "exp": "开心",
         "mtn": {
           "group": "TapBody",
           "index": 0
@@ -254,7 +254,7 @@
     "mouse_shake": [
       {
         "text": "晕乎乎的... 别在真央面前绕圈圈了喵！(＠x＠;)",
-        "exp": "繁星眼",
+        "exp": "开心",
         "mtn": {
           "group": "TapBody",
           "index": 0
@@ -270,7 +270,7 @@
       },
       {
         "text": "喵呜... 怎么有两个主人出现在真央面前喵？",
-        "exp": "繁星眼",
+        "exp": "开心",
         "mtn": {
           "group": "Idle",
           "index": 0
@@ -288,7 +288,7 @@
       },
       {
         "text": "喵——！！主人快住口喵，哦不，快住手喵！",
-        "exp": "繁星眼",
+        "exp": "开心",
         "mtn": {
           "group": "TapBody",
           "index": 0

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -276,7 +277,7 @@ public class ChatBot : IAsyncDisposable
         {
             //组合消息
             StringBuilder stringBuilder = new();
-            foreach (string message in messageCache)
+            foreach (string message in messageCache.Distinct())
                 stringBuilder.AppendLine(message);
             string poke = stringBuilder.ToString();
             messageCache.Clear();

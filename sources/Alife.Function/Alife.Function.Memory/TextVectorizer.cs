@@ -1,37 +1,40 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.AI;
-using Microsoft.SemanticKernel;
 using Alife.Platform;
+using Alife.Function.PythonPipe;
 
 namespace Alife.Function.Memory;
 
 /// <summary>
 /// 纯粹且独立的文本向量化器。
-/// 内部自行加载并管理基于 ONNX 的 BERT 模型，通过最新的 Microsoft.Extensions.AI 提供嵌入支持。
+/// 内部通过 PythonPipe 加载 safetensors 格式的 BERT 模型，提供嵌入支持。
 /// </summary>
-public class TextVectorizer
+public class TextVectorizer : IAsyncDisposable
 {
-    public TextVectorizer()
+    public static async Task<TextVectorizer> CreateAsync()
     {
-        string modelDir = AlifeModel.EnsureModelExisting("BAAI/bge-small-zh-v1.5");
-        string modelPath = Path.Combine(modelDir, "model.onnx");
-        string vocabPath = Path.Combine(modelDir, "vocab.txt");
+        string modelPath = AlifeModel.EnsureModelExisting("BAAI/bge-small-zh-v1.5");
+        var vectorizer = new TextVectorizer(modelPath);
+        await vectorizer.InitAsync();
+        return vectorizer;
+    }
 
-        if (File.Exists(modelPath) == false && File.Exists(Path.Combine(modelDir, "model.safetensors")))
-            AlifeModel.ConvertSafetensorsToOnnx(modelDir);
+    TextVectorizer(string modelPath)
+    {
+        this.modelPath = modelPath;
+    }
 
-        if (!File.Exists(modelPath))
-            throw new FileNotFoundException($"ONNX 模型转换失败或未找到：{modelPath}");
-        if (!File.Exists(vocabPath))
-            throw new FileNotFoundException($"找不到词表文件：{vocabPath}");
+    async Task InitAsync()
+    {
+        AlifePlatform.Command("python", "-m pip install transformers torch sentencepiece");
 
-        IKernelBuilder builder = Kernel.CreateBuilder();
-        builder.AddBertOnnxEmbeddingGenerator(modelPath, vocabPath);
-        Kernel kernel = builder.Build();
-
-        generator = kernel.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+        pythonPipe = new("text_embed", PythonCode);
+        pythonPipe.OnStderr += line => Console.WriteLine(line);
+        await pythonPipe.StartAsync();
+        await pythonPipe.InvokeAsync<string>("init", modelPath);
     }
 
     /// <summary>
@@ -39,9 +42,44 @@ public class TextVectorizer
     /// </summary>
     public async Task<float[]> VectorizeAsync(string text)
     {
-        var result = await generator.GenerateAsync([text]);
-        return result.First().Vector.ToArray();
+        if (pythonPipe == null)
+            throw new InvalidOperationException("TextVectorizer 未初始化");
+
+        List<float> result = await pythonPipe.InvokeAsync<List<float>>("embed", text);
+        return result.ToArray();
     }
 
-    readonly IEmbeddingGenerator<string, Embedding<float>> generator;
+    public async ValueTask DisposeAsync()
+    {
+        if (pythonPipe != null)
+        {
+            await pythonPipe.DisposeAsync();
+            pythonPipe = null;
+        }
+    }
+
+    readonly string modelPath;
+    PythonPipeProcess? pythonPipe;
+
+    const string PythonCode = """
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
+        model = None
+        tokenizer = None
+
+        def init(model_path):
+            global model, tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            model = AutoModel.from_pretrained(model_path, torch_dtype=torch.float16).to('cuda')
+            model.eval()
+            return "ready"
+
+        def embed(text):
+            inputs = tokenizer(text, padding=True, truncation=True, max_length=512, return_tensors="pt").to(model.device)
+            with torch.no_grad():
+                output = model(**inputs)
+            embedding = output.last_hidden_state[:, 0, :].squeeze().float().cpu().tolist()
+            return embedding
+        """;
 }

@@ -72,9 +72,9 @@ public partial class MemoryService
 {
     static TextVectorizer? textVectorizer;
 
-    static void TryInitialized()
+    static async Task TryInitializedAsync()
     {
-        textVectorizer ??= new TextVectorizer();
+        textVectorizer ??= await TextVectorizer.CreateAsync();
     }
 }
 
@@ -233,7 +233,7 @@ public partial class MemoryService(XmlFunctionCaller functionService)
     {
         await base.AwakeAsync(context);
 
-        TryInitialized();
+        await TryInitializedAsync();
         storagePath = Path.Combine(AlifePath.StorageFolderPath, context.Character.StorageKey, "Memory");
         string characterStorage = Path.Combine(AlifePath.StorageFolderPath, context.Character.StorageKey, "Storage");
         Directory.CreateDirectory(characterStorage);

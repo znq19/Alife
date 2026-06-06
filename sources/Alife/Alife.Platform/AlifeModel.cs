@@ -22,17 +22,11 @@ public static class AlifeModel
         return targetFile != null ? checkFile : localPath;
     }
 
-    public static void ConvertSafetensorsToOnnx(string modelDir, string taskType = "feature-extraction")
-    {
-        AlifePlatform.Command("python",
-        $"-c \"from optimum.exporters.onnx import main_export; main_export(model_name_or_path=r'{modelDir}', output=r'{modelDir}', task='{taskType}')\"");
-    }
-
     public static string ModelScopeModelPath { get; }
 
     static AlifeModel()
     {
-        AlifePlatform.Command("python", "-m pip install modelscope optimum[onnxruntime]");
+        AlifePlatform.Command("python", "-m pip install modelscope");
 
         string modelScopeCachePath = Environment.GetEnvironmentVariable("MODELSCOPE_CACHE") ??
                                      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "modelscope", "hub");

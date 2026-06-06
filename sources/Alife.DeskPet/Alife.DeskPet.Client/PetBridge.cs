@@ -164,7 +164,8 @@ public class PetBridge : IDisposable
                 {
                     if (lastExpressionTime != null && DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastExpressionTime > 3000)
                     {
-                        PlayExpression(metadata.Expressions.First());
+                        if (metadata.Expressions.Count > 0)
+                            PlayExpression(metadata.Expressions.First());
                         lastExpressionTime = null;
                     }
                     if (lastBubbleTime != null && DateTimeOffset.Now.ToUnixTimeMilliseconds() - lastBubbleTime > 6000)

@@ -81,7 +81,7 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
         return $"""
                 [语音识别消息]
                 {text}
-                (请使用<speak>回复)
+                (请用语音功能回复)
                 """;
     }
 

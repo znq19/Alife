@@ -53,7 +53,7 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
 
         chatActivity.ChatBot.ChatReceived += OnChatReceived;
         chatActivity.ChatBot.ChatSent += OnChatSent;
-        
+
         Prompt($"""
                 默认情况下你仅支持输出普通文本，但由于各种插件服务的存在，使得你还拥有通过输出特定的xml标签执行功能调用的能力。
 
@@ -67,17 +67,15 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
                 2. 仅支持上述提到的函数可以使用，其他任何xml标签都不支持。
 
                 ## 使用示例
-                当你的函数足够丰富后，你可以尝试用如下的方式使用他们，这是官方最佳示例。
-                ```text
-                这段文字主人看不到，我可以借此自言自语。 <!-- 内容可以不被标签包裹，这样相当于只给自己看，或有意不输出可见内容 -->
-                <speak> <!-- 如果要对外输出，需要使用函数调用，比如这里用语音输出 -->
-                主人你看我~
-                <motion /> <!-- 标签可以嵌套，比如这样就能实现边说话边做动作 -->
-                可以一边跳舞，一边说话噢。
-                另外我还可以通过‘左尖括号python右尖括号’执行脚本呢！ <!-- 通过用代词描述‘左尖括号、右尖括号’来避免输出xml符号 -->
-                </speak>
+                当你的函数足够丰富后，你可以尝试用如下的方式使用他们，这是官方最佳示例：
+                ```
+                (可选，未被标签包裹的文字，用户看不到，所以可以在此实现空消息、自言自语、思考等动作)
+                <say> <!-- 默认采用say进行对外输出，并在文本中穿插表情动作，来实现动态的交互效果 -->
+                主人你看我画的好不好看，<exp opt="开心" />今天特意给你画的噢！<motion opt="不好意思"/>
+                看你每天那么累，给你打打气。
+                </say>
                 <python> <!-- 因为python执行需要时间，在结尾调用比较合适。 -->
-                print('Hello World!')
+                show('cheer.png')
                 <python>
                 ```   
                 """);

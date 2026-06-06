@@ -56,9 +56,23 @@ window.chrome.webview.addEventListener("message", (e) => {
     }
 
     async function loadModel(url) {
+        console.log("[Pet] Loading model:", url);
         if (model) app.stage.removeChild(model);
-        model = await PIXI.live2d.Live2DModel.from(url, {autoInteract: false});
+        try {
+            model = await PIXI.live2d.Live2DModel.from(url, {autoInteract: false});
+            console.log("[Pet] Model loaded successfully");
+        } catch (err) {
+            console.error("[Pet] Live2D model load failed:", err);
+            postMessage({type: "loaded"});
+            return;
+        }
         app.stage.addChild(model);
+
+        // 诊断：打印 hitArea 信息
+        const hitAreaDefs = model.internalModel?.getHitAreaDefs?.();
+        console.log("[Pet] HitArea definitions:", JSON.stringify(hitAreaDefs));
+        const drawableIds = model.internalModel?.coreModel?.getDrawableIds?.();
+        console.log("[Pet] Drawable IDs:", JSON.stringify(drawableIds));
 
         // 设置动画曲线
         const ctrl = model.internalModel.focusController;
@@ -127,6 +141,7 @@ window.chrome.webview.addEventListener("message", (e) => {
     window.addEventListener("dblclick", async (e) => {
         if (e.target.tagName !== "CANVAS") return;
         const hitAreas = await model.hitTest(e.clientX, e.clientY);
+        console.log("[Pet] hitTest result:", JSON.stringify(hitAreas), "clientX/Y:", e.clientX, e.clientY);
         if (hitAreas.length > 0) postMessage({type: "poke", areas: hitAreas});
     });
 

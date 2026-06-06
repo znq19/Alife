@@ -42,27 +42,29 @@ public class MiniCPMVisionModel(
         """
         import sys, json, torch
         from PIL import Image
-        from transformers import AutoModelForImageTextToText, AutoProcessor, BitsAndBytesConfig
+        from transformers import AutoModelForImageTextToText, AutoProcessor
 
         device = torch.device('cuda')
         model = None
         processor = None
 
-        def init(model_path):
+        def init(model_path, precision):
             global model, processor
-            quantization_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_compute_dtype=torch.bfloat16,
-                bnb_4bit_use_double_quant=True,
-                bnb_4bit_quant_type="nf4"
-            )
-            model = AutoModelForImageTextToText.from_pretrained(
-                model_path,
-                dtype="auto",
-                quantization_config=quantization_config,
-                device_map="auto",
-                attn_implementation="sdpa"
-            )
+            load_kwargs = {
+                "device_map": "auto",
+                "attn_implementation": "sdpa",
+            }
+            if precision == "int4":
+                from transformers import BitsAndBytesConfig
+                load_kwargs["quantization_config"] = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4"
+                )
+            else:
+                load_kwargs["dtype"] = torch.bfloat16
+            model = AutoModelForImageTextToText.from_pretrained(model_path, **load_kwargs)
             processor = AutoProcessor.from_pretrained(model_path)
             return "ready"
 
@@ -102,12 +104,14 @@ public class MiniCPMVisionModel(
     {
         const string ModelId = "OpenBMB/MiniCPM-V-4.6";
         string modelPath = AlifeModel.EnsureModelExisting(ModelId);
-        AlifePlatform.Command("python", "-m pip install \"transformers[torch]>=5.7.0\" torchvision torchcodec bitsandbytes accelerate sentencepiece tiktoken");
+        string precision = Configuration?.Precision ?? "int4";
+        string extraPackages = precision == "int4" ? " bitsandbytes accelerate" : "";
+        AlifePlatform.Command("python", $"-m pip install transformers[torch] torchvision torchcodec{extraPackages} sentencepiece tiktoken");
 
         pythonPipe = new("minicpm_v", pythonCode);
         pythonPipe.OnStderr += line => logger.LogWarning(line);
         await pythonPipe.StartAsync();
-        await pythonPipe.InvokeAsync<string>("init", modelPath);
+        await pythonPipe.InvokeAsync<string>("init", modelPath, precision);
     }
     public async ValueTask DisposeAsync()
     {
