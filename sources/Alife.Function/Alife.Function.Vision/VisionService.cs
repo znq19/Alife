@@ -17,13 +17,13 @@ public record VisionServiceConfig
     public string AppendPrompt { get; set; } = "（请精简的描述一下图片大体内容，避免输出过多的文本，提高分析速度）";
 }
 
-[Plugin("视觉感知", "让 AI 能够看到屏幕内容，理解图片，观察世界。",
+[Module("视觉感知", "让 AI 能够看到屏幕内容，理解图片，观察世界。",
 defaultCategory: "Alife 官方/实用工具",
 EditorUI = typeof(VisionServiceUI))]
 [Description("此服务让你拥有视觉感知能力：你可以截取屏幕画面并理解其内容，或者分析用户提供的图片。" +
              "在分析图片时，你需要提供prompt参数。在该参数中，你要清晰描述你的问题，并尽可能提供背景信息，以帮助视觉模型分析，但也注意不要随意揣测其中内容，防止影响识别结果！")]
 public class VisionService(XmlFunctionCaller functionService, IVisionModel? visionModel = null)
-    : InteractivePlugin<VisionService>, IConfigurable<VisionServiceConfig>
+    : InteractiveModule<VisionService>, IConfigurable<VisionServiceConfig>
 {
     public VisionServiceConfig? Configuration { get; set; }
 

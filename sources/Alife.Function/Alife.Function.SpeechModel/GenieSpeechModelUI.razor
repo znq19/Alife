@@ -1,5 +1,5 @@
 @namespace Alife.Function.Speech
-@inherits Alife.Framework.PluginUIBase<GenieSpeechModel, GenieSpeechModelConfig>
+@inherits Alife.Framework.ModuleUIBase<GenieSpeechModel, GenieSpeechModelConfig>
 @using AntDesign
 @using System.IO
 
@@ -46,7 +46,7 @@
 
     <Alert Type="@AlertType.Info"
            Message="使用说明"
-           Description="内置角色：feibi（中文）、mika（日语）、thirtyseven（英语）。自定义角色：将模型放入 Runtime/Genie/CharacterModels/v2ProPlus/你的角色名/，需包含 tts_models/、prompt_wav.json、prompt_wav/。"
+           Description="（注意！该模型依赖 Microsoft Visual C++ 14.0 环境，使用前需安装）内置角色：feibi（中文）、mika（日语）、thirtyseven（英语）。自定义角色：将模型放入 Runtime/Genie/CharacterModels/v2ProPlus/你的角色名/，需包含 tts_models/、prompt_wav.json、prompt_wav/。"
            ShowIcon="true"
            Style="margin-top: 8px;"/>
 </div>

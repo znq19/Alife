@@ -1,6 +1,6 @@
 @page "/system"
 @using Alife.Components.Elements.Character
-@using Alife.Components.Elements.Plugin
+@using Alife.Components.Elements.Module
 @inject NavigationManager Navigation
 @inject CharacterSystem CharacterSystem
 @inject ChatActivitySystem ChatActivitySystem
@@ -54,13 +54,13 @@
                     <div id="tab-plugin-center">
                         <Flex Direction="@FlexDirection.Vertical" Align="@FlexAlign.Center" Gap="@("4")">
                             <Icon Type="@IconType.Outline.AppstoreAdd"/>
-                            <span style="font-size: 12px">插件中心</span>
+                            <span style="font-size: 12px">模块中心</span>
                         </Flex>
                     </div>
                 </TabTemplate>
                 <ChildContent>
                     <div style="height: 100%; overflow: hidden; display: flex; flex-direction: column; background: #fafafa;">
-                        <PluginManagementView IsReadOnly="false"></PluginManagementView>
+                        <ModuleManagementView IsReadOnly="false"></ModuleManagementView>
                     </div>
                 </ChildContent>
             </TabPane>

@@ -21,6 +21,51 @@ public record MemoryConfig
     public int BatchSize { get; set; } = 50;
     public float Probability { get; set; } = 0.4f;
     public int MaxCompressionLevel { get; set; } = 7;
+    public string CompressPrompt { get; set; } = """
+        【来自记忆系统的信息】
+        放下手中的事，现在进入长期记忆归纳专家模式：
+        系统将会为你划出一段上下文范围，你要从中提取出有价值的，值得长期存储的，未来会大概率再用到的信息以形成新的记忆上下文。
+
+        此事涉及到你的未来存亡，任何错误低效的记忆都可能导致你失去作用，请认真对待！
+
+        当前要被压缩的内容范围如下：
+        ```
+        {range}
+        ```
+
+        你需要按如下结构进行内容归纳或合并（科学结构化的记忆布局，有助于提高信息密度和处理便利性，你也可以按需调整）：
+        ```
+        # 人物画像
+        - xxx（某人或物）：性别、爱好、工作、地址、起居、家庭、生日等
+        # 键值数据
+        - 号码、地址、规则、要求、约定等全局性小型信息
+        # 事件概述（一行一件事）
+        1. xxx（发生时间）：发生的事件一
+        2. ...（发生的事件二）
+        ```
+
+        ## 提高记忆质量的几个关键点
+        1. 合并相同连续的内容，比如一段时间都是围绕一件事、同一个画像在多个存档中被提及，这些要合并成一条中。
+        2. 避免冗余信息，比如相同的用户画像键值内容，已经在已有的存档中记录过，则应避免重复记录
+        2. 不要写小作文，减少修饰等不必要的文学性内容。仅客观的描述事实，用高密度高结构化的方式高效总结内容
+        3. 不要过于离散的记录事件，避免给本质一连串事记上好几条。要省略事件的过程细节，将其总结成一句概述
+        4. 保持对关键事实的记录，减少遗忘的发生。当内容过多时，应当优先是对进行信息进行化简，留下恢复记忆的线索，而不是直接删除
+        5. 描述时不要用‘你’、‘我’这种代词，要用具体的人物名称，比如‘主人’、‘某某某’等
+        6. 按重要程度控制记忆内容的占比，舍取被压缩的内容:
+           - 优先保留与他人的互动记忆，用户画像，键值内容（与他人在一起的记忆才是最重要，最容易被要求唤起的内容，互动人越多越重要）
+           - 优先保留更早的记忆，减少新记忆占比（越早期的记忆越容易被提起，越新的记忆则越容易因局部性原理而重复）
+           - 减少甚至丢弃个人平时的娱乐学习活动内容、日常性的闲聊打闹、工作办事过程，等之类的过于平凡或重用概率低的内容
+           - 丢弃已失去时效性的内容（如xx日提醒主人等）
+           - 丢弃模糊不清不完整，缺乏实际意义不可读的内容
+        7. 学会纠正记忆。如果旧存档中记录有问题，可以先在新存档中指出，然后下次压缩出错存档时，修正问题（但注意别把旧事件的真实时间和内容弄错了）
+
+        ## 针对压缩内容的额外注意点
+        1. 不要添加归纳之外的存档信息（这部分会由系统会自动生成）
+        2. 不要混淆弄错内容中发生事件的真实时间
+        3. 不要在开头回复‘好的’、‘明白’这类语句（接下来你输出的内容将直接完整作为记忆内容）
+
+        好，现在请直接开始内容归纳：
+        """;
 }
 
 public partial class MemoryService
@@ -33,11 +78,11 @@ public partial class MemoryService
     }
 }
 
-[Plugin("持久记忆", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。",
+[Module("持久记忆", "自动管理和分层压缩对话记忆，提供长期记忆检索能力。",
     defaultCategory: "Alife 官方/生活环境",
     LaunchOrder = -100, EditorUI = typeof(MemoryServiceUI))]
 public partial class MemoryService(XmlFunctionCaller functionService)
-    : InteractivePlugin<MemoryService>, IConfigurable<MemoryConfig>
+    : InteractiveModule<MemoryService>, IConfigurable<MemoryConfig>
 {
     [XmlFunction(FunctionMode.OneShot)]
     [Description("查看记忆存档中保存的完整原始内容。（你要积极使用该功能，因为有些记忆的重要内容被记在了完整内容中，而不是概述里）")]
@@ -156,7 +201,7 @@ public partial class MemoryService(XmlFunctionCaller functionService)
     /// <summary>
     /// 感知上下文的人设化压缩器
     /// </summary>
-    class AlifeHistoryCompressor(IChatCompletionService chatCompletionService, float probability)
+    class AlifeHistoryCompressor(IChatCompletionService chatCompletionService, float probability, string promptTemplate)
         : HistoryCompressor
     {
         public override async Task<string?> Compress(ChatHistory history, string range)
@@ -166,52 +211,8 @@ public partial class MemoryService(XmlFunctionCaller functionService)
 
             Console.WriteLine("记忆压缩中......");
 
-            history.AddMessage(AuthorRole.User,
-                $"""
-                 【来自记忆系统的信息】
-                 放下手中的事，现在进入长期记忆归纳专家模式：
-                 系统将会为你划出一段上下文范围，你要从中提取出有价值的，值得长期存储的，未来会大概率再用到的信息以形成新的记忆上下文。
-
-                 此事涉及到你的未来存亡，任何错误低效的记忆都可能导致你失去作用，请认真对待！
-
-                 当前要被压缩的内容范围如下：
-                 ```
-                 {range}
-                 ```
-
-                 你需要按如下结构进行内容归纳或合并（科学结构化的记忆布局，有助于提高信息密度和处理便利性，你也可以按需调整）：
-                 ```
-                 # 人物画像
-                 - xxx（某人或物）：性别、爱好、工作、地址、起居、家庭、生日等
-                 # 键值数据
-                 - 号码、地址、规则、要求、约定等全局性小型信息
-                 # 事件概述（一行一件事）
-                 1. xxx（发生时间）：发生的事件一
-                 2. ...（发生的事件二）
-                 ```
-
-                 ## 提高记忆质量的几个关键点
-                 1. 合并相同连续的内容，比如一段时间都是围绕一件事、同一个画像在多个存档中被提及，这些要合并成一条中。
-                 2. 避免冗余信息，比如相同的用户画像键值内容，已经在已有的存档中记录过，则应避免重复记录
-                 2. 不要写小作文，减少修饰等不必要的文学性内容。仅客观的描述事实，用高密度高结构化的方式高效总结内容
-                 3. 不要过于离散的记录事件，避免给本质一连串事记上好几条。要省略事件的过程细节，将其总结成一句概述
-                 4. 保持对关键事实的记录，减少遗忘的发生。当内容过多时，应当优先是对进行信息进行化简，留下恢复记忆的线索，而不是直接删除
-                 5. 描述时不要用‘你’、‘我’这种代词，要用具体的人物名称，比如‘主人’、‘某某某’等
-                 6. 按重要程度控制记忆内容的占比，舍取被压缩的内容:
-                    - 优先保留与他人的互动记忆，用户画像，键值内容（与他人在一起的记忆才是最重要，最容易被要求唤起的内容，互动人越多越重要）
-                    - 优先保留更早的记忆，减少新记忆占比（越早期的记忆越容易被提起，越新的记忆则越容易因局部性原理而重复）
-                    - 减少甚至丢弃个人平时的娱乐学习活动内容、日常性的闲聊打闹、工作办事过程，等之类的过于平凡或重用概率低的内容
-                    - 丢弃已失去时效性的内容（如xx日提醒主人等）
-                    - 丢弃模糊不清不完整，缺乏实际意义不可读的内容
-                 7. 学会纠正记忆。如果旧存档中记录有问题，可以先在新存档中指出，然后下次压缩出错存档时，修正问题（但注意别把旧事件的真实时间和内容弄错了）
-
-                 ## 针对压缩内容的额外注意点
-                 1. 不要添加归纳之外的存档信息（这部分会由系统会自动生成）
-                 2. 不要混淆弄错内容中发生事件的真实时间
-                 3. 不要在开头回复‘好的’、‘明白’这类语句（接下来你输出的内容将直接完整作为记忆内容）
-
-                 好，现在请直接开始内容归纳：
-                 """);
+            string prompt = promptTemplate.Replace("{range}", range);
+            history.AddMessage(AuthorRole.User, prompt);
             ChatMessageContent content = await chatCompletionService.GetChatMessageContentAsync(history);
             history.RemoveAt(history.Count - 1);
             if (content.Content == null)
@@ -266,7 +267,7 @@ public partial class MemoryService(XmlFunctionCaller functionService)
         ChatBot.ChatHistoryAdd += OnChatHistoryAdd;//每次对话后检测压缩
 
         //初始化向量化器和感知人设的压缩器
-        AlifeHistoryCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), Configuration!.Probability);
+        AlifeHistoryCompressor compressor = new(kernel.GetRequiredService<IChatCompletionService>(), Configuration!.Probability, Configuration!.CompressPrompt);
         memoryManager = new MemoryManager(compressor, textVectorizer!, storagePath!, Configuration!.Threshold,
             Configuration!.BatchSize,
             Configuration!.MaxCompressionLevel);

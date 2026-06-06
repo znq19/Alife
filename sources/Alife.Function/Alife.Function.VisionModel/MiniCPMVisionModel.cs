@@ -9,26 +9,27 @@ using Microsoft.Extensions.Logging;
 
 namespace Alife.Function.Vision;
 
-[Module("Qwen视觉分析", "基于Qwen2.5-VL的本地视觉分析引擎",
+[Module("MiniCPM视觉分析", "基于MiniCPM-V 4.6的轻量本地视觉分析引擎",
 defaultCategory: "Alife 官方/模型接入/视觉模型",
-EditorUI = typeof(QwenVisionModelUI))]
-public class QwenVisionModel(
-    ILogger<QwenVisionModel> logger
+EditorUI = typeof(MiniCPMVisionModelUI))]
+public class MiniCPMVisionModel(
+    ILogger<MiniCPMVisionModel> logger
 ) : IVisionModel,
     IAsyncDisposable,
     ISystemEvent,
-    IConfigurable<QwenVisionModelConfig>
+    IConfigurable<MiniCPMVisionModelConfig>
 {
-    public static string RuntimeFolder => Path.Combine(AlifePath.RuntimeFolderPath, "QwenVL");
-    public QwenVisionModelConfig? Configuration { get; set; }
+    public static string RuntimeFolder => Path.Combine(AlifePath.RuntimeFolderPath, "MiniCPMVL");
+    public MiniCPMVisionModelConfig? Configuration { get; set; }
 
     public async Task<string> QueryAsync(string imagePath, string question, int maxResponseTokens,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            string downsampleMode = Configuration?.DownsampleMode ?? "16x";
             return await pythonPipe!.InvokeAsync<string>("query",
-            new { image_path = imagePath, question, max_new_tokens = maxResponseTokens });
+            new { image_path = imagePath, question, max_new_tokens = maxResponseTokens, downsample_mode = downsampleMode });
         }
         catch (Exception ex)
         {
@@ -41,8 +42,7 @@ public class QwenVisionModel(
         """
         import sys, json, torch
         from PIL import Image
-        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
-        from qwen_vl_utils import process_vision_info
+        from transformers import AutoModelForImageTextToText, AutoProcessor, BitsAndBytesConfig
 
         device = torch.device('cuda')
         model = None
@@ -56,21 +56,17 @@ public class QwenVisionModel(
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4"
             )
-            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            model = AutoModelForImageTextToText.from_pretrained(
                 model_path,
                 dtype="auto",
                 quantization_config=quantization_config,
                 device_map="auto",
                 attn_implementation="sdpa"
             )
-            processor = AutoProcessor.from_pretrained(
-                model_path,
-                min_pixels=256 * 28 * 28,
-                max_pixels=512 * 28 * 28
-            )
+            processor = AutoProcessor.from_pretrained(model_path)
             return "ready"
 
-        def query(image_path, question, max_new_tokens):
+        def query(image_path, question, max_new_tokens, downsample_mode):
             image = Image.open(image_path).convert("RGB")
             messages = [
                 {
@@ -81,18 +77,14 @@ public class QwenVisionModel(
                     ],
                 }
             ]
-            text = processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
-            image_inputs, video_inputs = process_vision_info(messages)
-            inputs = processor(
-                text=[text],
-                images=image_inputs,
-                videos=video_inputs,
-                padding=True,
+            inputs = processor.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
                 return_tensors="pt",
-            )
-            inputs = inputs.to(device)
+                processor_kwargs={"downsample_mode": downsample_mode},
+            ).to(model.device, dtype=model.dtype)
             with torch.no_grad():
                 generated_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)
                 generated_ids_trimmed = [
@@ -108,11 +100,11 @@ public class QwenVisionModel(
 
     public async Task AwakeAsync(AwakeContext context)
     {
-        const string ModelId = "Qwen/Qwen2.5-VL-3B-Instruct";
+        const string ModelId = "OpenBMB/MiniCPM-V-4.6";
         string modelPath = AlifeModel.EnsureModelExisting(ModelId);
-        AlifePlatform.Command("python", "-m pip install torch torchvision Pillow transformers qwen-vl-utils bitsandbytes accelerate sentencepiece tiktoken");
-        
-        pythonPipe = new("qwen_vl", pythonCode);
+        AlifePlatform.Command("python", "-m pip install \"transformers[torch]>=5.7.0\" torchvision torchcodec bitsandbytes accelerate sentencepiece tiktoken");
+
+        pythonPipe = new("minicpm_v", pythonCode);
         pythonPipe.OnStderr += line => logger.LogWarning(line);
         await pythonPipe.StartAsync();
         await pythonPipe.InvokeAsync<string>("init", modelPath);

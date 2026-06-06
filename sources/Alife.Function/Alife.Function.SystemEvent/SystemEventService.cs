@@ -20,13 +20,15 @@ public class SystemEventServiceConfig
 
     public int UpdateInterval { get; set; } = 90;
     public int UpdateRandomOffset { get; set; } = 30;
+    public int UpdateIntervalMultiplier { get; set; } = 3;
+    public int UpdateMaxRetryCount { get; set; } = 4;
 }
 
-[Plugin("主动事件", "让AI可以获取到各种系统事件的提醒。",
+[Module("主动事件", "让AI可以获取到各种系统事件的提醒。",
     defaultCategory: "Alife 官方/生活环境",
     LaunchOrder = 100, EditorUI = typeof(SystemEventServiceUI))]
 public class SystemEventService(XmlFunctionCaller functionService)
-    : InteractivePlugin<SystemEventService>, IConfigurable<SystemEventServiceConfig>, ITimeIterative
+    : InteractiveModule<SystemEventService>, IConfigurable<SystemEventServiceConfig>, ITimeIterative
 {
     public SystemEventServiceConfig? Configuration { get; set; }
     public (DateTime Time, string Name)[] ActiveTasks => [
@@ -132,19 +134,27 @@ public class SystemEventService(XmlFunctionCaller functionService)
         }
     }
 
+    int GetNextInterval(int layer, int shake)
+    {
+        int baseInterval = Configuration!.UpdateInterval + shake;
+        int multiplier = (int)MathF.Pow(
+            Configuration!.UpdateIntervalMultiplier,
+            MathF.Min(layer, Configuration.UpdateMaxRetryCount));
+        return baseInterval * multiplier;
+    }
+
     void NextTimer()
     {
-        int offset = Random.Shared.Next(-Configuration!.UpdateRandomOffset, Configuration.UpdateRandomOffset);
-        int timeOffset = (Configuration.UpdateInterval + offset) *
-                         (int)MathF.Pow(3, MathF.Min(continuousTimerCount, 4));
-        int nextTime = Configuration.UpdateInterval * (int)MathF.Pow(3, MathF.Min(continuousTimerCount + 1, 4));
-        timeTask[0].Item1 = DateTime.Now.AddSeconds(timeOffset);
+        int currentInterval = GetNextInterval(continuousTimerCount, Random.Shared.Next(-Configuration!.UpdateRandomOffset, Configuration.UpdateRandomOffset));
+        int nextInterval = GetNextInterval(continuousTimerCount + 1, 0);
+
+        timeTask[0].Item1 = DateTime.Now.AddSeconds(currentInterval);
         timeTask[0].Item2 = () => {
             if (functionService.IsIdle)
             {
                 Poke($"""
                       定时自动报点。{Configuration!.UpdatePrompt}
-                      (下次自动报点约 {nextTime / 60} 分钟后，如果你想尽快重新活跃，可以使用<{nameof(EWait)}>或<{nameof(EWake)}>重置)
+                      (下次自动报点约 {nextInterval / 60} 分钟后，如果你想尽快重新活跃，可以使用<{nameof(EWait)}>或<{nameof(EWake)}>重置)
                       """);
             }
 

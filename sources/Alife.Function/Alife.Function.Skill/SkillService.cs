@@ -9,9 +9,9 @@ using Alife.Function.Interpreter;
 
 namespace Alife.Function.Skill;
 
-[Plugin("Skill工具", "Skill 是一种渐进式（按需加载省token）的工具包，通过预编写的手册引导和规范AI完成各种各样的复杂任务。\n你可以使用“modelscope skills add”来手动添加新的技能。",
+[Module("Skill工具", "Skill 是一种渐进式（按需加载省token）的工具包，通过预编写的手册引导和规范AI完成各种各样的复杂任务。\n你可以使用“modelscope skills add”来手动添加新的技能。",
 defaultCategory: "Alife 官方/功能底座")]
-public class SkillService(XmlFunctionCaller functionService) : InteractivePlugin<SkillService>
+public class SkillService(XmlFunctionCaller functionService) : InteractiveModule<SkillService>
 {
     [XmlFunction(FunctionMode.OneShot)]
     [Description("快速查看 skill 内容")]

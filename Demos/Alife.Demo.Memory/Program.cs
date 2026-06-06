@@ -20,7 +20,7 @@ public class Program
         Character character = new Character {
             Name = "MemoryDemo",
             Prompt = "你是一个拥有长期记忆能力的助手。请尽量简洁地回答用户。",
-            Plugins = new HashSet<string> {
+            Modules = new HashSet<string> {
                 typeof(OpenAILanguageModel).FullName!,
                 typeof(XmlFunctionCaller).FullName!,
                 typeof(MemoryService).FullName!,

@@ -9,7 +9,7 @@ public class Character : ICloneable
     public string Name { get; init; } = "真央";
     public string Description { get; set; } = "一只喜欢说话带喵的猫娘伙伴";
     public string Prompt { get; set; } = "";
-    public HashSet<string> Plugins { get; set; } = new();
+    public HashSet<string> Modules { get; set; } = new();
     public bool AutoActivate { get; set; }
     public string StorageKey => $"Character\\{Name}";
 
@@ -21,7 +21,7 @@ public class Character : ICloneable
             Name = Name,
             Prompt = Prompt,
             Description = Description,
-            Plugins = [.. Plugins],
+            Modules = [.. Modules],
             AutoActivate = AutoActivate,
         };
     }

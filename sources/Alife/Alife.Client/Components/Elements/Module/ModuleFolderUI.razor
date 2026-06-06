@@ -1,7 +1,7 @@
 @using System.Reflection
-@inject PluginSystem PluginSystem
+@inject ModuleSystem ModuleSystem
 
-<div class="plugin-tree-container" @onmouseup="OnGlobalMouseUp">
+<div class="module-tree-container" @onmouseup="OnGlobalMouseUp">
     <Tree TItem="object"
           BlockNode Selectable
           DefaultExpandedKeys="@([Context.GetHashCode().ToString()])">
@@ -60,8 +60,8 @@
 @code {
     [Parameter] public StringFolder Context { get; set; } = null!;
     [Parameter] public bool IsReadOnly { get; set; }
-    [Parameter] public Func<string, bool>? PluginFilter { get; set; }
-    [Parameter] public EventCallback<Type> OnPluginSelected { get; set; }
+    [Parameter] public Func<string, bool>? ModuleFilter { get; set; }
+    [Parameter] public EventCallback<Type> OnModuleSelected { get; set; }
 
     object? draggingData;
     StringFolder? draggingParent;
@@ -130,22 +130,22 @@
                 {
                     @RenderFolder(subFolder, folder)
                 }
-                @foreach (string pluginID in folder.Strings)
+                @foreach (string moduleID in folder.Strings)
                 {
-                    if (PluginFilter != null && !PluginFilter(pluginID)) continue;
-                    Type? type = PluginSystem.GetPlugin(pluginID);
+                    if (ModuleFilter != null && !ModuleFilter(moduleID)) continue;
+                    Type? type = ModuleSystem.GetModule(moduleID);
                     if (type != null)
                     {
-                        @RenderPlugin(type, folder)
+                        @RenderModule(type, folder)
                     }
                 }
             </ChildContent>
         </TreeNode>
     };
 
-    RenderFragment RenderPlugin(Type type, StringFolder parent) => __builder => {
-        PluginAttribute? attr = type.GetCustomAttribute<PluginAttribute>();
-        string pluginName = attr?.Name ?? type.Name;
+    RenderFragment RenderModule(Type type, StringFolder parent) => __builder => {
+        ModuleAttribute? attr = type.GetCustomAttribute<ModuleAttribute>();
+        string moduleName = attr?.Name ?? type.Name;
         <TreeNode TItem="object"
                   @key="@type"
                   DataItem="@((object)type)">
@@ -153,10 +153,10 @@
                 <div
                     class="node-item @(!IsReadOnly ? "node-item-editable" : "") @(IsDragging(type) ? "node-dragging" : "")"
                     @onmousedown="@(() => OnStartDrag(type, parent))"
-                    @onclick="() => OnPluginSelected.InvokeAsync(type)"
+                    @onclick="() => OnModuleSelected.InvokeAsync(type)"
                     @onclick:stopPropagation>
                     <Icon Type="build"/>
-                    <Text>@pluginName</Text>
+                    <Text>@moduleName</Text>
                 </div>
             </TitleTemplate>
         </TreeNode>
@@ -190,13 +190,13 @@
         }
         else if (draggingData is Type type)
         {
-            string id = PluginSystem.GetPluginID(type);
+            string id = ModuleSystem.GetModuleID(type);
             draggingParent.Strings.Remove(id);
             target.Strings.Add(id);
         }
 
         CleanupDrag();
-        PluginSystem.SaveData();
+        ModuleSystem.SaveData();
         StateHasChanged();
     }
 
@@ -220,7 +220,7 @@
     void OnCreateSub(StringFolder parent)
     {
         parent.Folders.Add(new StringFolder("未命名分类"));
-        PluginSystem.SaveData();
+        ModuleSystem.SaveData();
     }
 
     void OnStartRename(StringFolder folder)
@@ -235,7 +235,7 @@
         if (editingFolder != null && !string.IsNullOrWhiteSpace(renamingName))
         {
             editingFolder.Name = renamingName;
-            PluginSystem.SaveData();
+            ModuleSystem.SaveData();
         }
         renameVisible = false;
     }
@@ -245,6 +245,6 @@
         foreach (StringFolder sub in folder.Folders) parent.Folders.Add(sub);
         foreach (string s in folder.Strings) parent.Strings.Add(s);
         parent.Folders.Remove(folder);
-        PluginSystem.SaveData();
+        ModuleSystem.SaveData();
     }
 }

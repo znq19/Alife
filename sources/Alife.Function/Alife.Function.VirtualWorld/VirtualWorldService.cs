@@ -34,12 +34,12 @@ public class VirtualWorldConfig
         """;
 }
 
-[Plugin("世界背景", "定义整个运行环境的基础世界观、物理定律与全局公告。此配置通常作为所有角色的通用背景。",
+[Module("世界背景", "定义整个运行环境的基础世界观、物理定律与全局公告。此配置通常作为所有角色的通用背景。",
 defaultCategory: "Alife 官方/生活环境")]
 public class VirtualWorldService(
     XmlFunctionCaller functionService,
     CharacterSystem characterSystem,
-    ChatActivitySystem chatActivitySystem) : InteractivePlugin<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
+    ChatActivitySystem chatActivitySystem) : InteractiveModule<VirtualWorldService>, IConfigurable<VirtualWorldConfig>
 {
     [XmlFunction(FunctionMode.Content)]
     [Description("与指定的角色对话。（注意不要联系错人，对管理员直接对话即可）")]

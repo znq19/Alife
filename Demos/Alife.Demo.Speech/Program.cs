@@ -11,7 +11,7 @@ using Alife.Function.Speech;
 Character character = new() {
     Name = "SpeechTest",
     Prompt = "用<speak>说话",
-    Plugins = [
+    Modules = [
         typeof(OpenAILanguageModel).FullName!,
         typeof(XmlFunctionCaller).FullName!,
         typeof(SpeechService).FullName!,

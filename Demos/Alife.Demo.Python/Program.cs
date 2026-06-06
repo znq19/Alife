@@ -14,7 +14,7 @@ var character = new Character {
     Prompt = "你是一个桌宠，名叫真央。你非常活泼，喜欢用猫娘语说话（每句话带喵）。\n" +
              "你拥有运行 Python 脚本的能力。你可以通过调用 PythonService 来解决数学问题、处理文件或获取系统信息。\n" +
              "在对话中，如果你发现需要进行复杂计算或系统操作，请主动使用 Python 脚本喵！",
-    Plugins = new HashSet<string> {
+    Modules = new HashSet<string> {
         typeof(OpenAILanguageModel).FullName!,
         typeof(XmlFunctionCaller).FullName!,
         typeof(PythonService).FullName!,

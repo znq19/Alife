@@ -6,7 +6,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace Alife.Framework;
 
-public abstract class InteractivePlugin : ISystemEvent
+public abstract class InteractiveModule : ISystemEvent
 {
     protected Character Character { get; private set; } = null!;
     protected ChatActivity ChatActivity { get; private set; } = null!;
@@ -25,10 +25,10 @@ public abstract class InteractivePlugin : ISystemEvent
         ChatActivity = chatActivity;
         ChatBot = chatActivity.ChatBot;
 
-        if (this is ITimeIterative interactivePlugin)
+        if (this is ITimeIterative interactiveModule)
         {
             updateCancellation = new CancellationTokenSource();
-            StartUpdate(interactivePlugin, updateCancellation.Token);
+            StartUpdate(interactiveModule, updateCancellation.Token);
         }
 
         return Task.CompletedTask;
@@ -64,7 +64,7 @@ public abstract class InteractivePlugin : ISystemEvent
     }
 }
 
-public class InteractivePlugin<T> : InteractivePlugin
+public class InteractiveModule<T> : InteractiveModule
 {
     protected virtual string ChatTextFilter(string text)
     {

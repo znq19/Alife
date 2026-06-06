@@ -2,7 +2,7 @@
 @using AntDesign
 @using Alife.Framework
 @using Microsoft.Extensions.Logging
-@inherits PluginUIBase<AuditoryService, AuditoryServiceConfig>
+@inherits ModuleUIBase<AuditoryService, AuditoryServiceConfig>
 @inject ILogger<AuditoryServiceUI> Logger
 
 <div style="background: #fafafa; padding: 24px; border-radius: 12px; border: 1px solid #f0f0f0;">
@@ -14,7 +14,7 @@
         <Flex Direction="FlexDirection.Vertical" Gap="@("16")">
             @* 状态指示 *@
             <Flex Direction="FlexDirection.Horizontal" Align="@FlexAlign.Center" Gap="@("8")">
-                @if (Plugin?.IsRunning == true)
+                @if (Module?.IsRunning == true)
                 {
                     <Badge Status="BadgeStatus.Processing" Text="正在监听中..."/>
                 }
@@ -41,9 +41,9 @@
                             <SelectOption Value="@key" Label="@key"/>
                         }
                     </Select>
-                    @if (Plugin != null && Plugin.Configuration?.PushToTalkKey == Configuration.PushToTalkKey && Configuration.PushToTalkKey != null)
+                    @if (Module != null && Module.Configuration?.PushToTalkKey == Configuration.PushToTalkKey && Configuration.PushToTalkKey != null)
                     {
-                        @if (Plugin.IsListening)
+                        @if (Module.IsListening)
                         {
                             <Badge Status="BadgeStatus.Processing" Text="按键已按下"/>
                         }
@@ -75,8 +75,8 @@
     protected override void OnInitialized()
     {
         base.OnInitialized();
-        if (Plugin != null)
-            Plugin.IsListeningChanged += OnIsListeningChanged;
+        if (Module != null)
+            Module.IsListeningChanged += OnIsListeningChanged;
     }
 
     void OnIsListeningChanged(bool isListening)
@@ -86,14 +86,14 @@
 
     async Task ResetRecognizer()
     {
-        if (Plugin == null)
+        if (Module == null)
             return;
 
         isRestarting = true;
         try
         {
-            Plugin.StopRecording();
-            await Plugin.StartRecordingAsync();
+            Module.StopRecording();
+            await Module.StartRecordingAsync();
         }
         catch (Exception ex)
         {

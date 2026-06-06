@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Alife.Function.Speech;
 
-[Plugin("VITS语音合成", "基于VITS的本地离线语音合成引擎",
+[Module("VITS语音合成", "基于VITS的本地离线语音合成引擎",
     defaultCategory: "Alife 官方/模型接入/语音模型",
     EditorUI = typeof(VitsSpeechModelUI))]
 public class VitsSpeechModel(

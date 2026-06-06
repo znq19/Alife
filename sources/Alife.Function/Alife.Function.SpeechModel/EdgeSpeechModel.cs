@@ -9,7 +9,7 @@ using Alife.Platform;
 
 namespace Alife.Function.Speech;
 
-[Plugin("Edge语音合成", "基于Edge-TTS的在线语音合成引擎",
+[Module("Edge语音合成", "基于Edge-TTS的在线语音合成引擎",
 defaultCategory: "Alife 官方/模型接入/语音模型",
 EditorUI = typeof(EdgeSpeechModelUI))]
 public class EdgeSpeechModel :

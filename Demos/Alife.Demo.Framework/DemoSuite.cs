@@ -21,13 +21,13 @@ public class DemoSuite : IAsyncDisposable
         StorageSystem storage = new();
         ConfigurationSystem config = new(storage);
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        PluginSystem plugins = new(storage, loggerFactory.CreateLogger<PluginSystem>());
+        ModuleSystem plugins = new(storage, loggerFactory.CreateLogger<ModuleSystem>());
         configure?.Invoke(config);
 
-        AlifeTerminal.LogInfo("正在创建 ChatActivity 并注入插件...");
+        AlifeTerminal.LogInfo("正在创建 ChatActivity 并注入模块...");
         ChatActivity activity = await ChatActivity.Create(character, config, plugins, null, [config, storage]);
 
-        AlifeTerminal.LogInfo($"[插件加载完毕]: {string.Join(", ", activity.EventPlugins.Select(p => p.GetType().Name))}");
+        AlifeTerminal.LogInfo($"[模块加载完毕]: {string.Join(", ", activity.EventModules.Select(p => p.GetType().Name))}");
 
         DemoSuite suite = new(activity);
 

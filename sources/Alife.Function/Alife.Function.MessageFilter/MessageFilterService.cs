@@ -13,10 +13,10 @@ public class MessageFilterData
     public int MaxMessageLength { get; set; } = 5000;
 }
 
-[Plugin("消息过滤", "统一管理消息的提示词注入和格式化。负责添加时间戳、通用提示词以及系统消息头。",
+[Module("消息过滤", "统一管理消息的提示词注入和格式化。负责添加时间戳、通用提示词以及系统消息头。",
 defaultCategory: "Alife 官方/生活环境",
 LaunchOrder = -100, EditorUI = typeof(MessageFilterServiceUI))]
-public class MessageFilterService : InteractivePlugin<MessageFilterService>, IConfigurable<MessageFilterData>
+public class MessageFilterService : InteractiveModule<MessageFilterService>, IConfigurable<MessageFilterData>
 {
     public MessageFilterData? Configuration { get; set; }
 

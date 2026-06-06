@@ -2,7 +2,7 @@
 @using System.Text.RegularExpressions
 @using Alife.Components.Elements.Utility
 @using Autofac.Core
-@inject PluginSystem PluginSystem
+@inject ModuleSystem ModuleSystem
 @inject ChatActivitySystem ChatActivitySystem
 @inject CharacterSystem CharacterSystem
 @inject INotificationService NotificationService
@@ -83,16 +83,16 @@
                                   Disabled="@(activity != null)"
                                   Style="margin-bottom: 24px; border-radius: 8px;"></TextArea>
 
-                        <Title Level="5">插件 (Plugins)</Title>
+                        <Title Level="5">模块 (Modules)</Title>
                         <div
                             style="max-height: 400px; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; background: @(activity != null ? "#fafafa" : "#fff")">
                             <StringFolderSelectorUI
-                                Context="@(PluginSystem.GetPluginFolder())"
-                                ItemTitleFilter="@(fullName => GetPluginName(fullName))"
-                                IsChecking="pluginIDs"
+                                Context="@(ModuleSystem.GetModuleFolder())"
+                                ItemTitleFilter="@(fullName => GetModuleName(fullName))"
+                                IsChecking="moduleIDs"
                                 IsReadOnly="@(activity != null)"
 
-                                IsCheckingChanged="OnPluginCheckingChanged">
+                                IsCheckingChanged="OnModuleCheckingChanged">
                             </StringFolderSelectorUI>
                         </div>
                         @if (activity == null)
@@ -135,7 +135,7 @@
 
     public ChatActivity? Activity => activity;
     public bool IsLoading => isLoading;
-    public HashSet<string> PluginIDs => pluginIDs;
+    public HashSet<string> ModuleIDs => moduleIDs;
 
     public Task StartActivity()
     {
@@ -179,13 +179,13 @@
     string loadingTask = "正在初始化环境喵...";
     float loadingProgress;
     bool isSaving;
-    HashSet<string> pluginIDs = new();
+    HashSet<string> moduleIDs = new();
 
     protected override void OnInitialized()
     {
         if (Character != null)
         {
-            pluginIDs = Character.Plugins.ToHashSet();
+            moduleIDs = Character.Modules.ToHashSet();
             activity = ChatActivitySystem.GetChatActivity(Character);
         }
 
@@ -227,10 +227,10 @@
                 if (match1.Success && match2.Success)
                 {
                     string typeName = match2.Groups[1].Value;
-                    Type? type = PluginSystem.GetPlugin(typeName);
-                    PluginAttribute? pluginAttribute = type?.GetCustomAttribute<PluginAttribute>();
+                    Type? type = ModuleSystem.GetModule(typeName);
+                    ModuleAttribute? moduleAttribute = type?.GetCustomAttribute<ModuleAttribute>();
                     ex = new Exception(
-                        $"你需要在插件界面寻找并勾选“{pluginAttribute?.Name ?? typeName}”插件，因为插件 {match1.Groups[1].Value} 依赖于 {match2.Groups[1].Value}，"
+                        $"你需要在模块界面寻找并勾选“{moduleAttribute?.Name ?? typeName}”模块，因为模块 {match1.Groups[1].Value} 依赖于 {match2.Groups[1].Value}，"
                         , exception
                     );
                 }
@@ -272,19 +272,19 @@
         StateChanged.InvokeAsync();
     }
 
-    void OnPluginCheckingChanged(HashSet<string> ids)
+    void OnModuleCheckingChanged(HashSet<string> ids)
     {
         if (activity != null)
             return;
 
-        pluginIDs = ids;
+        moduleIDs = ids;
     }
 
-    string GetPluginName(string fullName)
+    string GetModuleName(string fullName)
     {
-        Type? type = PluginSystem.GetPlugin(fullName);
-        if (type == null) return "[未知插件] " + fullName;
-        PluginAttribute? attr = type.GetCustomAttribute<PluginAttribute>();
+        Type? type = ModuleSystem.GetModule(fullName);
+        if (type == null) return "[未知模块] " + fullName;
+        ModuleAttribute? attr = type.GetCustomAttribute<ModuleAttribute>();
         return attr?.Name ?? type.Name;
     }
 
@@ -294,7 +294,7 @@
         isSaving = true;
         try
         {
-            Character.Plugins = pluginIDs.ToHashSet();
+            Character.Modules = moduleIDs.ToHashSet();
             CharacterSystem.SaveCharacter(Character);
 
             _ = NotificationService.Success(new NotificationConfig { Message = "角色配置已成功保存！" });

@@ -56,7 +56,7 @@ public partial class App
         // Alife.Client 核心业务系统
         services.AddSingleton<StorageSystem>();
         services.AddSingleton<ConfigurationSystem>();
-        services.AddSingleton<PluginSystem>();
+        services.AddSingleton<ModuleSystem>();
         services.AddSingleton<CharacterSystem>();
         services.AddSingleton<ChatActivitySystem>();
         // 添加主窗口本身到容器，以便以后注入

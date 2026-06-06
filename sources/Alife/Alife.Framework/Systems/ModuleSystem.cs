@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Alife.Framework;
 
-public class PluginLoadContext(string pluginDirectory) : AssemblyLoadContext("PluginContext", isCollectible: true)
+public class ModuleLoadContext(string moduleDirectory) : AssemblyLoadContext("ModuleContext", isCollectible: true)
 {
     public Dictionary<Assembly, string> AssemblyPaths => assemblyPaths;
 
@@ -26,7 +26,7 @@ public class PluginLoadContext(string pluginDirectory) : AssemblyLoadContext("Pl
         assemblyPaths.Add(assembly, dllPath);
     }
 
-    readonly string baseDirectory = Path.Combine(pluginDirectory, "BaseDirectory");
+    readonly string baseDirectory = Path.Combine(moduleDirectory, "BaseDirectory");
     readonly string rid = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
         ? $"win-{RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant()}"
         : RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
@@ -73,47 +73,39 @@ public class PluginLoadContext(string pluginDirectory) : AssemblyLoadContext("Pl
     readonly Dictionary<Assembly, string> assemblyPaths = new();
 }
 
-public class PluginSystem
+public class ModuleSystem
 {
-    public Assembly? GetPluginAssembly()
+    public string GetModuleFolderRoot()
     {
-        return pluginAssemblies?.Assemblies.FirstOrDefault(assembly => assembly.GetName().Name == "Plugins");
+        return moduleRoot;
     }
-    public string GetPluginFolder<T>()
+    public StringFolder GetModuleFolder()
     {
-        return Path.Combine(pluginRoot, GetType().Namespace!);
+        return moduleFolder;
     }
-    public string GetPluginFolderRoot()
+    public IEnumerable<Type> GetAllModules()
     {
-        return pluginRoot;
+        return moduleTypes.Values;
     }
-    public StringFolder GetPluginFolder()
+    public Type? GetModule(string moduleID)
     {
-        return pluginFolder;
+        return moduleTypes.GetValueOrDefault(moduleID);
     }
-    public IEnumerable<Type> GetAllPlugins()
+    public string GetModuleID(Type moduleType)
     {
-        return pluginTypes.Values;
+        return moduleType.FullName!;
     }
-    public Type? GetPlugin(string pluginID)
+    public void ReloadModules()
     {
-        return pluginTypes.GetValueOrDefault(pluginID);
-    }
-    public string GetPluginID(Type pluginType)
-    {
-        return pluginType.FullName!;
-    }
-    public void ReloadPlugins()
-    {
-        //确保插件文件夹存在，防止报错]
-        if (Directory.Exists(pluginRoot) == false)
-            Directory.CreateDirectory(pluginRoot);
+        //确保模块文件夹存在，防止报错]
+        if (Directory.Exists(moduleRoot) == false)
+            Directory.CreateDirectory(moduleRoot);
 
-        ReloadContext(CompilePlugin(pluginRoot));
+        ReloadContext(CompileModule(moduleRoot));
     }
-    public PluginLoadContext CompilePlugin(string source)
+    public ModuleLoadContext CompileModule(string source)
     {
-        PluginLoadContext compilingContext = new(source);
+        ModuleLoadContext compilingContext = new(source);
         try
         {
             //加载dll
@@ -133,14 +125,14 @@ public class PluginSystem
 
             //编译cs
             {
-                string dllPath = Path.Combine(AlifePath.TempFolderPath, "Plugins.dll");
+                string dllPath = Path.Combine(AlifePath.TempFolderPath, "Modules.dll");
                 string pdbPath = Path.ChangeExtension(dllPath, ".pdb");
 
                 //解析语法树
                 var syntaxTrees = Directory.GetFiles(source, "*.cs", SearchOption.AllDirectories)
                     .Select(file => CSharpSyntaxTree.ParseText(
-                    File.ReadAllText(file),
-                    new CSharpParseOptions(LanguageVersion.Latest)))
+                        File.ReadAllText(file),
+                        new CSharpParseOptions(LanguageVersion.Latest)))
                     .ToList();
 
                 //收集元数据引用（去重）
@@ -158,12 +150,12 @@ public class PluginSystem
 
                 //编译
                 var compilation = CSharpCompilation.Create(
-                "Plugins",
-                syntaxTrees,
-                references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
-                    .WithAllowUnsafe(true)
-                    .WithOptimizationLevel(OptimizationLevel.Release));
+                    "Modules",
+                    syntaxTrees,
+                    references,
+                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+                        .WithAllowUnsafe(true)
+                        .WithOptimizationLevel(OptimizationLevel.Release));
 
                 var emitResult = compilation.Emit(dllPath, pdbPath);
 
@@ -172,7 +164,7 @@ public class PluginSystem
                     var errors = string.Join("\n", emitResult.Diagnostics
                         .Where(d => d.Severity == DiagnosticSeverity.Error)
                         .Select(d => d.ToString()));
-                    throw new Exception($"插件编译失败:\n{errors}");
+                    throw new Exception($"模块编译失败:\n{errors}");
                 }
 
                 compilingContext.LoadDll(dllPath);
@@ -188,66 +180,66 @@ public class PluginSystem
     }
     public void SaveData()
     {
-        storageSystem.SetObject(pluginSystemConfig, pluginFolder);
+        storageSystem.SetObject(moduleSystemConfig, moduleFolder);
     }
 
 #if DEBUG
-    readonly string pluginRoot = Path.Combine(AlifePath.StorageFolderPath, "PluginsDebug");
+    readonly string moduleRoot = Path.Combine(AlifePath.StorageFolderPath, "PluginsDebug");
 #else
-    readonly string pluginRoot = Path.Combine(AlifePath.StorageFolderPath, "Plugins");
+    readonly string moduleRoot = Path.Combine(AlifePath.StorageFolderPath, "Plugins");
 #endif
 
-    readonly string pluginSystemConfig = "PluginCategory";
+    readonly string moduleSystemConfig = "ModuleCategory";
     readonly StorageSystem storageSystem;
-    readonly Dictionary<string, Type> pluginTypes;
-    readonly StringFolder pluginFolder;
+    readonly Dictionary<string, Type> moduleTypes;
+    readonly StringFolder moduleFolder;
     readonly HashSet<string> defaultAssemblies;
     readonly Assembly[] thisAssemblies;
-    AssemblyLoadContext? pluginAssemblies;
+    AssemblyLoadContext? moduleAssemblies;
 
-    public PluginSystem(StorageSystem storageSystem, ILogger<PluginSystem> logger)
+    public ModuleSystem(StorageSystem storageSystem, ILogger<ModuleSystem> logger)
     {
         this.storageSystem = storageSystem;
 
-        pluginTypes = new Dictionary<string, Type>();
-        pluginFolder = storageSystem.GetObject(pluginSystemConfig, new StringFolder("全部插件"))!;
+        moduleTypes = new Dictionary<string, Type>();
+        moduleFolder = storageSystem.GetObject(moduleSystemConfig, new StringFolder("全部模块"))!;
 
-        //预热程序集，因为插件可能依赖Alife自身的程序集，结果Alife本身目前未用到，导致未加载
+        //预热程序集，因为模块可能依赖Alife自身的程序集，结果Alife本身目前未用到，导致未加载
         PreloadAllAssemblies();
         defaultAssemblies = AssemblyLoadContext.Default.Assemblies.Select(assembly => assembly.FullName).ToHashSet()!;
         thisAssemblies = AppDomain.CurrentDomain.GetAssemblies().Where(assembly => assembly.GetName().Name?.StartsWith("Alife") ?? false).ToArray();
 
         try
         {
-            ReloadPlugins();
+            ReloadModules();
         }
         catch (Exception e)
         {
-            logger.LogError(e, "加载插件失败");
+            logger.LogError(e, "加载模块失败");
         }
     }
 
     void ReloadContext(AssemblyLoadContext context)
     {
         //替换上下文
-        pluginTypes.Clear();
-        if (pluginAssemblies != null)
-            pluginAssemblies.Unload();
-        pluginAssemblies = context;
+        moduleTypes.Clear();
+        if (moduleAssemblies != null)
+            moduleAssemblies.Unload();
+        moduleAssemblies = context;
 
-        //统计Plugin
-        foreach (Assembly assembly in pluginAssemblies.Assemblies.Union(thisAssemblies))
+        //统计Module
+        foreach (Assembly assembly in moduleAssemblies.Assemblies.Union(thisAssemblies))
         {
             foreach (Type type in assembly.GetTypes())
             {
-                if (type.GetCustomAttribute<PluginAttribute>() == null)
+                if (type.GetCustomAttribute<ModuleAttribute>() == null)
                     continue;
                 if (type.IsAbstract)
                     continue;
                 if (type.IsInterface)
                     continue;
 
-                pluginTypes.Add(GetPluginID(type), type);
+                moduleTypes.Add(GetModuleID(type), type);
             }
         }
 
@@ -255,19 +247,19 @@ public class PluginSystem
     }
     void SyncFolder()
     {
-        HashSet<string> currentPlugins = pluginTypes.Keys.ToHashSet();
+        HashSet<string> currentModules = moduleTypes.Keys.ToHashSet();
 
-        //移除无效插件，同时如果有效则剔除
-        pluginFolder.RemoveAll(name => currentPlugins.Remove(name) == false);
-        //剩下的就是还没有的插件，添加到根目录
-        foreach (var typeName in currentPlugins)
+        //移除无效模块，同时如果有效则剔除
+        moduleFolder.RemoveAll(name => currentModules.Remove(name) == false);
+        //剩下的就是还没有的模块，添加到根目录
+        foreach (var typeName in currentModules)
         {
-            PluginAttribute? pluginAttribute = pluginTypes[typeName].GetCustomAttribute<PluginAttribute>();
-            if (pluginAttribute == null)
+            ModuleAttribute? moduleAttribute = moduleTypes[typeName].GetCustomAttribute<ModuleAttribute>();
+            if (moduleAttribute == null)
                 continue;
 
-            StringFolder folder = pluginFolder;
-            string[] path = pluginAttribute.DefaultCategory.Split("/", StringSplitOptions.RemoveEmptyEntries);
+            StringFolder folder = moduleFolder;
+            string[] path = moduleAttribute.DefaultCategory.Split("/", StringSplitOptions.RemoveEmptyEntries);
             foreach (string subFolderName in path)
             {
                 string name = subFolderName;

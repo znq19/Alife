@@ -46,7 +46,7 @@ public class ChatActivitySystem
 
             Activating?.Invoke(character);
             ChatActivity chatActivity = await ChatActivity.Create(
-                character, configurationSystem, pluginSystem, progress,
+                character, configurationSystem, moduleSystem, progress,
                 appendObjects.ToArray()
             );
             ActivatingCreated?.Invoke(chatActivity);
@@ -77,21 +77,21 @@ public class ChatActivitySystem
     public ChatActivitySystem(
         CharacterSystem characterSystem,
         ConfigurationSystem configurationSystem,
-        PluginSystem pluginSystem,
+        ModuleSystem moduleSystem,
         StorageSystem storageSystem)
     {
         appendObjects.Add(characterSystem);
         appendObjects.Add(configurationSystem);
-        appendObjects.Add(pluginSystem);
+        appendObjects.Add(moduleSystem);
         appendObjects.Add(storageSystem);
         appendObjects.Add(this);
         this.characterSystem = characterSystem;
-        this.pluginSystem = pluginSystem;
+        this.moduleSystem = moduleSystem;
         this.configurationSystem = configurationSystem;
     }
 
     readonly CharacterSystem characterSystem;
-    readonly PluginSystem pluginSystem;
+    readonly ModuleSystem moduleSystem;
     readonly ConfigurationSystem configurationSystem;
     readonly List<object> appendObjects = new();
     readonly Dictionary<string, ChatActivity> activities = new();

@@ -10,7 +10,7 @@ public class Program
     public static async Task Main(string[] args)
     {
         AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
-        AlifeTerminal.Log("   Alife.Client OneBot AI Plugin 集成验证 Demo", ConsoleColor.Magenta);
+        AlifeTerminal.Log("   Alife.Client OneBot AI Module 集成验证 Demo", ConsoleColor.Magenta);
         AlifeTerminal.Log("========================================", ConsoleColor.Magenta);
 
         // 1. 配置角色 (真央)
@@ -22,7 +22,7 @@ public class Program
                      "示例：\n" +
                      "1. 发送文字：<QChat target=\"123456\" type=\"group\">[CQ:at,qq=789] 你好喵！我也在看这个喵~</QChat>\n" +
                      "2. 发送图片：<QSendFile file=\"url或路径\" />",
-            Plugins = new HashSet<string> {
+            Modules = new HashSet<string> {
                 typeof(OpenAILanguageModel).FullName!,
                 typeof(XmlFunctionCaller).FullName!,
                 typeof(QChatService).FullName!,
@@ -38,7 +38,7 @@ public class Program
             });
         });
 
-        AlifeTerminal.LogInfo("提示：OneBot 插件已加载。您可以直接在此输入消息模拟 QQ 互动。");
+        AlifeTerminal.LogInfo("提示：OneBot 模块已加载。您可以直接在此输入消息模拟 QQ 互动。");
         AlifeTerminal.Log("--------------------------------------------------\n", ConsoleColor.Gray);
 
         // 4. 开启交互循环

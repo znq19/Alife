@@ -17,18 +17,18 @@ public class McpServerConfig
     public string[] Arguments { get; set; } = [];
 }
 
-public class McpPluginConfig
+public class McpModuleConfig
 {
     public List<McpServerConfig> Servers { get; set; } = new();
 }
 
-[Plugin("MCP服务", "让AI可以通过Model Context Protocol接入外部工具。",
+[Module("MCP服务", "让AI可以通过Model Context Protocol接入外部工具。",
 defaultCategory: "Alife 官方/功能底座",
 editorUI: typeof(McpServiceUI))]
 public class McpService(XmlFunctionCaller functionService, ILoggerFactory loggerFactory)
-    : InteractivePlugin<McpService>, IConfigurable<McpPluginConfig>
+    : InteractiveModule<McpService>, IConfigurable<McpModuleConfig>
 {
-    public McpPluginConfig? Configuration { get; set; }
+    public McpModuleConfig? Configuration { get; set; }
 
     readonly List<McpClient> mcpClients = new();
     readonly List<XmlHandler> xmlHandlers = new();

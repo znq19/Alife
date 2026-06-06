@@ -21,7 +21,7 @@ public class Program
         AlifeTerminal.Log("   Alife.Client Skill 集成测试 Demo", ConsoleColor.Cyan);
         AlifeTerminal.Log("========================================", ConsoleColor.Cyan);
 
-        // 0. 强制加载程序集以确保插件被扫描
+        // 0. 强制加载程序集以确保模块被扫描
         _ = typeof(OpenAILanguageModel).Assembly;
         _ = typeof(Alife.Function.Skill.SkillService).Assembly;
 
@@ -31,7 +31,7 @@ public class Program
         StorageSystem storage = new();
         ConfigurationSystem config = new(storage);
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        PluginSystem plugins = new(storage, loggerFactory.CreateLogger<PluginSystem>());
+        ModuleSystem plugins = new(storage, loggerFactory.CreateLogger<ModuleSystem>());
 
         // 2. 准备角色
         Character character = new()
@@ -41,7 +41,7 @@ public class Program
                      "当你遇到无法直接完成的任务时，你应该先检查是否有相关的 skill 可以使用。\n" +
                      "你可以使用 <SkillService ReadSkill=\"skillName\" /> 来阅读技能手册。\n" +
                      "阅读手册后，请严格按照手册中的 Python 示例代码或指导来完成任务。",
-            Plugins = 
+            Modules = 
             { 
                 typeof(OpenAILanguageModel).FullName!, 
                 typeof(SkillService).FullName!, 
@@ -51,11 +51,11 @@ public class Program
         };
 
         // 3. 创建 ChatActivity 并注入插件
-        AlifeTerminal.LogInfo("正在创建 ChatActivity 并注入插件...");
+        AlifeTerminal.LogInfo("正在创建 ChatActivity 并注入模块...");
         ChatActivity activity = await ChatActivity.Create(character, config, plugins, null, [config, storage]);
-        await activity.Launch(); // 必须调用 Start 才能激活插件
+        await activity.Launch(); // 必须调用 Start 才能激活模块
 
-        AlifeTerminal.LogInfo($"[插件加载完毕]: {string.Join(", ", activity.EventPlugins.Select(p => p.GetType().Name))}");
+        AlifeTerminal.LogInfo($"[模块加载完毕]: {string.Join(", ", activity.EventModules.Select(p => p.GetType().Name))}");
 
         // 订阅聊天事件以查看输出
         activity.ChatBot.ChatSent += (msg) => AlifeTerminal.Log($"> USER: {msg}", ConsoleColor.Green);
@@ -70,7 +70,7 @@ public class Program
         // 检查是否有对话模型
         if (!activity.EventPlugins.Any(p => p is OpenAILanguageModel))
         {
-            AlifeTerminal.LogError("警告: ChatService 未加载！请检查插件配置。");
+            AlifeTerminal.LogError("警告: ChatService 未加载！请检查模块配置。");
         }
 
         // 4. 运行交互

@@ -1,12 +1,12 @@
 @namespace Alife.Function.Speech
-@inherits Alife.Framework.PluginUIBase<EdgeSpeechModel, EdgeSpeechModelConfig>
+@inherits Alife.Framework.ModuleUIBase<EdgeSpeechModel, EdgeSpeechModelConfig>
 @using AntDesign
 
 <div style="background: #fff; padding: 20px; border-radius: 8px;">
     <Title Level="4" Style="margin-bottom: 24px;">Edge语音合成配置</Title>
     
     <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 16px;">
-        基于Edge-TTS的在线语音合成引擎，需要Python环境和edge-tts包。
+        基于Edge-TTS的在线语音合成引擎。
     </Text>
 
     <Form TModel="EdgeSpeechModelConfig" Model="@Configuration" Layout="@FormLayout.Vertical">

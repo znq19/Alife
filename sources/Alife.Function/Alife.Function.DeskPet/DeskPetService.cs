@@ -11,10 +11,10 @@ using Microsoft.SemanticKernel;
 
 namespace Alife.Function.DeskPet;
 
-[Plugin("桌宠交互", "将Live2D桌宠接入AI系统，实现表现力同步和互动反馈。",
+[Module("桌宠交互", "将Live2D桌宠接入AI系统，实现表现力同步和互动反馈。",
     defaultCategory: "Alife 官方/交互方式",
     EditorUI = typeof(DeskPetServiceUI))]
-public class DeskPetService(XmlFunctionCaller functionService) : InteractivePlugin<DeskPetService>, IAsyncDisposable, IConfigurable<DeskPetServiceConfig>
+public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModule<DeskPetService>, IAsyncDisposable, IConfigurable<DeskPetServiceConfig>
 {
     [XmlFunction(FunctionMode.Content)]
     [Description("显示一段气泡文本")]

@@ -21,7 +21,7 @@ public partial class ChatActivity
     public static async Task<ChatActivity> Create(
         Character character,
         ConfigurationSystem configurationSystem,
-        PluginSystem pluginSystem,
+        ModuleSystem moduleSystem,
         IProgress<(string, float)>? progress = null,
         object[]? appendServices = null)
     {
@@ -35,14 +35,14 @@ public partial class ChatActivity
             builder.SetMinimumLevel(LogLevel.Information);
         });
         containerBuilder.Populate(serviceCollection);
-        //额外添加用户勾选插件（提高优先级）
-        Type[] pluginTypes = character.Plugins
-            .Select(pluginSystem.GetPlugin)
+        //额外添加用户勾选模块（提高优先级）
+        Type[] moduleTypes = character.Modules
+            .Select(moduleSystem.GetModule)
             .Where(t => t != null).Cast<Type>()
             .ToArray();
-        foreach (Type pluginType in pluginTypes)
+        foreach (Type moduleType in moduleTypes)
         {
-            var registration = containerBuilder.RegisterType(pluginType)
+            var registration = containerBuilder.RegisterType(moduleType)
                 .AsSelf()
                 .AsImplementedInterfaces()
                 .SingleInstance()
@@ -54,7 +54,7 @@ public partial class ChatActivity
                     }
                 });
             //同时注册所有非系统抽象基类
-            Type? baseType = pluginType.BaseType;
+            Type? baseType = moduleType.BaseType;
             while (baseType != null && baseType != typeof(object))
             {
                 registration.As(baseType);
@@ -67,7 +67,7 @@ public partial class ChatActivity
             foreach (var appendService in appendServices)
                 containerBuilder.RegisterInstance(appendService).As(appendService.GetType());
         }
-        IContainer pluginContainer = containerBuilder.Build();
+        IContainer moduleContainer = containerBuilder.Build();
 
         try
         {
@@ -76,42 +76,42 @@ public partial class ChatActivity
             //创建上下文构建器
             ChatHistoryAgentThread contextBuilder = new();
             //进行系统初始化
-            List<ISystemEvent> allEventPlugin = new();
+            List<ISystemEvent> allEventModules = new();
             {
                 AwakeContext awakeContext = new() {
                     Character = character,
-                    Services = (IServiceProvider)pluginContainer,
+                    Services = (IServiceProvider)moduleContainer,
                     KernelBuilder = kernelBuilder,
                     ContextBuilder = contextBuilder
                 };
 
                 //触发系统初始化事件，首先获取支持系统事件的类
                 {
-                    Type[] allEventPluginTypes = pluginTypes
+                    Type[] allEventModuleTypes = moduleTypes
                         .Where(type => type.IsAssignableTo(typeof(ISystemEvent)))
-                        .OrderBy(type => type.GetCustomAttribute<PluginAttribute>()?.LaunchOrder)
+                        .OrderBy(type => type.GetCustomAttribute<ModuleAttribute>()?.LaunchOrder)
                         .ToArray();
-                    for (int index = 0; index < allEventPluginTypes.Length; index++)
+                    for (int index = 0; index < allEventModuleTypes.Length; index++)
                     {
-                        Type pluginType = allEventPluginTypes[index];
-                        PluginAttribute pluginAttribute = pluginType.GetCustomAttribute<PluginAttribute>()!;
-                        progress?.Report(($"实例化插件 {pluginAttribute.Name}", (float)index / pluginTypes.Length));
+                        Type moduleType = allEventModuleTypes[index];
+                        ModuleAttribute moduleAttribute = moduleType.GetCustomAttribute<ModuleAttribute>()!;
+                        progress?.Report(($"实例化模块 {moduleAttribute.Name}", (float)index / moduleTypes.Length));
                         try
                         {
-                            allEventPlugin.Add((ISystemEvent)pluginContainer.Resolve(pluginType));
+                            allEventModules.Add((ISystemEvent)moduleContainer.Resolve(moduleType));
                         }
                         catch (Exception ex)
                         {
-                            throw new Exception($"实例化插件 {pluginAttribute.Name} 失败", ex);
+                            throw new Exception($"实例化模块 {moduleAttribute.Name} 失败", ex);
                         }
                     }
                 }
 
-                for (int index = 0; index < allEventPlugin.Count; index++)
+                for (int index = 0; index < allEventModules.Count; index++)
                 {
-                    ISystemEvent systemEvent = allEventPlugin[index];
-                    PluginAttribute pluginAttribute = systemEvent.GetType().GetCustomAttribute<PluginAttribute>()!;
-                    progress?.Report(($"初始化插件 {pluginAttribute.Name}", (float)index / allEventPlugin.Count));
+                    ISystemEvent systemEvent = allEventModules[index];
+                    ModuleAttribute moduleAttribute = systemEvent.GetType().GetCustomAttribute<ModuleAttribute>()!;
+                    progress?.Report(($"初始化模块 {moduleAttribute.Name}", (float)index / allEventModules.Count));
 
                     try
                     {
@@ -119,7 +119,7 @@ public partial class ChatActivity
                     }
                     catch (Exception ex)
                     {
-                        throw new Exception($"初始化插件 {pluginAttribute.Name} 失败", ex);
+                        throw new Exception($"初始化模块 {moduleAttribute.Name} 失败", ex);
                     }
                 }
             }
@@ -128,8 +128,8 @@ public partial class ChatActivity
             ChatBot chatBot;
             Kernel kernelService;
             {
-                if (pluginContainer.TryResolve(out ILanguageModel? languageModel) == false)
-                    throw new Exception($"必须确保启用了一个文本模型插件！（系统依赖 {nameof(ILanguageModel)}）");
+                if (moduleContainer.TryResolve(out ILanguageModel? languageModel) == false)
+                    throw new Exception($"必须确保启用了一个文本模型模块！（系统依赖 {nameof(ILanguageModel)}）");
                 languageModel.RegisterChatCompletion(kernelBuilder);
                 kernelService = kernelBuilder.Build();
                 ChatCompletionAgent chatCompletionAgent = new() {
@@ -143,38 +143,38 @@ public partial class ChatActivity
                 chatBot = new ChatBot(chatCompletionAgent, contextBuilder);
             }
 
-            return new(character, kernelService, pluginContainer, chatBot, allEventPlugin);
+            return new(character, kernelService, moduleContainer, chatBot, allEventModules);
         }
         catch
         {
-            await pluginContainer.DisposeAsync();
+            await moduleContainer.DisposeAsync();
             throw;
         }
     }
 }
 
-public partial class ChatActivity(Character character, Kernel kernelService, IContainer pluginService, ChatBot chatBot, List<ISystemEvent> eventPlugins) : IAsyncDisposable
+public partial class ChatActivity(Character character, Kernel kernelService, IContainer moduleService, ChatBot chatBot, List<ISystemEvent> eventModules) : IAsyncDisposable
 {
     public Character Character => character;
     public Kernel KernelService => kernelService;
-    public IContainer PluginService => pluginService;
+    public IContainer ModuleService => moduleService;
     public ChatBot ChatBot => chatBot;
-    public IReadOnlyList<ISystemEvent> EventPlugins => eventPlugins;
+    public IReadOnlyList<ISystemEvent> EventModules => eventModules;
 
     public async Task Launch(IProgress<(string, float)>? progress = null)
     {
-        for (int index = 0; index < eventPlugins.Count; index++)
+        for (int index = 0; index < eventModules.Count; index++)
         {
-            ISystemEvent systemEvent = eventPlugins[index];
-            progress?.Report(($"启动插件 {systemEvent.GetType().Name}", (float)index / eventPlugins.Count));
-            PluginAttribute pluginAttribute = systemEvent.GetType().GetCustomAttribute<PluginAttribute>()!;
+            ISystemEvent systemEvent = eventModules[index];
+            progress?.Report(($"启动模块 {systemEvent.GetType().Name}", (float)index / eventModules.Count));
+            ModuleAttribute moduleAttribute = systemEvent.GetType().GetCustomAttribute<ModuleAttribute>()!;
             try
             {
                 await systemEvent.StartAsync(kernelService, this);
             }
             catch (Exception ex)
             {
-                throw new Exception($"启动插件 {pluginAttribute.Name} 失败", ex);
+                throw new Exception($"启动模块 {moduleAttribute.Name} 失败", ex);
             }
         }
     }
@@ -182,10 +182,10 @@ public partial class ChatActivity(Character character, Kernel kernelService, ICo
     {
         try
         {
-            foreach (ISystemEvent systemEvent in ((IEnumerable<ISystemEvent>)eventPlugins).Reverse())
+            foreach (ISystemEvent systemEvent in ((IEnumerable<ISystemEvent>)eventModules).Reverse())
                 await systemEvent.DestroyAsync();
             await chatBot.DisposeAsync();
-            await pluginService.DisposeAsync();
+            await moduleService.DisposeAsync();
         }
         catch (Exception e)
         {

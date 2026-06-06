@@ -2,7 +2,7 @@ using System;
 
 namespace Alife.Framework;
 
-public class PluginAttribute(
+public class ModuleAttribute(
     string name,
     string description,
     string? url = null,

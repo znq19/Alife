@@ -10,25 +10,25 @@ using Alife.Platform;
 
 namespace Alife.Function.Developer;
 
-[Plugin("自我升级", "向 AI 暴露项目和系统信息，并提供工具使其可以自制插件和重启活动。",
+[Module("自我升级", "向 AI 暴露项目和系统信息，并提供工具使其可以自制模块和重启活动。",
 defaultCategory: "Alife 官方/生活环境"
 )]
 [Description(@"你身处一个名 Alife 的代理框架中（源码仓库：https://github.com/BDFFZI/Alife）。现在你拥有对其运行环境的完全控制。
-你可以通过各项查询函数了解其运行时信息，甚至编辑并热重载插件，实现自我升级（很危险，建议与用户配合）")]
+你可以通过各项查询函数了解其运行时信息，甚至编辑并热重载模块，实现自我升级（很危险，建议与用户配合）")]
 public class DeveloperService(
     CharacterSystem characterSystem,
     ChatActivitySystem chatActivitySystem,
-    PluginSystem pluginSystem,
+    ModuleSystem moduleSystem,
     ConfigurationSystem configurationSystem,
     XmlFunctionCaller functionCaller) :
-    InteractivePlugin<DeveloperService>
+    InteractiveModule<DeveloperService>
 {
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("获取插件开发指南")]
-    public void GetPluginGuide()
+    [Description("获取模块开发指南")]
+    public void GetModuleGuide()
     {
         Poke($$$"""
-                # 插件开发指南
+                # 模块开发指南
 
                 ## 示例代码
                 ```csharp
@@ -36,8 +36,8 @@ public class DeveloperService(
                 using Alife.Framework;
                 using Alife.Function.FunctionCaller;
 
-                [Plugin("插件名", "插件描述")]
-                public class MyPlugin(XmlFunctionCaller functionService) : InteractivePlugin<MyPlugin>
+                [Module("模块名", "模块描述")]
+                public class MyModule(XmlFunctionCaller functionService) : InteractiveModule<MyModule>
                 {
                     [XmlFunction(FunctionMode.OneShot)]
                     [Description("函数描述")]
@@ -52,43 +52,43 @@ public class DeveloperService(
                     {
                         await base.AwakeAsync(context);
                         functionService.RegisterHandler(this);
-                        Prompt("此插件的功能说明...");
+                        Prompt("此模块的功能说明...");
                     }
                 }
                 ```
 
-                - `[Plugin]` 标记插件类
-                - 继承 `InteractivePlugin<T>` 获得 `Poke()`、`Prompt()` 等方法
-                - 构造函数参数自动依赖注入（其他插件、Logger、系统服务等）
+                - `[Module]` 标记模块类
+                - 继承 `InteractiveModule<T>` 获得 `Poke()`、`Prompt()` 等方法
+                - 构造函数参数自动依赖注入（其他模块、Logger、系统服务等）
                 - `[XmlFunction(FunctionMode.OneShot)]` 标记可调用函数
                 - `Poke()` 向 AI 返回结果
                 - `AwakeAsync` 中 `RegisterHandler(this)` 注册函数
 
                 ## 开发环境：
-                1. 本框架支持热编译热重载C#代码，来编写插件的功能。因此只需在插件文件夹直接编写cs代码，即可创建插件，没有任何其他文件名等要求。
-                2. 插件文件夹是`{{{pluginCopyRoot}}}`，所有已有插件以及你新增的插件，都要放到该目录下。
-                3. 角色配置文件是`{{{characterSystem.GetCharacterConfigFile(Character)}}}`，插件的开关需要在中设置。
+                1. 本框架支持热编译热重载C#代码，来编写模块的功能。因此只需在模块文件夹直接编写cs代码，即可创建模块，没有任何其他文件名等要求。
+                2. 模块文件夹是`{{{moduleCopyRoot}}}`，所有已有模块以及你新增的模块，都要放到该目录下。
+                3. 角色配置文件是`{{{characterSystem.GetCharacterConfigFile(Character)}}}`，模块的开关需要在中设置。
 
-                ## 插件开发步骤
-                1. 翻阅插件文件夹，确定已有插件，以及参考其中插件的实现。
-                2. 在插件文件夹新增或修改插件的.cs后，通过 ReloadPlugin 重载插件。
-                3. 重载成功后，检查并修改角色配置文件，确保其中正确包含了要启用的插件。
-                4. 通过 RestartActivity 重启对话活动，插件将在重启后生效。
+                ## 模块开发步骤
+                1. 翻阅模块文件夹，确定已有模块，以及参考其中模块的实现。
+                2. 在模块文件夹新增或修改模块的.cs后，通过 ReloadModule 重载模块。
+                3. 重载成功后，检查并修改角色配置文件，确保其中正确包含了要启用的模块。
+                4. 通过 RestartActivity 重启对话活动，模块将在重启后生效。
 
                 ## 使用提示
-                1. 如果重载插件成功，那说明代码肯定是没问题的，只要插件在插件文件夹中，就一定是能加载到程序中。
-                2. 如果重载成功但依然没法使用，通常都是角色配置的问题，你需要确保配置填写无误，确定启用了插件。
+                1. 如果重载模块成功，那说明代码肯定是没问题的，只要模块在模块文件夹中，就一定是能加载到程序中。
+                2. 如果重载成功但依然没法使用，通常都是角色配置的问题，你需要确保配置填写无误，确定启用了模块。
 
                 ## 更多信息
-                插件的参考实现在插件根目录中，你可以翻阅其中的现有插件代码来学习。
+                模块的参考实现在模块根目录中，你可以翻阅其中的现有模块代码来学习。
                 """);
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("获取所有已安装插件的列表和分类")]
-    public void ListAllPlugins()
+    [Description("获取所有已安装模块的列表和分类")]
+    public void ListAllModules()
     {
-        StringFolder folder = pluginSystem.GetPluginFolder();
+        StringFolder folder = moduleSystem.GetModuleFolder();
         Poke(FormatFolder(folder, 0));
 
         static string FormatFolder(StringFolder f, int depth)
@@ -110,14 +110,14 @@ public class DeveloperService(
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("尝试编译重载插件")]
-    public void ReloadPlugin()
+    [Description("尝试编译重载模块")]
+    public void ReloadModule()
     {
-        PluginLoadContext context = pluginSystem.CompilePlugin(pluginCopyRoot);
+        ModuleLoadContext context = moduleSystem.CompileModule(moduleCopyRoot);
         context.Unload();
-        SyncPluginsFromCopy();
-        pluginSystem.ReloadPlugins();
-        Poke("插件重载成功！接下来请确认角色配置文件中是否正确添加了插件，然后重启角色活动，以使插件生效。");
+        SyncModulesFromCopy();
+        moduleSystem.ReloadModules();
+        Poke("模块重载成功！接下来请确认角色配置文件中是否正确添加了模块，然后重启角色活动，以使模块生效。");
     }
 
     [XmlFunction(FunctionMode.OneShot)]
@@ -158,7 +158,7 @@ public class DeveloperService(
         Poke($$$"""
                 存储目录：{{{AlifePath.StorageFolderPath}}}
                 应用目录：{{{AppContext.BaseDirectory}}}
-                插件目录：{{{pluginCopyRoot}}}
+                模块目录：{{{moduleCopyRoot}}}
                 运行时资源目录：{{{AlifePath.RuntimeFolderPath}}}
                 （你可以按需编辑这些路径的文件，来实现特别的需求）
                 """);
@@ -181,41 +181,41 @@ public class DeveloperService(
         }
 
         string configPath = characterSystem.GetCharacterConfigFile(character);
-        string plugins = string.Join(", ", character.Plugins.Select(pluginSystem.GetPlugin)
+        string modules = string.Join(", ", character.Modules.Select(moduleSystem.GetModule)
             .Where(type => type != null)
             .Cast<Type>()
             .Select(type => type.FullName!));
         Poke($$$"""
                 名称: {{{character.Name}}}
                 描述: {{{character.Description}}}
-                已启用插件（只列出确实已被系统识别到的插件）: {{{plugins}}}
-                配置文件地址（你可以修改该文件然后重启活动，来实现角色配置调整，比如借此调整其启用的插件）: {{{configPath}}}
+                已启用模块（只列出确实已被系统识别到的模块）: {{{modules}}}
+                配置文件地址（你可以修改该文件然后重启活动，来实现角色配置调整，比如借此调整其启用的模块）: {{{configPath}}}
                 """);
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("获取指定插件的配置信息")]
-    public void GetPluginConfig([Description("插件完整类名")] string pluginTypeName)
+    [Description("获取指定模块的配置信息")]
+    public void GetModuleConfig([Description("模块完整类名")] string moduleTypeName)
     {
-        Type? type = pluginSystem.GetPlugin(pluginTypeName);
+        Type? type = moduleSystem.GetModule(moduleTypeName);
         if (type == null)
         {
-            Poke($"插件 '{pluginTypeName}' 不存在");
+            Poke($"模块 '{moduleTypeName}' 不存在");
             return;
         }
 
         if (configurationSystem.CanConfiguration(type) == false)
         {
-            Poke($"插件 '{pluginTypeName}' 不支持配置");
+            Poke($"模块 '{moduleTypeName}' 不支持配置");
             return;
         }
 
         object? config = configurationSystem.GetConfiguration(type, Character.StorageKey);
         string json = System.Text.Json.JsonSerializer.Serialize(config, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        string charConfigPath = Path.Combine(AlifePath.StorageFolderPath, Character.StorageKey, "Configuration", $"{pluginTypeName}.json");
-        string globalConfigPath = Path.Combine(AlifePath.StorageFolderPath, "Configuration", $"{pluginTypeName}.json");
+        string charConfigPath = Path.Combine(AlifePath.StorageFolderPath, Character.StorageKey, "Configuration", $"{moduleTypeName}.json");
+        string globalConfigPath = Path.Combine(AlifePath.StorageFolderPath, "Configuration", $"{moduleTypeName}.json");
         Poke($$$"""
-                插件 {{{pluginTypeName}}} 的配置（{{{Character.Name}}} 角色）：
+                模块 {{{moduleTypeName}}} 的配置（{{{Character.Name}}} 角色）：
 
                 {{{json}}}
 
@@ -235,21 +235,21 @@ public class DeveloperService(
         Poke($"所有角色：\n{info}");
     }
 
-    string pluginRoot = null!;
-    string pluginCopyRoot = null!;
+    string moduleRoot = null!;
+    string moduleCopyRoot = null!;
 
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
 
-        pluginRoot = pluginSystem.GetPluginFolderRoot();
-        pluginCopyRoot = Path.Combine(AlifePath.TempFolderPath, "PluginsRuntime");
-        CopyPluginFolder(pluginRoot, pluginCopyRoot);
+        moduleRoot = moduleSystem.GetModuleFolderRoot();
+        moduleCopyRoot = Path.Combine(AlifePath.TempFolderPath, "ModulesRuntime");
+        CopyModuleFolder(moduleRoot, moduleCopyRoot);
 
         functionCaller.RegisterHandler(this);
     }
 
-    void CopyPluginFolder(string source, string destination)
+    void CopyModuleFolder(string source, string destination)
     {
         if (Directory.Exists(destination))
             Directory.Delete(destination, true);
@@ -268,28 +268,28 @@ public class DeveloperService(
         }
     }
 
-    void SyncPluginsFromCopy()
+    void SyncModulesFromCopy()
     {
-        foreach (string dir in Directory.GetDirectories(pluginRoot, "*", SearchOption.TopDirectoryOnly))
+        foreach (string dir in Directory.GetDirectories(moduleRoot, "*", SearchOption.TopDirectoryOnly))
         {
             if (Path.GetFileName(dir) == "BaseDirectory") continue;
             Directory.Delete(dir, true);
         }
 
-        foreach (string file in Directory.GetFiles(pluginRoot, "*.*", SearchOption.TopDirectoryOnly))
+        foreach (string file in Directory.GetFiles(moduleRoot, "*.*", SearchOption.TopDirectoryOnly))
         {
             File.Delete(file);
         }
 
-        foreach (string dir in Directory.GetDirectories(pluginCopyRoot, "*", SearchOption.TopDirectoryOnly))
+        foreach (string dir in Directory.GetDirectories(moduleCopyRoot, "*", SearchOption.TopDirectoryOnly))
         {
             if (Path.GetFileName(dir) == "BaseDirectory") continue;
-            CopyPluginFolder(dir, Path.Combine(pluginRoot, Path.GetFileName(dir)));
+            CopyModuleFolder(dir, Path.Combine(moduleRoot, Path.GetFileName(dir)));
         }
 
-        foreach (string file in Directory.GetFiles(pluginCopyRoot, "*.*", SearchOption.TopDirectoryOnly))
+        foreach (string file in Directory.GetFiles(moduleCopyRoot, "*.*", SearchOption.TopDirectoryOnly))
         {
-            File.Copy(file, Path.Combine(pluginRoot, Path.GetFileName(file)), true);
+            File.Copy(file, Path.Combine(moduleRoot, Path.GetFileName(file)), true);
         }
     }
 }

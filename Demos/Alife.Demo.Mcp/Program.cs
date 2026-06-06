@@ -14,7 +14,7 @@ var character = new Character {
              "你拥有 Model Context Protocol (MCP) 能力，可以通过各种外部工具来执行任务。\n" +
              "你可以通过 XML 标签来调用这些工具。系统会自动为你列出可用的工具标签。\n" +
              "请在对话中根据需要主动使用这些工具喵！",
-    Plugins = new HashSet<string> {
+    Modules = new HashSet<string> {
         typeof(OpenAILanguageModel).FullName!,
         typeof(XmlFunctionCaller).FullName!,
         typeof(McpService).FullName!,
@@ -23,7 +23,7 @@ var character = new Character {
 
 // 2. 初始化套件
 var suite = await DemoSuite.InitializeAsync(character, config => {
-    var mcpConfig = new McpPluginConfig();
+    var mcpConfig = new McpModuleConfig();
     
     // 使用 npx 运行一个全能测试服务器
     mcpConfig.Servers.Add(new McpServerConfig {

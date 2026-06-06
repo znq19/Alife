@@ -1,6 +1,6 @@
 @namespace Alife.Function.Memory
 @using AntDesign
-@inherits Alife.Framework.PluginUIBase<Alife.Function.Memory.MemoryService, Alife.Function.Memory.MemoryConfig>
+@inherits Alife.Framework.ModuleUIBase<Alife.Function.Memory.MemoryService, Alife.Function.Memory.MemoryConfig>
 
 <div style="background: #fff; padding: 20px; border-radius: 8px;">
     <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 24px;">
@@ -43,9 +43,17 @@
                 </FormItem>
             </GridCol>
         </GridRow>
+
+        <FormItem Label="压缩提示词模板 (CompressPrompt)">
+            <TextArea @bind-Value="@Configuration.CompressPrompt" Rows="12"
+                      Placeholder="使用 {range} 作为被压缩内容的占位符"/>
+            <Text Type="TextElementType.Secondary" Style="font-size: 11px;">
+                自定义记忆压缩时使用的提示词模板，{range} 会被替换为待压缩的上下文内容
+            </Text>
+        </FormItem>
     </Form>
 
-    @if (Plugin != null)
+    @if (Module != null)
     {
         <Divider>核心记忆管理 (知识库)</Divider>
         <Card Size="CardSize.Small" Style="background: #fafafa; border-radius: 8px; border: 1px dashed #d9d9d9;">
@@ -97,7 +105,7 @@
 
     async Task HandleAddArchive()
     {
-        if (Plugin == null) return;
+        if (Module == null) return;
         if (string.IsNullOrWhiteSpace(newArchiveModel.Summary) || string.IsNullOrWhiteSpace(newArchiveModel.Content))
         {
             MessageService.Warning("概述和内容都不能为空喵！");
@@ -108,7 +116,7 @@
         try
         {
             int maxLevel = Configuration.MaxCompressionLevel;
-            await Plugin.InsertMemory(maxLevel, newArchiveModel.Summary, newArchiveModel.Content, DateTime.Now, DateTime.Now);
+            await Module.InsertMemory(maxLevel, newArchiveModel.Summary, newArchiveModel.Content, DateTime.Now, DateTime.Now);
             MessageService.Success("核心记忆已成功存入喵！");
             newArchiveModel = new ArchiveModel();
         }

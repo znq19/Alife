@@ -12,12 +12,12 @@ using Microsoft.SemanticKernel;
 
 namespace Alife.Function.Speech;
 
-[Plugin("语音识别", "为AI增加语音识别能力。",
+[Module("语音识别", "为AI增加语音识别能力。",
     defaultCategory: "Alife 官方/交互方式",
     EditorUI = typeof(AuditoryServiceUI))]
 [Description("此服务让你获得将语音转换为文字的能力。")]
 public class AuditoryService(IAuditoryModel auditoryModel) :
-    InteractivePlugin<AuditoryService>,
+    InteractiveModule<AuditoryService>,
     IConfigurable<AuditoryServiceConfig>,
     IDisposable
 {

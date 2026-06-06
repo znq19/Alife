@@ -8,7 +8,7 @@ using Alife.Function.Interpreter;
 
 namespace Alife.Function.Browser;
 
-[Plugin("网上冲浪", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。",
+[Module("网上冲浪", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。",
 defaultCategory: "Alife 官方/实用工具")]
 [Description(@"你拥有一个独属于自己的真实浏览器，可借此进行网上冲浪，每天学点新知识，找点新话题。
 提示：
@@ -16,7 +16,7 @@ defaultCategory: "Alife 官方/实用工具")]
 2. 办事前先明确需求，再行动。
 3. 优先使用搜索引擎`谷歌 > 必应 > 百度`")]
 public class BrowserService(XmlFunctionCaller functionService)
-    : InteractivePlugin<BrowserService>, IDisposable
+    : InteractiveModule<BrowserService>, IDisposable
 {
     [XmlFunction(FunctionMode.OneShot)]
     [Description("打开网页。")]

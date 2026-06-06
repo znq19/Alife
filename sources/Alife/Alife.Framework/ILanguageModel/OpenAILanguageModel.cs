@@ -10,7 +10,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace Alife.Framework;
 
-[Plugin(
+[Module(
     "OpenAI语言模型", "接入与OpenAI协议兼容的文本模型，实现最基本的文本对话功能。",
     url: "https://www.deepseek.com/",
     editorUI: typeof(OpenAILanguageModelUI),

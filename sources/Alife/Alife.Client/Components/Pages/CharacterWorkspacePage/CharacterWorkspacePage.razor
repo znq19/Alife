@@ -1,6 +1,6 @@
 @page "/agent/{name}"
 @using Alife.Components.Elements.Character
-@using Alife.Components.Elements.Plugin
+@using Alife.Components.Elements.Module
 @inject CharacterSystem CharacterSystem
 @inject INotificationService NotificationService
 
@@ -55,9 +55,9 @@ else
                         <Icon Type="@IconType.Outline.Book"/>
                         <span>完整背景</span>
                     </MenuItem>
-                    <MenuItem Key="plugins" OnClick="@(() => activeTab = "plugins")">
+                    <MenuItem Key="modules" OnClick="@(() => activeTab = "modules")">
                         <Icon Type="@IconType.Outline.Build"/>
-                        <span>插件细节</span>
+                        <span>模块细节</span>
                     </MenuItem>
                 </Menu>
             </div>
@@ -99,16 +99,16 @@ else
                     <ChatHistoryUI Activity="@characterHomeUI?.Activity"></ChatHistoryUI>
                 </div>
                 <div
-                    style="display: @(activeTab == "plugins" ? "flex" : "none"); height: 100%; flex-direction: column; overflow: hidden;">
+                    style="display: @(activeTab == "modules" ? "flex" : "none"); height: 100%; flex-direction: column; overflow: hidden;">
                     <div style="padding: 24px 24px 0 24px;">
-                        <Title Level="4">活跃插件配置与监控</Title>
+                        <Title Level="4">活跃模块配置与监控</Title>
                     </div>
                     <div style="flex: 1; overflow: hidden;">
-                        <PluginManagementView
+                        <ModuleManagementView
                             Character="@character"
                             ChatActivity="@characterHomeUI?.Activity"
                             IsReadOnly="true"
-                            PluginFilter="@(id => characterHomeUI != null && characterHomeUI.PluginIDs.Contains(id))"/>
+                            ModuleFilter="@(id => characterHomeUI != null && characterHomeUI.ModuleIDs.Contains(id))"/>
                     </div>
                 </div>
             }

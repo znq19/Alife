@@ -3,7 +3,7 @@
 @inject ConfigurationSystem ConfigurationSystem
 
 <Modal
-    Title=@($"配置 {PluginType.FullName}")
+    Title=@($"配置 {ModuleType.FullName}")
     Visible="Visible"
     BodyStyle="height: 50vh;"
     OnCancel="@(OnCancel)"
@@ -16,31 +16,31 @@
     {
         <TextArea
             Style="height: 100%;"
-            @bind-Value="pluginConfiguration">
+            @bind-Value="moduleConfiguration">
         </TextArea>
     }
 </Modal>
 
 @code {
-    [Parameter] public Type PluginType { get; set; } = null!;
+    [Parameter] public Type ModuleType { get; set; } = null!;
     [Parameter] public bool Visible { get; set; }
     [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
 
-    string pluginConfiguration = null!;
+    string moduleConfiguration = null!;
     Type? customUIType;
     Dictionary<string, object> customUIParameters = new();
-    RenderFragment<PluginEditorUI> footerUI = null!;
+    RenderFragment<ModuleEditorUI> footerUI = null!;
 
     void OnConfirm()
     {
-        Type type = ConfigurationSystem.GetConfigurationType(PluginType)!;
-        object configuration = JsonConvert.DeserializeObject(pluginConfiguration, type)!;
-        ConfigurationSystem.SetConfiguration(PluginType, configuration);
+        Type type = ConfigurationSystem.GetConfigurationType(ModuleType)!;
+        object configuration = JsonConvert.DeserializeObject(moduleConfiguration, type)!;
+        ConfigurationSystem.SetConfiguration(ModuleType, configuration);
         VisibleChanged.InvokeAsync(false);
     }
     void OnCancel()
     {
-        pluginConfiguration = ConfigurationSystem.GetConfigurationJson(PluginType)!.ToString(Formatting.Indented);
+        moduleConfiguration = ConfigurationSystem.GetConfigurationJson(ModuleType)!.ToString(Formatting.Indented);
         VisibleChanged.InvokeAsync(false);
     }
 
@@ -48,18 +48,18 @@
     {
         base.OnInitialized();
 
-        PluginAttribute? attr = PluginType.GetCustomAttribute<PluginAttribute>();
+        ModuleAttribute? attr = ModuleType.GetCustomAttribute<ModuleAttribute>();
 
         if (attr?.EditorUI != null)
         {
             customUIType = attr.EditorUI;
             customUIParameters = new Dictionary<string, object> {
-                { "PluginType", PluginType }
+                { "ModuleType", ModuleType }
             };
         }
         else
         {
-            pluginConfiguration = ConfigurationSystem.GetConfigurationJson(PluginType)?.ToString(Formatting.Indented) ?? "{}";
+            moduleConfiguration = ConfigurationSystem.GetConfigurationJson(ModuleType)?.ToString(Formatting.Indented) ?? "{}";
         }
 
         footerUI = value => {

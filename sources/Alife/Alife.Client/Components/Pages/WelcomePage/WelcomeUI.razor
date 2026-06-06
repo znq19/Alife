@@ -1,5 +1,5 @@
 @inject CharacterSystem CharacterSystem
-@inject PluginSystem PluginSystem
+@inject ModuleSystem ModuleSystem
 @inject ConfigurationSystem ConfigurationSystem
 @inject NavigationManager Navigation
 @inject INotificationService NotificationService
@@ -100,7 +100,7 @@
         // 使用默认“真央”角色（如果没有就建一个）
         Character character = CharacterSystem.GetAllCharacters().FirstOrDefault(c => c.Name == "真央") ??
                               CharacterSystem.CreateCharacter("真央");
-        character.Plugins.Add(PluginSystem.GetPluginID(typeof(OpenAILanguageModel)));
+        character.Modules.Add(ModuleSystem.GetModuleID(typeof(OpenAILanguageModel)));
         CharacterSystem.SaveCharacter(character);
 
         isQuickSetupVisible = false;

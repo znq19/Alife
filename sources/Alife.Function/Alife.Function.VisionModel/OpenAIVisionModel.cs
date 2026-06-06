@@ -14,7 +14,7 @@ namespace Alife.Function.Vision;
 /// <summary>
 /// 在线 API 视觉分析器，兼容 OpenAI Chat Completions 多模态标准协议（如 GPT-4o, DashScope 兼容端点等）。
 /// </summary>
-[Plugin("OpenAI视觉分析", "基于OpenAI兼容API的在线视觉分析引擎",
+[Module("OpenAI视觉分析", "基于OpenAI兼容API的在线视觉分析引擎",
 defaultCategory: "Alife 官方/模型接入/视觉模型",
 EditorUI = typeof(OpenAIVisionModelUI))]
 public class OpenAIVisionModel :

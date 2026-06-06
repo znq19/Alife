@@ -1,12 +1,12 @@
 @namespace Alife.Function.QChat
-@inherits Alife.Framework.PluginUIBase<QChatService, QChatConfig>
+@inherits Alife.Framework.ModuleUIBase<QChatService, QChatConfig>
 @using AntDesign
 @implements IDisposable
 @inject IMessageService MessageService
 
 <div style="background: #fff; padding: 20px; border-radius: 8px;">
     @* ───── 运行时状态 ───── *@
-    @if (Plugin != null)
+    @if (Module != null)
     {
         <Title Level="4" Style="margin: 0;">群消息接收状态</Title>
         <Tabs @bind-ActiveKey="@activeTabKey" Style="margin-bottom: 24px;">
@@ -18,7 +18,7 @@
                                 总缓存消息
                             </Text>
                             <Text Strong
-                                  Style="font-size: 18px;">@Plugin.GroupStates.Values.Sum(i => i.MessageBuffer.Count) 条
+                                  Style="font-size: 18px;">@Module.GroupStates.Values.Sum(i => i.MessageBuffer.Count) 条
                             </Text>
                         </Card>
                     </GridCol>
@@ -27,15 +27,15 @@
                             <Text Type="TextElementType.Secondary" Style="display: block; margin-bottom: 4px;">
                                 活跃群组统计
                             </Text>
-                            <Text Strong>@Plugin.GroupStates.Count(kv => kv.Value.IsEnabled) 个激活中 /
-                                共 @Plugin.GroupStates.Count 个记录
+                            <Text Strong>@Module.GroupStates.Count(kv => kv.Value.IsEnabled) 个激活中 /
+                                共 @Module.GroupStates.Count 个记录
                             </Text>
                         </Card>
                     </GridCol>
                 </GridRow>
             </TabPane>
 
-            @foreach (var kv in Plugin.GroupStates.OrderBy(x => x.Key).Take(20))
+            @foreach (var kv in Module.GroupStates.OrderBy(x => x.Key).Take(20))
             {
                 var groupId = kv.Key;
                 var state = kv.Value;
@@ -88,7 +88,7 @@
                                             <Button Danger="@state.IsEnabled"
                                                     Type="@ButtonType.Primary"
                                                     Size="@ButtonSize.Small"
-                                                    OnClick="@(() => Plugin.QGroup(groupId, !state.IsEnabled))">
+                                                    OnClick="@(() => Module.QGroup(groupId, !state.IsEnabled))">
                                                 @(state.IsEnabled ? "关闭" : "开启")
                                             </Button>
                                         </SpaceItem>
@@ -96,7 +96,7 @@
                                             <Button Type="@ButtonType.Default"
                                                     Size="@ButtonSize.Small"
                                                     Disabled="@(state.MessageBuffer.Count == 0)"
-                                                    OnClick="@(() => Plugin.FlushGroupBuffer(state))">
+                                                    OnClick="@(() => Module.FlushGroupBuffer(state))">
                                                 手动推送
                                             </Button>
                                         </SpaceItem>
@@ -136,7 +136,7 @@
     <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 24px;">
         <Title Level="4" Style="margin: 0;">聊天配置</Title>
         <div style="display: flex; align-items: center; gap: 8px;">
-            @if (Plugin is {} qChat)
+            @if (Module is {} qChat)
             {
                 <Badge Status="@(qChat.IsConnected ? BadgeStatus.Success : BadgeStatus.Error)"
                        Text="@(qChat.IsConnected ? "已连接" : "未连接")"/>
@@ -291,7 +291,7 @@
 
     async Task Reconnect()
     {
-        if (Plugin is {} qChat)
+        if (Module is {} qChat)
         {
             isReconnecting = true;
             try

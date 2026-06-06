@@ -46,7 +46,7 @@ public class GroupState
     public List<string> MessageBuffer { get; set; } = [];
 }
 
-[Plugin("QQ聊天", """
+[Module("QQ聊天", """
                 连接 OneBot v11 WebSocket 服务器，实现 QQ 消息收发及文件传输。
                 可用于搭建服务器QQ机器人平台应用：
                 - https://luckylillia.com（推荐）
@@ -55,7 +55,7 @@ public class GroupState
     defaultCategory: "Alife 官方/交互方式",
     editorUI: typeof(QChatServiceUI), LaunchOrder = 10)]
 public class QChatService(XmlFunctionCaller functionService, ILogger<QChatService> logger, ISpeechModel? speechModel = null) :
-    InteractivePlugin<QChatService>,
+    InteractiveModule<QChatService>,
     IAsyncDisposable,
     ITimeIterative,
     IConfigurable<QChatConfig>
