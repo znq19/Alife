@@ -1,5 +1,4 @@
 using System;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +14,6 @@ namespace Alife.Function.Speech;
 [Module("语音识别", "为AI增加语音识别能力。",
     defaultCategory: "Alife 官方/交互方式",
     EditorUI = typeof(AuditoryServiceUI))]
-[Description("此服务让你获得将语音转换为文字的能力。")]
 public class AuditoryService(IAuditoryModel auditoryModel) :
     InteractiveModule<AuditoryService>,
     IConfigurable<AuditoryServiceConfig>,
@@ -79,8 +77,8 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
     protected override string ChatTextFilter(string text)
     {
         return $"""
-                [语音识别消息]
-                {text}
+                {base.ChatTextFilter(text)}
+                (来自语音消息，可能误识别)
                 (请用语音功能回复)
                 """;
     }

@@ -43,60 +43,13 @@ public class XmlHandlerTable
         {
             if (handler.IsImplicit)
                 continue;
-            sb.AppendLine(Document(handler));
+            sb.AppendLine(handler.Document());
             sb.AppendLine();
         }
 
         return sb.ToString().TrimEnd();
     }
-
-    public string Document(XmlHandler handler)
-    {
-        StringBuilder sb = new();
-        sb.AppendLine($"> 来源：{handler.Name}");
-        if (string.IsNullOrEmpty(handler.Description) == false)
-            sb.AppendLine($"服务描述：{handler.Description}");
-
-        sb.AppendLine("提供的标签：");
-        foreach (XmlFunction function in handler.Functions)
-        {
-            sb.Append($"- <{function.Name}");
-            foreach (XmlParameter param in function.Parameters)
-            {
-                string pDesc = string.IsNullOrEmpty(param.Description) ? "" : $"（{param.Description}）";
-                sb.Append($" {param.Name}=\"{param.Type}\"{pDesc}");
-            }
-
-            if (function.ContentName != null)
-            {
-                sb.Append(">");
-                string cDesc = string.IsNullOrEmpty(function.ContentDescription)
-                    ? ""
-                    : $"（{function.ContentDescription}）";
-                sb.Append($"{function.ContentName}{cDesc}</{function.Name}>");
-            }
-            else
-            {
-                sb.Append(" />");
-            }
-
-            if (string.IsNullOrEmpty(function.Description) == false)
-                sb.Append($" : {function.Description}");
-
-            sb.AppendLine();
-        }
-
-        if (string.IsNullOrEmpty(handler.Explain) == false)
-        {
-            sb.AppendLine("附加说明：");
-            sb.AppendLine("---");
-            sb.AppendLine($"{handler.Explain}");
-            sb.AppendLine("---");
-        }
-
-        return sb.ToString().TrimEnd();
-    }
-
+    
     public string DocumentOnlyFunction()
     {
         StringBuilder sb = new();

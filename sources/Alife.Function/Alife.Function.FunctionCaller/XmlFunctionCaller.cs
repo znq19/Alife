@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Alife.Framework;
 using Alife.Function.Interpreter;
@@ -15,26 +16,35 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
 {
     public bool IsIdle => executor.IsInactive;
 
-    public void RegisterHandler(XmlHandler handler, params string[] plainAreas)
+    public void RegisterHandlerWithoutDocument(XmlHandler handler, params string[] plainAreas)
     {
         handlerTable.Register(handler);
         this.plainAreas.AddRange(plainAreas);
     }
-
-    public void UnregisterHandler(XmlHandler handler) => handlerTable.Unregister(handler);
-
+    public void RegisterHandler(XmlHandler handler, params string[] plainAreas)
+    {
+        handlerTable.Register(handler);
+        this.plainAreas.AddRange(plainAreas);
+        showDocuments.Add(handler);
+    }
     public void RegisterHandler(object handler, params string[] plainAreas)
     {
-        handlerTable.Register(new XmlHandler(handler));
-        this.plainAreas.AddRange(plainAreas);
+        RegisterHandler(new XmlHandler(handler), plainAreas);
     }
-
-    public void UnregisterHandler(object handler) => handlerTable.Unregister(new XmlHandler(handler));
+    public void UnregisterHandler(XmlHandler handler)
+    {
+        handlerTable.Unregister(handler);
+    }
+    public void UnregisterHandler(object handler)
+    {
+        UnregisterHandler(new XmlHandler(handler));
+    }
 
     readonly XmlHandlerTable handlerTable = new();
     readonly List<string> plainAreas = new();
     XmlStreamParser parser = null!;
     XmlStreamExecutor executor = null!;
+    List<XmlHandler> showDocuments = new();
 
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
@@ -55,16 +65,15 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
         chatActivity.ChatBot.ChatSent += OnChatSent;
 
         Prompt($"""
-                默认情况下你仅支持输出普通文本，但由于各种插件服务的存在，使得你还拥有通过输出特定的xml标签执行功能调用的能力。
+                默认情况下你仅支持输出普通文本，但由于各种插件功能服务的存在，使得你还拥有通过输出特定的xml标签(<>)执行功能调用的能力。
 
-                ## 可用函数
-                如下函数收集于各种服务插件中，你需要配合描述以及相关服务本身的文档，按规则去使用他们。
+                ## 可用函数(不一定全，具体要看其他功能服务的说明)
+                {string.Join("\n", showDocuments.Select(handler => handler.Document()))}
 
-                {handlerTable.Document()}
-
-                ## 注意事项
+                ## 使用提示
                 1. 由于xml的解释器的存在，【" | & | < | >】之类的xml符号都无法直接输出，你需要使用xml转义的方式【&quot; | &amp; | &lt; | &gt;】来输出尖括号。
-                2. 仅支持上述提到的函数可以使用，其他任何xml标签都不支持。
+                2. xml调用方式非常自由，允许你进行嵌套，或一次使用多条。
+                3. 很多xml函数拥有调用后返回结果的功能，因此你可以通过多轮对话解决事情（如先调用一下获取手册，然后等到收到结果后，再决定下一步的操作）
 
                 ## 使用示例
                 当你的函数足够丰富后，你可以尝试用如下的方式使用他们，这是官方最佳示例：

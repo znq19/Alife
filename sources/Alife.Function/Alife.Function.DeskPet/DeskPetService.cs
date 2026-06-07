@@ -128,13 +128,19 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModu
         if (string.IsNullOrEmpty(supportedMotionsDescription)) supportedMotionsDescription = $"当前不支持<{nameof(Mot)}>功能";
 
         XmlHandler xmlHandler = new(this);
-        functionService.RegisterHandler(xmlHandler);
+        functionService.RegisterHandlerWithoutDocument(xmlHandler);
 
         Prompt($"""
                 此服务让你获得一副交互性的Live2D身体。这是你主要的对外输出表情动作等外观信息的工具，需要积极使用。
 
-                - 支持的 {nameof(Exp)}：{supportedExpressionsDescription}
-                - 支持的 {nameof(Mot)}：{supportedMotionsDescription}
+                ## 支持工具
+                {xmlHandler.FunctionDocument()}
+
+                ## 工具选项
+                - 支持的 {nameof(Exp)} 选项：{supportedExpressionsDescription}
+                - 支持的 {nameof(Mot)} 选项：{supportedMotionsDescription}
+
+                ## 其他信息
                 - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
                 """);
     }

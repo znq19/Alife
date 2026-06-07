@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -154,7 +155,6 @@ public class XmlHandler
                     }
                 }
 
-
                 //尝试默认值
                 if (isFilled == false)
                 {
@@ -189,6 +189,59 @@ public class XmlHandler
             Order = functionAttribute.Order,
             Invoker = Invoker,
         };
+    }
+
+    public string Document()
+    {
+        StringBuilder sb = new();
+        sb.AppendLine($"> 来源：{Name}");
+        if (string.IsNullOrEmpty(Description) == false)
+            sb.AppendLine($"功能简介：\n{Description}");
+
+        sb.AppendLine("提供函数：");
+        sb.AppendLine(FunctionDocument());
+
+        if (string.IsNullOrEmpty(Explain) == false)
+        {
+            sb.AppendLine("附加说明：");
+            sb.AppendLine("---");
+            sb.AppendLine($"{Explain}");
+            sb.AppendLine("---");
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+    public string FunctionDocument()
+    {
+        StringBuilder sb = new();
+        foreach (XmlFunction function in Functions)
+        {
+            sb.Append($"- <{function.Name}");
+            foreach (XmlParameter param in function.Parameters)
+            {
+                string pDesc = string.IsNullOrEmpty(param.Description) ? "" : $"（{param.Description}）";
+                sb.Append($" {param.Name}=\"{param.Type}\"{pDesc}");
+            }
+
+            if (function.ContentName != null)
+            {
+                sb.Append(">");
+                string cDesc = string.IsNullOrEmpty(function.ContentDescription)
+                    ? ""
+                    : $"（{function.ContentDescription}）";
+                sb.Append($"{function.ContentName}{cDesc}</{function.Name}>");
+            }
+            else
+            {
+                sb.Append(" />");
+            }
+
+            if (string.IsNullOrEmpty(function.Description) == false)
+                sb.Append($" : {function.Description}");
+
+            sb.AppendLine();
+        }
+        return sb.ToString().TrimEnd();
     }
 }
 

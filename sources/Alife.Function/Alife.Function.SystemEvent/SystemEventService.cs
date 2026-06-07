@@ -12,11 +12,11 @@ namespace Alife.Function.SystemEvent;
 
 public class SystemEventServiceConfig
 {
-    public string? StartPrompt { get; set; } = "（所有系统状态，如功能开关、当前位置，定时器等已全部重置。）";
-    public string? DestroyPrompt { get; set; }
+    public string? StartPrompt { get; set; } = "(所有系统状态，如功能开关、当前位置，定时器等已全部重置)";
+    public string? DestroyPrompt { get; set; } = "(系统已逐步关闭，不要执行强功能指令，仅可尝试道别操作)";
 
     public string? UpdatePrompt { get; set; } =
-        "（**不要告诉主人有自动报点**，非常自然的直接做你想做的事即可。比如你可以主动找主人玩，或借此自由活动，如看新闻学知识、发起新话题、偷窥主人屏幕、去Q群找人聊天玩耍，等等各种你能想象到的事。）";
+        "(**不要告诉主人有自动报点**，非常自然的直接做你想做的事即可。比如你可以主动找主人玩，或借此自由活动，如看新闻学知识、发起新话题、偷窥主人屏幕、去Q群找人聊天玩耍，等等各种你能想象到的事)";
 
     public int UpdateInterval { get; set; } = 90;
     public int UpdateRandomOffset { get; set; } = 30;
@@ -76,10 +76,13 @@ public class SystemEventService(XmlFunctionCaller functionService)
         await base.AwakeAsync(context);
 
         XmlHandler xmlHandler = new(this);
-        functionService.RegisterHandler(xmlHandler);
+        functionService.RegisterHandlerWithoutDocument(xmlHandler);
 
         Prompt($"""
                 此服务让你能够接收到系统事件（如开始、结束、自动报点），同时还提供工具让你能额外给自己分配一些报点事件。
+
+                ## 提供工具
+                {xmlHandler.FunctionDocument()}
 
                 ## 为什么需要报点事件？
                 由于llm的性质，导致你只能在被动收到消息后才能进行活动，一旦消息类断开，你将一直陷入沉默。这种表现效果肯定不好，所以需要自动化的事件系统来主动激活，这样你才有自主行动的机会。
@@ -101,7 +104,11 @@ public class SystemEventService(XmlFunctionCaller functionService)
 
         if (ChatHistory.All(content => content.Role != AuthorRole.Assistant))
         {
-            await ChatAsync("程序已启动（这是你第一次启动，初次见面，用上你丰富的能力，华丽的向用户打个招呼吧）");
+            await ChatAsync("""
+                            程序已启动：
+                            这是你第一次苏醒，初来乍到这个陌生环境，学习利用上下文中的工具了解这个世界。
+                            此外最重要的一件事，就是现在用上你丰富的能力，先向用户华丽的打个招呼吧！
+                            """);
         }
         else
         {
@@ -111,7 +118,7 @@ public class SystemEventService(XmlFunctionCaller functionService)
 
     public override async Task DestroyAsync()
     {
-        await ChatAsync($"程序即将关闭。{Configuration!.DestroyPrompt}");
+        await ChatAsync($"程序关闭中。{Configuration!.DestroyPrompt}");
 
         await base.DestroyAsync();
     }

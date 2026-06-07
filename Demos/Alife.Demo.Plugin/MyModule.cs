@@ -11,8 +11,8 @@ public class MyModuleData
 }
 
 [Module(
-"我的功能模块", "一个示例功能模块",
-EditorUI = typeof(MyModuleUI)/*支持用razor自定义模块界面*/
+    "我的功能模块", "一个示例功能模块",
+    EditorUI = typeof(MyModuleUI)/*支持用razor自定义模块界面*/
 )]//只要被打上Module标签的类就会被认为是功能模块，可以让用户勾选，或者也可以通过`角色文件夹/index.json`中的`Modules`属性来编辑启用的模块。
 public class MyModule(
     XmlFunctionCaller functionService,//可直接在构造函数申请其他模块，系统会自动通过依赖注入填充，此外XmlFunctionCaller提供函数调用的能力，是非常常用的基础模块
@@ -31,7 +31,7 @@ public class MyModule(
             throw new Exception("最大值必须大于 0");//可以正常抛出异常
 
         int value = Random.Shared.Next(max.Value);
-        Poke("随机数结果：" + value);//向AI反馈结果
+        Poke("随机数结果：" + value);//向AI反馈结果(可选，如果函数的功能不需要返回结果，可以去除)
         logger.LogInformation($"调用 {nameof(Rand)} 结果 {value}");//支持依赖注入的Logger
 
         return Task.CompletedTask;//如果有需要你可以使用异步代码
@@ -44,10 +44,14 @@ public class MyModule(
         await base.AwakeAsync(context);
 
         //注册函数调用
-        functionService.RegisterHandler(this);
+        XmlHandler xmlHandler = new(this);
+        functionService.RegisterHandlerWithoutDocument(xmlHandler);
         //添加自定义提示词
-        Prompt("""
-               此服务可以为你提供一个生成随机数的功能。
-               """);
+        Prompt($"""
+                此服务可以为你提供一个生成随机数的功能。
+
+                ## 提供工具
+                {xmlHandler.FunctionDocument()}
+                """);
     }
 }

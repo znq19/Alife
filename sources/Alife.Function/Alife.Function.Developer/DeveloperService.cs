@@ -13,7 +13,6 @@ namespace Alife.Function.Developer;
 [Module("开发者模式", "向 AI 暴露项目和系统信息，并提供工具使其可以自制插件和活动管理。",
     defaultCategory: "Alife 官方/生活环境"
 )]
-[Description($"此服务让你拥有对整个框架本身的控制能力。你可以借此查询各种系统信息，管理角色活动，甚至创建编辑插件模块，从而实现自我升级（很危险，建议与用户配合）。使用该功能前，请务必查看<{nameof(GetDevelopGuide)}>来获取详细信息")]
 public class DeveloperService(
     CharacterSystem characterSystem,
     ChatActivitySystem chatActivitySystem,
@@ -33,6 +32,9 @@ public class DeveloperService(
                 - 活动：将角色激活后，与llm和实际功直接连接的对话实例
                 - 插件：一个文件夹或项目，包含了若干cs或dll
                 - 模块：角色功能单位，通常写在插件的cs中，一个插件可以提供若干模块
+
+                ## 提供工具
+                {{{xmlHandler.FunctionDocument()}}}}
 
                 ## 插件开发指南
                 插件文件夹中的每个文件夹代表一个插件，一个插件可以由多个功能模块构成
@@ -62,7 +64,7 @@ public class DeveloperService(
                     public int DefaultMax { get; set; } = 120;
                 }
 
-                [Module("我的功能模块", "一个示例功能模块",)]//只要被打上Module标签的类就会被认为是功能模块，可以让用户勾选，或者也可以通过`角色文件夹/index.json`中的`Modules`属性来编辑启用的模块。
+                [Module("我的功能模块", "一个示例功能模块")]//只要被打上Module标签的类就会被认为是功能模块，可以让用户勾选，或者也可以通过`角色文件夹/index.json`中的`Modules`属性来编辑启用的模块。
                 public class MyModule(
                     XmlFunctionCaller functionService,//可直接在构造函数申请其他模块，系统会自动通过依赖注入填充，此外XmlFunctionCaller提供函数调用的能力，是非常常用的基础模块
                     ILogger<MyModule> logger//也支持申请专用的logger，以及各种全局系统，具体可见 ChatActivitySystem 的创建过程
@@ -80,7 +82,7 @@ public class DeveloperService(
                             throw new Exception("最大值必须大于 0");//可以正常抛出异常
 
                         int value = Random.Shared.Next(max.Value);
-                        Poke("随机数结果：" + value);//向AI反馈结果
+                        Poke("随机数结果：" + value);//向AI反馈结果(可选，如果函数的功能不需要返回结果，可以去除)
                         logger.LogInformation($"调用 {nameof(Rand)} 结果 {value}");//支持依赖注入的Logger
 
                         return Task.CompletedTask;//如果有需要你可以使用异步代码
@@ -93,11 +95,14 @@ public class DeveloperService(
                         await base.AwakeAsync(context);
 
                         //注册函数调用
-                        functionService.RegisterHandler(this);
+                        XmlHandler xmlHandler = new(this);
+                        functionService.RegisterHandlerWithoutDocument(xmlHandler);
                         //添加自定义提示词
-                        Prompt("""
-                               此服务可以为你提供一个生成随机数的功能。
-                               """);
+                        Prompt($"""
+                                此服务可以为你提供一个生成随机数的功能。
+                                ## 提供工具
+                                {xmlHandler.FunctionDocument()}
+                                """);
                     }
                 }
                 ```
@@ -256,6 +261,7 @@ public class DeveloperService(
 
     string pluginRoot = null!;
     string pluginCopyRoot = null!;
+    XmlHandler xmlHandler = null!;
 
     public override async Task AwakeAsync(AwakeContext context)
     {
@@ -265,7 +271,13 @@ public class DeveloperService(
         pluginCopyRoot = Path.Combine(AlifePath.TempFolderPath, "PluginsRuntime");
         CopyModuleFolder(pluginRoot, pluginCopyRoot);
 
-        functionCaller.RegisterHandler(this);
+        xmlHandler = new XmlHandler(this);
+        functionCaller.RegisterHandlerWithoutDocument(xmlHandler);
+
+        Prompt($"""
+                此服务让你拥有对整个框架本身的控制能力。你可以借此查询各种系统信息，管理角色活动，甚至创建编辑插件模块，从而实现自我升级（很危险，建议与用户配合）。
+                当你被用户要求进行功能开发调整，或需要了解这个框架的信息时，请使用该服务，通过调用<{nameof(GetDevelopGuide)}/>，获取完整框架环境信息。
+                """);
     }
 
     void CopyModuleFolder(string source, string destination)
