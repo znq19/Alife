@@ -59,13 +59,11 @@ public partial class App
         services.AddSingleton<ModuleSystem>();
         services.AddSingleton<CharacterSystem>();
         services.AddSingleton<ChatActivitySystem>();
-        // 添加主窗口本身到容器，以便以后注入
-        services.AddSingleton<ActivityNotifyService>();
         services.AddSingleton<ChatMessageService>();
         services.AddSingleton<PluginMarketService>();
         services.AddSingleton<MainWindow>();
-
         ServiceProvider = services.BuildServiceProvider();
+
         ServiceProvider.GetRequiredService<ChatMessageService>();
         ServiceProvider.GetRequiredService<PluginMarketService>();
         ServiceProvider.GetRequiredService<MainWindow>().Show();

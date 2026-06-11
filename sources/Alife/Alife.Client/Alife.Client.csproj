@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\Alife.Function\**\*.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="output\ebMzDPu2zMT_mRgYgtL6eQ.json" />
+  </ItemGroup>
+
 </Project>

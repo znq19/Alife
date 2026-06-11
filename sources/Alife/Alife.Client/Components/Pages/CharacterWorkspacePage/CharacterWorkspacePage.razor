@@ -1,6 +1,6 @@
 @page "/agent/{name}"
-@using Alife.Components.Elements.Character
-@using Alife.Components.Elements.Module
+@using Alife.Components.Shared.Characters
+@using Alife.Components.Shared.Modules
 @inject CharacterSystem CharacterSystem
 @inject INotificationService NotificationService
 
@@ -72,7 +72,7 @@ else
                 {
                     @if (characterHomeUI.Activity == null)
                     {
-                        <Button Type="@ButtonType.Primary" Block Loading="@characterHomeUI.IsLoading"
+                        <Button Type="@ButtonType.Primary" Block
                                 OnClick="@(characterHomeUI.StartActivity)">
                             激活角色
                         </Button>

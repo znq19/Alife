@@ -30,6 +30,6 @@ public partial class MainWindow
 
     void CloseClick(object sender, RoutedEventArgs e)
     {
-        System.Windows.Application.Current.Shutdown();
+        Application.Current.Shutdown();
     }
 }

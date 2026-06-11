@@ -1,4 +1,5 @@
 using System.IO;
+using Alife.Framework;
 using Alife.Platform;
 using Alife.PluginMarket;
 
@@ -8,9 +9,13 @@ public class PluginMarketService
 {
     readonly Alife.PluginMarket.PluginMarket pluginMarket;
     readonly FileSystemPluginManager localManager;
+    readonly NuGetEnvironmentInstaller nugetInstaller;
+    readonly ModuleSystem moduleSystem;
 
-    public PluginMarketService()
+    public PluginMarketService(ModuleSystem moduleSystem)
     {
+        this.moduleSystem = moduleSystem;
+
         string pluginDir = Path.Combine(AlifePath.StorageFolderPath, "Plugins");
         string installedDir = Path.Combine(AlifePath.StorageFolderPath, "Plugins_Installed");
         string packageListFile = Path.Combine(installedDir, "NUGET_PACKAGES.txt");
@@ -18,12 +23,12 @@ public class PluginMarketService
         Directory.CreateDirectory(pluginDir);
         Directory.CreateDirectory(installedDir);
 
-        var onlineProvider = new GithubPluginProvider("BDFFZI", "Alife.PluginMarket");
+        var onlineProvider = new GiteePluginProvider("bdffzi", "Alife.PluginMarket", "main");
         localManager = new FileSystemPluginManager(installedDir);
+        nugetInstaller = new NuGetEnvironmentInstaller(packageListFile);
 
-        Dictionary<string, IEnvironmentInstaller> environmentInstallers = new()
-        {
-            { "nuget", new NuGetEnvironmentInstaller(packageListFile) },
+        Dictionary<string, IEnvironmentInstaller> environmentInstallers = new() {
+            { "nuget", nugetInstaller },
             { "pip", new PipEnvironmentInstaller() }
         };
 
@@ -33,6 +38,17 @@ public class PluginMarketService
     public async Task InitializeAsync()
     {
         await pluginMarket.InitializeAsync();
+        UpdateModuleDirectories();
+    }
+
+    void UpdateModuleDirectories()
+    {
+        string[] nugetPaths = nugetInstaller.ReadPackageList();
+        string[] extraDirs = moduleSystem.GetExtraDirectories()
+            .Where(d => !nugetPaths.Contains(d))
+            .Concat(nugetPaths)
+            .ToArray();
+        moduleSystem.SetExtraDirectories(extraDirs);
     }
 
     public Plugin[] GetAllPlugins() => pluginMarket.GetAllPlugins().ToArray();
@@ -81,12 +97,24 @@ public class PluginMarketService
     public async Task InstallPlugin(Plugin plugin, string version)
     {
         await pluginMarket.InstallPlugin(plugin, version);
+        UpdateModuleDirectories();
+        try
+        {
+            moduleSystem.ReloadModules();
+        }
+        catch
+        {
+            await pluginMarket.UninstallPlugin(plugin);
+            throw;
+        }
         OnInstalled?.Invoke();
     }
 
     public async Task UninstallPlugin(Plugin plugin)
     {
         await pluginMarket.UninstallPlugin(plugin);
+        UpdateModuleDirectories();
+        moduleSystem.ReloadModules();
         OnInstalled?.Invoke();
     }
 

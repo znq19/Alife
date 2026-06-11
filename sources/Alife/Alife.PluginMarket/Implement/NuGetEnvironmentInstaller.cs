@@ -97,7 +97,7 @@ public class NuGetEnvironmentInstaller(string packageListFile) : IEnvironmentIns
         File.WriteAllLines(packageListFile, packagePaths);
     }
 
-    public static string[] ReadPackageList(string packageListFile)
+    public string[] ReadPackageList()
     {
         if (!File.Exists(packageListFile))
             return [];

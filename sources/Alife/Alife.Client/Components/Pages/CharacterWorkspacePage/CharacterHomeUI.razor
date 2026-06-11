@@ -1,19 +1,9 @@
 @using System.Reflection
-@using System.Text.RegularExpressions
-@using Alife.Components.Elements.Utility
-@using Autofac.Core
 @inject ModuleSystem ModuleSystem
 @inject ChatActivitySystem ChatActivitySystem
 @inject CharacterSystem CharacterSystem
 @inject INotificationService NotificationService
 @implements IDisposable
-
-<ErrorWindowUI Title="角色激活失败喵！" @bind-Value="@activityException"></ErrorWindowUI>
-
-<CharacterLoadingUI Visible="@isLoading"
-                    Title=@($"正在激活 {Character?.Name}")
-                    TaskDescription="@loadingTask"
-                    Progress="@loadingProgress"/>
 
 @if (Visibility)
 {
@@ -55,7 +45,7 @@
                                         <Button id="btn-activate-character"
                                                 Type="@ButtonType.Primary" Block
                                                 Size="@ButtonSize.Large"
-                                                Icon="@IconType.Outline.Rocket" Loading="isLoading"
+                                                Icon="@IconType.Outline.Rocket"
                                                 OnClick="@(StartActivity)">激活角色
                                         </Button>
                                     </div>
@@ -132,17 +122,13 @@
 
 @code
 {
-
     public ChatActivity? Activity => activity;
-    public bool IsLoading => isLoading;
     public HashSet<string> ModuleIDs => moduleIDs;
 
     public Task StartActivity()
     {
-        if (Character == null || isLoading || activity != null)
+        if (Character == null || activity != null)
             return Task.CompletedTask;
-
-        activityException = null;
 
         _ = Task.Run(async () => {
             try
@@ -150,12 +136,7 @@
                 SaveSettings();
                 await ChatActivitySystem.Activate(Character);
             }
-            catch (Exception ex)
-            {
-                activityException = ex;
-                isLoading = false;
-                await InvokeAsync(UpdateState);
-            }
+            catch { }
         });
 
         return Task.CompletedTask;
@@ -174,10 +155,6 @@
     [Parameter] public EventCallback StateChanged { get; set; }
 
     ChatActivity? activity;
-    Exception? activityException;
-    bool isLoading;
-    string loadingTask = "正在初始化环境喵...";
-    float loadingProgress;
     bool isSaving;
     HashSet<string> moduleIDs = new();
 
@@ -189,74 +166,24 @@
             activity = ChatActivitySystem.GetChatActivity(Character);
         }
 
-        ChatActivitySystem.Activating += OnActivating;
         ChatActivitySystem.Activated += OnActivated;
-        ChatActivitySystem.ActivationFailed += OnActivationFailed;
-        ChatActivitySystem.ActivatingProcess += OnActivatingProcess;
         ChatActivitySystem.Destroyed += OnChatActivityDestroyed;
         UpdateState();
     }
 
     public void Dispose()
     {
-        ChatActivitySystem.Activating -= OnActivating;
         ChatActivitySystem.Activated -= OnActivated;
-        ChatActivitySystem.ActivationFailed -= OnActivationFailed;
-        ChatActivitySystem.ActivatingProcess -= OnActivatingProcess;
         ChatActivitySystem.Destroyed -= OnChatActivityDestroyed;
     }
 
-    void OnActivating(Character character)
-    {
-        if (character.Name != Character?.Name) return;
-        isLoading = true;
-        loadingProgress = 0;
-        loadingTask = "正在初始化环境喵...";
-        InvokeAsync(UpdateState);
-    }
-    void OnActivationFailed(Character character, Exception ex)
-    {
-        if (character.Name != Character?.Name) return;
-        if (ex.InnerException is DependencyResolutionException dependencyResolutionException)
-        {
-            Exception? exception = dependencyResolutionException.InnerException;
-            if (exception != null)
-            {
-                Match match1 = Regex.Match(exception.Message, "on type '([^']+)'");
-                Match match2 = Regex.Match(exception.Message, @"Cannot resolve parameter\s+'(\S+)\s+\w+'");
-                if (match1.Success && match2.Success)
-                {
-                    string typeName = match2.Groups[1].Value;
-                    Type? type = ModuleSystem.GetModule(typeName);
-                    ModuleAttribute? moduleAttribute = type?.GetCustomAttribute<ModuleAttribute>();
-                    ex = new Exception(
-                        $"你需要在模块界面寻找并勾选“{moduleAttribute?.Name ?? typeName}”模块，因为模块 {match1.Groups[1].Value} 依赖于 {match2.Groups[1].Value}，"
-                        , exception
-                    );
-                }
-            }
-        }
-
-        activityException = ex;
-        isLoading = false;
-        activity = null;
-        InvokeAsync(UpdateState);
-    }
-    void OnActivatingProcess(Character character, (string Task, float Progress) tuple)
-    {
-        if (character.Name != Character?.Name) return;
-        loadingTask = tuple.Task;
-        loadingProgress = tuple.Progress;
-        InvokeAsync(UpdateState);
-    }
     void OnActivated(ChatActivity chatActivity)
     {
         if (chatActivity.Character.Name != Character?.Name) return;
-        isLoading = false;
-        activityException = null;
         activity = chatActivity;
         InvokeAsync(UpdateState);
     }
+
     void OnChatActivityDestroyed(ChatActivity obj)
     {
         if (activity == obj)
@@ -305,6 +232,4 @@
             _ = InvokeAsync(StateHasChanged);
         }
     }
-
-
 }

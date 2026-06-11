@@ -46,6 +46,8 @@ public interface IPluginInstaller
 
 public class PluginMarket
 {
+    public event Action? OnInstalled;
+
     public IEnumerable<Plugin> GetAllPlugins()
     {
         return allPlugins.Values;
@@ -54,6 +56,32 @@ public class PluginMarket
     {
         return hadPlugins.Select(pair => allPlugins.GetValueOrDefault(pair.Key))
             .Where(plugin => plugin != null).Cast<Plugin>().ToArray();
+    }
+
+    public Dictionary<string, string> GetInstalledPlugins() => localPlugins.GetPlugins();
+
+    public bool IsInstalled(string pluginId) => hadPlugins.ContainsKey(pluginId);
+
+    public string? GetInstalledVersion(string pluginId) => hadPlugins.GetValueOrDefault(pluginId);
+
+    public bool HasUpdate(Plugin plugin)
+    {
+        string? installedVersion = GetInstalledVersion(plugin.Id);
+        if (installedVersion == null || plugin.Releases == null)
+            return false;
+
+        string? latestVersion = plugin.Releases.Keys
+            .OrderByDescending(v => v)
+            .FirstOrDefault();
+
+        return latestVersion != null && latestVersion != installedVersion;
+    }
+
+    public string? GetLatestVersion(Plugin plugin)
+    {
+        return plugin.Releases?.Keys
+            .OrderByDescending(v => v)
+            .FirstOrDefault();
     }
 
     public async Task InstallPlugin(Plugin plugin, string version)
@@ -104,11 +132,36 @@ public class PluginMarket
         }
 
         await pluginInstaller.InstallPlugin(plugin, version);
+        OnInstalled?.Invoke();
+    }
+
+    public List<string> GetDependents(string pluginId)
+    {
+        List<string> dependents = new();
+        foreach ((string id, string version) in hadPlugins)
+        {
+            if (id == pluginId)
+                continue;
+
+            Plugin? plugin = allPlugins.GetValueOrDefault(id);
+            if (plugin == null)
+                continue;
+
+            Dictionary<string, string>? dependencies = plugin.GetDependencies(version);
+            if (dependencies != null && dependencies.ContainsKey(pluginId))
+                dependents.Add(id);
+        }
+        return dependents;
     }
 
     public async Task UninstallPlugin(Plugin plugin)
     {
+        List<string> dependents = GetDependents(plugin.Id);
+        if (dependents.Count > 0)
+            throw new Exception($"无法卸载，以下插件依赖 {plugin.Id}: {string.Join(", ", dependents)}");
+
         await pluginInstaller.UninstallPlugin(plugin);
+        OnInstalled?.Invoke();
     }
 
     /// <summary>
