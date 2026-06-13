@@ -49,8 +49,9 @@
                         <Icon Type="@IconType.Outline.ArrowUp" /> 升级
                     </Button>
                 }
-                <Popconfirm Title="确定要卸载此插件？" OnConfirm="Uninstall" OkText="确定" CancelText="取消">
-                    <Button Danger Loading="isOperating">
+                <Popconfirm Title="确定要卸载此插件？" OnConfirm="OnUninstallConfirm" OnCancel="OnUninstallCancel"
+                            Visible="showUninstallConfirm">
+                    <Button Danger Loading="isOperating" OnClick="@(() => showUninstallConfirm = true)">
                         <Icon Type="@IconType.Outline.Delete" /> 卸载
                     </Button>
                 </Popconfirm>
@@ -104,6 +105,7 @@
     bool isInstalled;
     bool hasUpdate;
     bool isOperating;
+    bool showUninstallConfirm;
     string? installedVersion;
     string? latestVersion;
     string? operatingVersion;
@@ -134,6 +136,17 @@
         isOperating = false;
     }
 
+    void OnUninstallCancel()
+    {
+        showUninstallConfirm = false;
+    }
+
+    async Task OnUninstallConfirm()
+    {
+        showUninstallConfirm = false;
+        await Uninstall();
+    }
+
     async Task Uninstall()
     {
         isOperating = true;
@@ -141,7 +154,7 @@
         {
             await PluginMarketService.UninstallPlugin(Plugin);
             _ = NotificationService.Success(new NotificationConfig { Message = $"插件 [{Plugin.Name}] 已卸载！" });
-            OnParametersSet();
+            await OnBack.InvokeAsync();
         }
         catch (Exception ex)
         {

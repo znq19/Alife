@@ -24,6 +24,9 @@
             <Tooltip Title="打开插件目录">
                 <Button Type="@ButtonType.Link" Icon="@IconType.Outline.FolderOpen" OnClick="OpenPluginFolder"/>
             </Tooltip>
+            <Tooltip Title="刷新本地插件">
+                <Button Type="@ButtonType.Link" Icon="@IconType.Outline.Reload" OnClick="@(() => RefreshLocal())"/>
+            </Tooltip>
             <Tooltip Title="从云端拉取">
                 <Button Type="@ButtonType.Link" Icon="@IconType.Outline.CloudDownload" OnClick="FetchOnline"
                         Loading="isLoading"/>
@@ -42,7 +45,7 @@
 
     @* 搜索栏 *@
     <div style="padding: 8px 16px; background: #fff; border-bottom: 1px solid #f0f0f0;">
-        <Search Placeholder="搜索插件..." @bind-Value="searchText" OnSearch="FilterPlugins"/>
+        <Search Placeholder="搜索插件..." @bind-Value="searchText" OnSearch="@(() => FilterPlugins())"/>
     </div>
 
     @* 插件列表 *@
@@ -75,7 +78,7 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
                     @foreach (var plugin in pagedPlugins)
                     {
-                        <PluginCardUI Plugin="plugin" OnClick="@(() => ShowDetail(plugin))" OnInstalled="RefreshLocal"/>
+                        <PluginCardUI Plugin="plugin" OnClick="@(() => ShowDetail(plugin))" OnInstalled="@(() => RefreshLocal(resetPage: false))"/>
                     }
                 </div>
             }
@@ -136,26 +139,6 @@
         RefreshLocal();
     }
 
-    void RefreshLocal()
-    {
-        PluginMarketService.RefreshLocalPlugins();
-        var onlinePlugins = PluginMarketService.GetAllPlugins();
-        var installed = PluginMarketService.GetInstalledPlugins();
-
-        if (viewMode == "installed")
-        {
-            allPlugins = onlinePlugins
-                .Where(p => installed.ContainsKey(p.Id))
-                .ToArray();
-        }
-        else
-        {
-            allPlugins = onlinePlugins;
-        }
-        FilterPlugins();
-        StateHasChanged();
-    }
-
     async Task FetchOnline()
     {
         isLoading = true;
@@ -180,7 +163,7 @@
         selectedPlugin = plugin;
     }
 
-    void FilterPlugins()
+    void FilterPlugins(bool resetPage = true)
     {
         if (string.IsNullOrWhiteSpace(searchText))
         {
@@ -194,7 +177,8 @@
                 .ToArray();
         }
 
-        currentPage = 1;
+        if (resetPage)
+            currentPage = 1;
         UpdatePagedPlugins();
     }
 
@@ -214,7 +198,27 @@
 
     void OnPluginsChanged()
     {
-        InvokeAsync(() => RefreshLocal());
+        InvokeAsync(() => RefreshLocal(resetPage: false));
+    }
+
+    void RefreshLocal(bool resetPage = true)
+    {
+        PluginMarketService.RefreshLocalPlugins();
+        var onlinePlugins = PluginMarketService.GetAllPlugins();
+        var installed = PluginMarketService.GetInstalledPlugins();
+
+        if (viewMode == "installed")
+        {
+            allPlugins = onlinePlugins
+                .Where(p => installed.ContainsKey(p.Id))
+                .ToArray();
+        }
+        else
+        {
+            allPlugins = onlinePlugins;
+        }
+        FilterPlugins(resetPage);
+        StateHasChanged();
     }
 
     async Task SaveSource()
@@ -251,7 +255,7 @@
     void OpenContributePage()
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
-            FileName = "https://gitee.com/bdffzi/Alife.PluginMarket",
+            FileName = "https://github.com/BDFFZI/Alife.PluginMarket",
             UseShellExecute = true
         });
     }

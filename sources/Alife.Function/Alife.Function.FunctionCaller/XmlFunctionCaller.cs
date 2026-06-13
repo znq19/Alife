@@ -16,6 +16,14 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
 {
     public bool IsIdle => executor.IsInactive;
 
+    public void RegisterHandler(XmlHandler handler, bool implied = true)
+    {
+        
+    }
+    public void AddPlainAreas(params string[] plainAreas)
+    {
+        this.plainAreas.AddRange(plainAreas);
+    }
     public void RegisterHandlerWithoutDocument(XmlHandler handler, params string[] plainAreas)
     {
         handlerTable.Register(handler);
