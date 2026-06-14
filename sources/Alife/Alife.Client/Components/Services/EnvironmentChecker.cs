@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Alife.Platform;
@@ -26,10 +25,12 @@ public class EnvironmentChecker
 
     public async Task CheckAllAsync()
     {
-        await CheckVCppRedistAsync();
-        CheckPython();
-        await CheckDotNetSdkAsync();
-        await CheckCudaAsync();
+        await Task.WhenAll(
+            CheckVCppRedistAsync(),
+            Task.Run(CheckPython),
+            CheckDotNetSdkAsync(),
+            CheckCudaAsync()
+        );
     }
 
     // ────────────────────────────────────────────
@@ -63,17 +64,7 @@ public class EnvironmentChecker
             await AlifePlatform.DownloadFileAsync("https://aka.ms/vs/17/release/vc_redist.x64.exe", tempExe);
 
             progress?.Report("正在静默安装 Visual C++ Redistributable...");
-            ProcessStartInfo psi = new()
-            {
-                FileName = tempExe,
-                Arguments = "/install /quiet /norestart",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using (Process? p = Process.Start(psi))
-            {
-                await p!.WaitForExitAsync();
-            }
+            AlifePlatform.Command(tempExe, "/install /quiet /norestart");
 
             try { File.Delete(tempExe); } catch { }
 
@@ -155,18 +146,12 @@ public class EnvironmentChecker
             string getPyPath = Path.Combine(Path.GetTempPath(), "get-pip.py");
             await AlifePlatform.DownloadFileAsync(getPyUrl, getPyPath);
 
-            ProcessStartInfo psi = new()
-            {
-                FileName = Path.Combine(pyDir, "python.exe"),
-                Arguments = $"\"{getPyPath}\" --no-warn-script-location",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using (Process? p = Process.Start(psi))
-            {
-                await p!.WaitForExitAsync();
-            }
+            AlifePlatform.Command(Path.Combine(pyDir, "python.exe"), $"\"{getPyPath}\" --no-warn-script-location");
             try { File.Delete(getPyPath); } catch { }
+
+            progress?.Report("正在安装 setuptools / wheel...");
+            string pyExe = Path.Combine(pyDir, "python.exe");
+            AlifePlatform.Command(pyExe, "-m pip install --upgrade pip setuptools wheel --quiet --no-warn-script-location");
 
             PythonDir = pyDir;
             CheckPython();
@@ -185,34 +170,70 @@ public class EnvironmentChecker
     // ────────────────────────────────────────────
     public async Task CheckDotNetSdkAsync()
     {
-        try
+        // 先尝试系统 PATH 中的 dotnet
+        string output = AlifePlatform.Command("dotnet", "--list-sdks");
+        if (output.Contains("10."))
         {
-            string output = await RunCommandAsync("dotnet", "--list-sdks");
+            DotNetSdk.Status = EnvStatus.Ready;
+            DotNetSdk.Message = "已就绪";
+            return;
+        }
+
+        // 再尝试 Program Files 路径
+        string programFilesDotnet = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet", "dotnet.exe");
+        if (File.Exists(programFilesDotnet))
+        {
+            output = AlifePlatform.Command($"\"{programFilesDotnet}\"", "--list-sdks");
             if (output.Contains("10."))
             {
                 DotNetSdk.Status = EnvStatus.Ready;
                 DotNetSdk.Message = "已就绪";
-            }
-            else
-            {
-                DotNetSdk.Status = EnvStatus.NotInstalled;
-                DotNetSdk.Message = output.Contains("dotnet") ? "未找到 SDK 10（已安装其他版本）" : "未安装 .NET SDK";
+                return;
             }
         }
-        catch
+
+        // 最后尝试 LocalAppData 路径
+        string localDotnet = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "dotnet", "dotnet.exe");
+        if (File.Exists(localDotnet))
         {
-            DotNetSdk.Status = EnvStatus.NotInstalled;
-            DotNetSdk.Message = "未安装 .NET SDK";
+            output = AlifePlatform.Command($"\"{localDotnet}\"", "--list-sdks");
+            if (output.Contains("10."))
+            {
+                DotNetSdk.Status = EnvStatus.Ready;
+                DotNetSdk.Message = "已就绪";
+                return;
+            }
         }
+
+        DotNetSdk.Status = EnvStatus.NotInstalled;
+        DotNetSdk.Message = "未安装 .NET SDK 10";
     }
 
-    public void OpenDotNetSdkDownloadPage()
+    public async Task InstallDotNetSdkAsync(IProgress<string>? progress = null)
     {
-        Process.Start(new ProcessStartInfo
+        DotNetSdk.Status = EnvStatus.Checking;
+        DotNetSdk.Message = "正在安装...";
+
+        try
         {
-            FileName = "https://dotnet.microsoft.com/download/dotnet/10.0",
-            UseShellExecute = true
-        });
+            progress?.Report("正在下载 .NET SDK 10 安装包...");
+            string tempExe = Path.Combine(Path.GetTempPath(), "dotnet-sdk-10.exe");
+            await AlifePlatform.DownloadFileAsync("https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.301/dotnet-sdk-10.0.301-win-x64.exe", tempExe);
+
+            progress?.Report("正在安装 .NET SDK 10...");
+            AlifePlatform.Command(tempExe, "/install /quiet /norestart");
+
+            try { File.Delete(tempExe); } catch { }
+
+            await CheckDotNetSdkAsync();
+            progress?.Report(DotNetSdk.Status == EnvStatus.Ready ? ".NET SDK 10 安装完成" : ".NET SDK 10 安装失败，请重试");
+        }
+        catch (Exception ex)
+        {
+            DotNetSdk.Status = EnvStatus.Error;
+            DotNetSdk.Message = $"安装出错: {ex.Message}";
+            progress?.Report($".NET SDK 10 安装失败: {ex.Message}");
+        }
     }
 
     // ────────────────────────────────────────────
@@ -230,7 +251,7 @@ public class EnvironmentChecker
         try
         {
             string pyExe = Path.Combine(PythonDir, "python.exe");
-            string output = await RunCommandAsync(pyExe, "-c \"import torch; print(torch.version.cuda or 'none')\"");
+            string output = AlifePlatform.Command(pyExe, "-c \"import torch; print(torch.version.cuda or 'none')\"");
             string trimmed = output.Trim();
 
             if (trimmed.Contains("12."))
@@ -273,11 +294,11 @@ public class EnvironmentChecker
             string pyExe = Path.Combine(PythonDir, "python.exe");
 
             progress?.Report("正在卸载已有 torch...");
-            await RunCommandAsync(pyExe, "-m pip uninstall torch torchvision -y");
+            AlifePlatform.Command(pyExe, "-m pip uninstall torch torchvision -y");
 
             progress?.Report("正在安装 PyTorch 2.10.0 + CUDA 12.8（可能需要较长时间）...");
             string pipInstall = "install torch==2.10.0+cu128 torchvision==0.25.0+cu128";
-            await RunCommandAsync(pyExe, $"-m pip {pipInstall}");
+            AlifePlatform.Command(pyExe, $"-m pip {pipInstall}");
 
             await CheckCudaAsync();
             progress?.Report(Cuda.Status == EnvStatus.Ready ? "CUDA 安装完成" : "CUDA 安装失败，请检查网络");
@@ -293,22 +314,25 @@ public class EnvironmentChecker
     // ────────────────────────────────────────────
     //  工具方法
     // ────────────────────────────────────────────
-    static async Task<string> RunCommandAsync(string fileName, string arguments)
+    public static void SetupEnvironmentPaths()
     {
-        using Process process = new();
-        process.StartInfo = new ProcessStartInfo
+        List<string> paths = new();
+
+        string pythonDir = Path.Combine(AlifePath.RuntimeFolderPath, "Python312");
+        if (Directory.Exists(pythonDir)) paths.Add(pythonDir);
+
+        string dotnetDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
+        if (Directory.Exists(dotnetDir)) paths.Add(dotnetDir);
+
+        string dotnetLocal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "dotnet");
+        if (Directory.Exists(dotnetLocal)) paths.Add(dotnetLocal);
+
+        if (paths.Count > 0)
         {
-            FileName = fileName,
-            Arguments = arguments,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        process.Start();
-        string stdout = await process.StandardOutput.ReadToEndAsync();
-        string stderr = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
-        return string.IsNullOrEmpty(stderr) ? stdout : $"{stdout}\n{stderr}";
+            string path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            string extra = string.Join(Path.PathSeparator, paths.Where(p => !path.Contains(p)));
+            if (extra.Length > 0)
+                Environment.SetEnvironmentVariable("PATH", $"{extra}{Path.PathSeparator}{path}");
+        }
     }
 }

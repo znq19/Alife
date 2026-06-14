@@ -167,6 +167,89 @@ public class PluginMarket
         OnInstalled?.Invoke();
     }
 
+    public async Task InstallPlugins(IEnumerable<(Plugin plugin, string version)> plugins)
+    {
+        var pluginList = plugins.ToList();
+
+        // 收集完全要装的全部插件
+        Dictionary<string, (Plugin plugin, string version)> installPlan = new();
+        VersionResolver versionResolver = new();
+        foreach (var (plugin, version) in pluginList)
+            CollectDependencies(plugin, version);
+
+        void CollectDependencies(Plugin plugin, string version)
+        {
+            if (installPlan.ContainsKey(plugin.Id)) return;
+
+            var dependencies = plugin.GetDependencies(version);
+            if (dependencies != null)
+            {
+                versionResolver.AddRange(dependencies);
+                foreach (var (depId, versionSpec) in dependencies)
+                {
+                    string? hadVersion = hadPlugins.GetValueOrDefault(depId);
+                    if (hadVersion != null && versionResolver.IsSatisfied(depId, hadVersion))
+                        continue;//插件已按照，跳过
+
+                    Plugin? depPlugin = allPlugins.GetValueOrDefault(depId);
+                    if (depPlugin == null)
+                        throw new Exception($"Unknown plugin: {depId}");
+                    IEnumerable<string>? versionList = depPlugin.Releases?.Keys;
+                    if (versionList == null)
+                        throw new Exception($"Plugin {depId} not released");
+
+                    string resolved = versionResolver.Resolve(depId, versionList);
+                    CollectDependencies(depPlugin, resolved);
+                }
+            }
+
+            installPlan[plugin.Id] = (plugin, version);
+        }
+
+        // 校验所有插件有合法
+        foreach (var (id, entry) in installPlan)
+        {
+            if (entry.plugin.Releases == null || !entry.plugin.Releases.ContainsKey(entry.version))
+                throw new Exception($"Plugin {id} version {entry.version} not released");
+        }
+
+        // 统一安装环境依赖
+        HashSet<string> envTypes = new();
+        foreach (var (id, entry) in installPlan)
+        {
+            var envs = entry.plugin.GetEnvironments(entry.version);
+            if (envs != null)
+                foreach (var type in envs.Keys)
+                    envTypes.Add(type);
+        }
+
+        foreach (string type in envTypes)
+        {
+            if (!environmentInstallers.TryGetValue(type, out var installer))
+                throw new Exception($"No installer for environment type: {type}");
+
+            List<KeyValuePair<string, string>> manifest = new();
+            GetEnvironment(type, manifest);
+
+            foreach (var (id, entry) in installPlan)
+            {
+                var envs = entry.plugin.GetEnvironments(entry.version)?.GetValueOrDefault(type);
+                if (envs != null)
+                    manifest.AddRange(envs);
+            }
+
+            installer.InstallEnvironment(manifest);
+        }
+
+        // 逐个安装插件本体
+        foreach (var (id, entry) in installPlan)
+        {
+            await pluginInstaller.InstallPlugin(entry.plugin, entry.version);
+        }
+
+        OnInstalled?.Invoke();
+    }
+
     /// <summary>
     /// 刷新本地已安装插件列表
     /// </summary>

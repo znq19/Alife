@@ -1,7 +1,9 @@
+using System.IO;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Alife.Framework;
 using Alife.Components.Services;
+using Alife.Platform;
 using Microsoft.Extensions.Logging;
 
 namespace Alife;
@@ -16,6 +18,8 @@ public partial class App
 
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
+
+        EnvironmentChecker.SetupEnvironmentPaths();
 
 #if DEBUG
         Console.WriteLine(typeof(Function.Memory.MemoryService).Assembly.FullName);
@@ -51,6 +55,7 @@ public partial class App
         // logger 库
         services.AddLogging(builder => {
             builder.AddConsole();
+            builder.AddFile(Path.Combine(Alife.Platform.AlifePath.RuntimeFolderPath, "Logs"), "app");
             builder.SetMinimumLevel(LogLevel.Information);
         });
         // Alife.Client 核心业务系统

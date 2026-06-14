@@ -195,6 +195,25 @@ public class PluginMarketService
         OnInstalled?.Invoke();
     }
 
+    public async Task InstallPlugins(IEnumerable<(Plugin plugin, string version)> plugins)
+    {
+        if (pluginMarket == null) return;
+        await installLock.WaitAsync();
+        try
+        {
+            await Task.Run(async () => {
+                await pluginMarket.InstallPlugins(plugins);
+                UpdateModuleDirectories();
+                moduleSystem.ReloadModules();
+            });
+        }
+        finally
+        {
+            installLock.Release();
+        }
+        OnInstalled?.Invoke();
+    }
+
     public async Task UninstallPlugin(Plugin plugin)
     {
         if (pluginMarket == null) return;

@@ -77,7 +77,7 @@ public class VisionService(XmlFunctionCaller functionService, IVisionModel? visi
             ? $"{await visionModel.QueryAsync(
                 screenshotPath,
                 prompt,
-                replyLength,
+                replyCharCount,
                 cancellationToken: cancellationTokenSource.Token)}"
             : "未开启";
 

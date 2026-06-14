@@ -1,4 +1,4 @@
-﻿namespace Alife.Function.Speech;
+﻿namespace Alife.Function.Auditory;
 
 public class AuditoryServiceConfig
 {

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Alife.Platform;
@@ -44,6 +46,46 @@ public static class AlifePlatform
         ZipFile.ExtractToDirectory(zipPath, rootPath, overwriteFiles: true);
         File.Delete(zipPath);
     }
+    public static string Command(string fileName, string arguments)
+    {
+        if (CommandIgnore.Length != 0)
+        {
+            string fullCommand = $"{fileName} {arguments}";
+            if (CommandIgnore.Any(ignore => Regex.IsMatch(fullCommand, ignore)))
+                return "";
+        }
+
+        ProcessStartInfo psi = new() {
+            FileName = "cmd.exe",
+            Arguments = $"/c {fileName} {arguments}",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        using Process? process = Process.Start(psi);
+        StringBuilder stdoutBuilder = new();
+        StringBuilder stderrBuilder = new();
+        if (process != null)
+        {
+            process.OutputDataReceived += (s, e) => {
+                Console.WriteLine(e.Data);
+                stdoutBuilder.AppendLine(e.Data);
+            };
+            process.ErrorDataReceived += (s, e) => {
+                Console.WriteLine(e.Data);
+                stderrBuilder.AppendLine(e.Data);
+            };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+        }
+
+        string stdout = stdoutBuilder.ToString();
+        string stderr = stderrBuilder.ToString();
+
+        return string.IsNullOrEmpty(stderr) ? stdout : $"{stdout}\n{stderr}";
+    }
 
     public static (int Width, int Height) GetResolution()
     {
@@ -73,25 +115,6 @@ public static class AlifePlatform
         }
 
         AlifeTerminal.LogWarning($"[Notification] {title}: {message} (当前平台暂不支持弹出式通知)");
-    }
-
-    public static void Command(string fileName, string arguments)
-    {
-        if (CommandIgnore.Length != 0)
-        {
-            string fullCommand = $"{fileName} {arguments}";
-            if (CommandIgnore.Any(ignore => Regex.IsMatch(fullCommand, ignore)))
-                return;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            WindowsPlatform.Command(fileName, arguments);
-            return;
-        }
-
-        // 未来可在此添加 Linux/macOS 的 Shell 调用实现 (如使用 /bin/sh)
-        throw new PlatformNotSupportedException("当前平台暂不支持执行命令行。");
     }
 
     public static string GetRunningWindowTitles()

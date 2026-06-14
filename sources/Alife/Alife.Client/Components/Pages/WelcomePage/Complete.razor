@@ -1,0 +1,97 @@
+@using Alife.Framework
+@inject CharacterSystem CharacterSystem
+@inject NavigationManager Navigation
+
+<div class="step-content">
+    <div class="step-icon" style="background:rgba(82,196,26,.1);color:#52c41a;">
+        <Icon Type="@IconType.Outline.CheckCircle" Style="font-size:28px;"/>
+    </div>
+    <h2 class="step-title">配置完成</h2>
+    <p class="step-desc">Alife 已准备就绪，以下是关键功能入口</p>
+    
+    <div class="nav-cards">
+        <div class="nav-card">
+            <div class="nc-icon" style="background:rgba(24,144,255,.1);color:#1890ff;">
+                <Icon Type="@IconType.Outline.User"/>
+            </div>
+            <div class="nc-body">
+                <h3 class="nc-title">角色工作台</h3>
+                <p class="nc-desc">创建和管理智能角色，编辑设定、启动对话</p>
+                @if (CharacterSystem.GetAllCharacters().Count > 0)
+                {
+                    <Button Size="@ButtonSize.Small" Block OnClick="@OnGoToCharacter">进入角色页</Button>
+                }
+                else
+                {
+                    <div style="display:flex;gap:6px;">
+                        <Input @bind-Value="@newCharacterName" Placeholder="角色名称" Size="@InputSize.Small" Style="flex:1;"/>
+                        <Button Size="@ButtonSize.Small" Disabled="@string.IsNullOrWhiteSpace(newCharacterName)" OnClick="@OnCreateCharacter">创建</Button>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="nav-card">
+            <div class="nc-icon" style="background:rgba(82,196,26,.1);color:#52c41a;">
+                <Icon Type="@IconType.Outline.Build"/>
+            </div>
+            <div class="nc-body">
+                <h3 class="nc-title">功能模块</h3>
+                <p class="nc-desc">管理 AI 模型、语音、视觉、桌宠等能力模块</p>
+                <Button Size="@ButtonSize.Small" Block OnClick="@(() => Navigation.NavigateTo("/system"))">前往系统管理</Button>
+            </div>
+        </div>
+        <div class="nav-card">
+            <div class="nc-icon" style="background:rgba(250,173,20,.1);color:#faad14;">
+                <Icon Type="@IconType.Outline.Shop"/>
+            </div>
+            <div class="nc-body">
+                <h3 class="nc-title">插件市场</h3>
+                <p class="nc-desc">浏览和安装社区插件，扩展功能边界</p>
+                <Button Size="@ButtonSize.Small" Block OnClick="@(() => Navigation.NavigateTo("/system"))">前往插件市场</Button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="step-actions" style="margin-top:20px;">
+        <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" Icon="@IconType.Outline.Home" Block OnClick="@OnStartUsing">
+            开始使用 Alife
+        </Button>
+    </div>
+</div>
+
+@code {
+    string newCharacterName = "";
+
+    void OnGoToCharacter()
+    {
+        var first = CharacterSystem.GetAllCharacters().FirstOrDefault();
+        if (first != null) Navigation.NavigateTo($"/agent/{first.Name}");
+    }
+
+    void OnCreateCharacter()
+    {
+        if (string.IsNullOrWhiteSpace(newCharacterName)) return;
+        Character ch = CharacterSystem.CreateCharacter(newCharacterName);
+        Navigation.NavigateTo($"/agent/{ch.Name}");
+    }
+
+    void OnStartUsing()
+    {
+        var first = CharacterSystem.GetAllCharacters().FirstOrDefault();
+        if (first != null) Navigation.NavigateTo($"/agent/{first.Name}");
+        else Navigation.NavigateTo("/system");
+    }
+}
+
+<style>
+.step-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.step-title { margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1a1a1a; text-align: center; }
+.step-desc { margin: 0 0 20px; font-size: 13px; color: rgba(0,0,0,.45); text-align: center; }
+.nav-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.nav-card { padding: 14px; background: rgba(0,0,0,.02); border: 1px solid rgba(0,0,0,.04); border-radius: 10px; transition: all 0.2s ease; }
+.nav-card:hover { border-color: rgba(24,144,255,.2); background: rgba(24,144,255,.02); }
+.nc-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 8px; }
+.nc-title { margin: 0 0 4px; font-size: 13px; font-weight: 600; color: #1a1a1a; }
+.nc-desc { margin: 0 0 8px; font-size: 11px; color: rgba(0,0,0,.35); line-height: 1.4; }
+.step-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+</style>

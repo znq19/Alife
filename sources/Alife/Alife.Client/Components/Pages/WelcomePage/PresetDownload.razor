@@ -1,0 +1,194 @@
+@using Alife.Components.Services
+@using Alife.PluginMarket
+@using Alife.Platform
+@inject PluginMarketService PluginMarketService
+@inject INotificationService NotificationService
+
+<div class="step-content">
+    <div class="step-icon" style="background:rgba(250,173,20,.1);color:#faad14;">
+        <Icon Type="@IconType.Outline.Appstore" Style="font-size:28px;"/>
+    </div>
+    <h2 class="step-title">安装官方推荐插件</h2>
+    <p class="step-desc">一键安装基本功能插件</p>
+
+    @if (installProgress != null)
+    {
+        <div class="progress-tip">
+            <Icon Type="loading"/>
+            <span>@installProgress.Value.Name</span>
+        </div>
+    }
+    else if (installDone)
+    {
+        <div class="preset-status">
+            <Icon Type="@IconType.Outline.CheckCircle" Style="color:#52c41a;font-size:16px;"/>
+            <span>推荐插件安装完成！共安装 @installedCount 个插件</span>
+        </div>
+    }
+    else
+    {
+        <div class="plugin-checklist">
+            @foreach (var plugin in availablePlugins)
+            {
+                <label class="plugin-check-item @(PluginMarketService.IsInstalled(plugin.Id) ? "installed" : "")">
+                    <input type="checkbox" checked="@(selectedIds.Contains(plugin.Id))"
+                           disabled="@(PluginMarketService.IsInstalled(plugin.Id))"
+                           @onchange="@((e) => ToggleSelect(plugin.Id, (bool)e.Value!))"/>
+                    <span class="pc-name">@plugin.Name</span>
+                    <span class="pc-id">@plugin.Id</span>
+                    @if (PluginMarketService.IsInstalled(plugin.Id))
+                    {
+                        <Tag Color="@("green")" Style="margin-left:auto;">已安装</Tag>
+                    }
+                </label>
+            }
+        </div>
+    }
+
+    <div class="step-nav">
+        <Button Size="@ButtonSize.Large" OnClick="@OnPrev" Disabled="@(installProgress != null)">
+            <Icon Type="@IconType.Outline.ArrowLeft"/> 上一步
+        </Button>
+        @if (!installDone && installProgress == null)
+        {
+            <Flex Gap="@("8")">
+                <Button Size="@ButtonSize.Large" OnClick="@OnSkip" Disabled="@(installProgress != null)">
+                    跳过
+                </Button>
+                <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" OnClick="@OnInstall"
+                        Loading="@(installProgress != null)" Disabled="@(selectedIds.Count == 0)">
+                    一键安装 <Icon Type="@IconType.Outline.ArrowRight"/>
+                </Button>
+            </Flex>
+        }
+        else
+        {
+            <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" OnClick="@OnNext" Disabled="@(installProgress != null)">
+                下一步 <Icon Type="@IconType.Outline.ArrowRight"/>
+            </Button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnPrevStep { get; set; }
+    [Parameter] public EventCallback OnNextStep { get; set; }
+
+    static readonly string[] RecommendedPluginIds = [
+        "Alife.Function.AIModelUtility",
+        "Alife.Function.Auditory",
+        "Alife.Function.Auditory.SenseVoice",
+        "Alife.Function.Browser",
+        "Alife.Function.DeskPet",
+        "Alife.Function.Developer",
+        "Alife.Function.FunctionCaller",
+        "Alife.Function.Mcp",
+        "Alife.Function.Memory",
+        "Alife.Function.MessageFilter",
+        "Alife.Function.Python",
+        "Alife.Function.Skill",
+        "Alife.Function.Speech",
+        "Alife.Function.Speech.EdgeTTS",
+        "Alife.Function.SystemEvent",
+        "Alife.Function.Vision"
+    ];
+
+    List<Plugin> availablePlugins = new();
+    HashSet<string> selectedIds = new();
+    (int Current, int Total, string Name)? installProgress;
+    bool installDone;
+    int installedCount;
+
+    protected override void OnInitialized()
+    {
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        if (PluginMarketService.GetAllPlugins().Count() == 0)
+        {
+            installProgress = (0, 0, "正在拉取插件市场...");
+            StateHasChanged();
+            await PluginMarketService.FetchOnlinePluginsAsync();
+            installProgress = null;
+        }
+
+        var allPlugins = PluginMarketService.GetAllPlugins().ToList();
+        foreach (string id in RecommendedPluginIds)
+        {
+            var plugin = allPlugins.FirstOrDefault(p => p.Id == id);
+            if (plugin != null)
+            {
+                availablePlugins.Add(plugin);
+                if (!PluginMarketService.IsInstalled(id))
+                    selectedIds.Add(id);
+            }
+        }
+        StateHasChanged();
+    }
+
+    void ToggleSelect(string id, bool selected)
+    {
+        if (selected) selectedIds.Add(id);
+        else selectedIds.Remove(id);
+    }
+
+    async Task OnInstall()
+    {
+        var toInstall = availablePlugins
+            .Where(p => selectedIds.Contains(p.Id))
+            .Select(p => (p, PluginMarketService.GetLatestVersion(p)!))
+            .Where(x => x.Item2 != null)
+            .ToList();
+
+        if (toInstall.Count == 0) return;
+
+        installProgress = (0, toInstall.Count, "安装中...");
+        StateHasChanged();
+
+        try
+        {
+            await PluginMarketService.InstallPlugins(toInstall);
+
+            installedCount = toInstall.Count;
+            installDone = true;
+            installProgress = null;
+            _ = NotificationService.Success(new NotificationConfig { Message = $"已安装 {installedCount} 个推荐插件" });
+        }
+        catch (Exception ex)
+        {
+            installProgress = null;
+            _ = NotificationService.Error(new NotificationConfig { Message = $"安装失败: {ex.Message}" });
+        }
+
+        StateHasChanged();
+    }
+
+    async Task OnSkip()
+    {
+        await OnNextStep.InvokeAsync();
+    }
+
+    async Task OnPrev() { await OnPrevStep.InvokeAsync(); }
+    async Task OnNext() { await OnNextStep.InvokeAsync(); }
+}
+
+<style>
+.step-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.step-title { margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1a1a1a; text-align: center; }
+.step-desc { margin: 0 0 20px; font-size: 13px; color: rgba(0,0,0,.45); text-align: center; }
+.preset-status { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; margin-bottom: 16px; background: rgba(82,196,26,.06); border: 1px solid rgba(82,196,26,.15); border-radius: 8px; font-size: 13px; color: #52c41a; font-weight: 500; }
+.progress-tip { margin-bottom: 12px; padding: 8px 12px; background: rgba(24,144,255,.04); border: 1px solid rgba(24,144,255,.1); border-radius: 8px; font-size: 12px; color: #1890ff; display: flex; align-items: center; gap: 6px; }
+.step-nav { display: flex; justify-content: space-between; margin-top: 16px; gap: 12px; }
+
+.plugin-checklist { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; }
+.plugin-check-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.plugin-check-item:hover { background: rgba(0,0,0,.03); }
+.plugin-check-item.installed { opacity: .55; cursor: default; }
+.plugin-check-item input[type="checkbox"] { margin: 0; cursor: pointer; }
+.plugin-check-item.installed input[type="checkbox"] { cursor: default; }
+.pc-name { font-weight: 500; color: #333; }
+.pc-id { font-size: 11px; color: rgba(0,0,0,.3); }
+</style>

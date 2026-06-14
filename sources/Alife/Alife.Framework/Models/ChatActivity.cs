@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Alife.Platform;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +34,7 @@ public partial class ChatActivity
         ServiceCollection serviceCollection = new();
         serviceCollection.AddLogging(builder => {
             builder.AddConsole();
+            builder.AddFile(Path.Combine(Alife.Platform.AlifePath.RuntimeFolderPath, "Logs"), $"activity_{character.Name}");
             builder.SetMinimumLevel(LogLevel.Information);
         });
         containerBuilder.Populate(serviceCollection);

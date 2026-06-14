@@ -157,9 +157,11 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
 
                 ### 隐式服务
 
-                如下服务是默认隐藏的服务，你需要显式阅读他们文档，来学习如何使用。你要根据实际情况，积极的去查阅他们，有很多你需要的功能可能就藏在其中。
+                有些服务是渐进式加载的，你需要显式阅读他们文档，来学习如何使用。读取隐射服务的文档非常简单，直接输出xml来调用如下标签即可：
 
                 {string.Join("\n", implicitHandlers.Select(GetImplicitDocument))}
+
+                上面这些标签都是开启隐射服务的入口，你要根据实际情况，积极的去调用他们，有很多你需要的功能可能就藏在其中。
                 """);
     }
     public override async Task DestroyAsync()

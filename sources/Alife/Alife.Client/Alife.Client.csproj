@@ -9,6 +9,8 @@
     <RootNamespace>Alife</RootNamespace>
     <SelfContained>true</SelfContained>
     <PublishSelfContained>true</PublishSelfContained>
+    <!-- 版本号 -->
+    <Version>2.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

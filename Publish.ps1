@@ -39,7 +39,7 @@ Write-Host ""
 # ============================================================
 # Step 0: Clean output directory
 # ============================================================
-Write-Host "[0/3] Cleaning output directory..." -ForegroundColor Yellow
+Write-Host "[0/2] Cleaning output directory..." -ForegroundColor Yellow
 
 if (Test-Path $OutputDir) { Remove-Item $OutputDir -Recurse -Force }
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
@@ -49,7 +49,7 @@ Write-Host ""
 # ============================================================
 # Step 1: Publish applications
 # ============================================================
-Write-Host "[1/3] Publish applications..." -ForegroundColor Yellow
+Write-Host "[1/2] Publish applications..." -ForegroundColor Yellow
 
 Write-Host "  Publish Alife.Client..."
 dotnet publish (Join-Path $Src "Alife\Alife.Client\Alife.Client.csproj") `
@@ -72,7 +72,7 @@ Write-Host ""
 # ============================================================
 # Step 2: Copy plugins
 # ============================================================
-Write-Host "[2/3] Copying plugins..." -ForegroundColor Yellow
+Write-Host "[2/2] Copying plugins..." -ForegroundColor Yellow
 
 if (Test-Path $PluginTarget) {
     Remove-Item $PluginTarget -Recurse -Force
@@ -106,50 +106,10 @@ foreach ($dir in $functionDirs) {
 }
 Write-Host ""
 
-# ============================================================
-# Step 3: Sync NuGet dependencies
-# ============================================================
-Write-Host "[3/3] Syncing NuGet deps..." -ForegroundColor Yellow
-
-$nuGetDir = Join-Path $PluginTarget "BaseDirectory"
-New-Item -ItemType Directory -Path $nuGetDir -Force | Out-Null
-
-$clientDir = Join-Path $OutputDir "Alife.Client"
-$functionOutputDirs = Get-ChildItem $OutputDir -Directory | Where-Object { $_.Name -match '^Alife\.Function\.' }
-
-foreach ($funcDir in $functionOutputDirs) {
-    $files = Get-ChildItem $funcDir.FullName -Recurse -File
-    foreach ($file in $files) {
-        # Skip Alife.Function.* assemblies (already in plugin dir)
-        if ($file.Name -match '^Alife\.Function\.') { continue }
-        # Skip files that already exist in Client output
-        if (Test-Path (Join-Path $clientDir $file.Name)) { continue }
-
-        $relativePath = $file.FullName.Substring($funcDir.FullName.Length + 1)
-        $destPath = Join-Path $nuGetDir $relativePath
-        $destDir = Split-Path $destPath -Parent
-
-        if (-not (Test-Path $destDir)) {
-            New-Item $destDir -ItemType Directory -Force | Out-Null
-        }
-
-        Copy-Item $file.FullName $destPath -Force
-        Write-Host "  [sync] $relativePath"
-    }
-}
-
-# Clean non-Client output directories
-Write-Host ""
-Write-Host "  Cleaning non-Client outputs..."
-Get-ChildItem $OutputDir -Directory | Where-Object { $_.Name -notin @("Alife.Client", "Alife.DeskPet.Client") } | ForEach-Object {
-    Remove-Item $_.FullName -Recurse -Force
-}
-
 Write-Host ""
 Write-Host "===================================================" -ForegroundColor Green
 Write-Host "[Success] Publish complete!"                           -ForegroundColor Green
 Write-Host "  Plugins: $PluginTarget"                               -ForegroundColor Green
-Write-Host "  NuGet:   $nuGetDir"                                   -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Green
 
 Write-Host ""
