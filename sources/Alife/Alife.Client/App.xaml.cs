@@ -1,7 +1,9 @@
+using System.IO;
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Alife.Framework;
 using Alife.Components.Services;
+using Alife.Platform;
 using Microsoft.Extensions.Logging;
 
 namespace Alife;
@@ -16,6 +18,8 @@ public partial class App
 
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
+
+        EnvironmentChecker.SetupEnvironmentPaths();
 
 #if DEBUG
         Console.WriteLine(typeof(Function.Memory.MemoryService).Assembly.FullName);
@@ -32,14 +36,14 @@ public partial class App
         Console.WriteLine(typeof(Function.Python.PythonService).Assembly);
         Console.WriteLine(typeof(Function.Vision.VisionService).Assembly);
 
-        Console.WriteLine(typeof(Function.Speech.AuditoryService).Assembly);
+        Console.WriteLine(typeof(Function.Auditory.AuditoryService).Assembly);
         Console.WriteLine(typeof(Function.DeskPet.DeskPetService).Assembly);
         Console.WriteLine(typeof(Function.QChat.QChatService).Assembly);
         Console.WriteLine(typeof(Function.Speech.SpeechService).Assembly);
 
-        Console.WriteLine(typeof(Function.Speech.IAuditoryModel).Assembly);
-        Console.WriteLine(typeof(Function.Speech.ISpeechModel).Assembly);
-        Console.WriteLine(typeof(Function.Vision.IVisionModel).Assembly);
+        Console.WriteLine(typeof(Function.Auditory.SenseVoice.SenseVoiceAuditoryModel).Assembly);
+        Console.WriteLine(typeof(Function.Speech.VITS.VitsSpeechModel).Assembly);
+        Console.WriteLine(typeof(Function.Vision.MiniCPM.MiniCPMVisionModel).Assembly);
 #endif
 
         ServiceCollection services = new();
@@ -51,6 +55,7 @@ public partial class App
         // logger 库
         services.AddLogging(builder => {
             builder.AddConsole();
+            builder.AddFile(Path.Combine(AlifePath.RuntimeFolderPath, "Logs"), "app");
             builder.SetMinimumLevel(LogLevel.Information);
         });
         // Alife.Client 核心业务系统
@@ -59,13 +64,14 @@ public partial class App
         services.AddSingleton<ModuleSystem>();
         services.AddSingleton<CharacterSystem>();
         services.AddSingleton<ChatActivitySystem>();
-        // 添加主窗口本身到容器，以便以后注入
-        services.AddSingleton<ActivityNotifyService>();
         services.AddSingleton<ChatMessageService>();
+        services.AddSingleton<PluginMarketService>();
+        services.AddSingleton<EnvironmentChecker>();
         services.AddSingleton<MainWindow>();
-
         ServiceProvider = services.BuildServiceProvider();
+
         ServiceProvider.GetRequiredService<ChatMessageService>();
+        ServiceProvider.GetRequiredService<PluginMarketService>();
         ServiceProvider.GetRequiredService<MainWindow>().Show();
     }
 }

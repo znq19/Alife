@@ -1,0 +1,175 @@
+@using System.Reflection
+@inject ModuleSystem ModuleSystem
+@inject ChatActivitySystem ChatActivitySystem
+@inject CharacterSystem CharacterSystem
+@inject INotificationService NotificationService
+@implements IDisposable
+
+@if (Visibility)
+{
+    <div style="padding: 24px; height: 100%; display: flex; flex-direction: column; overflow: hidden;">
+        @if (Character != null)
+        {
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 16px; flex-shrink: 0;">
+                @if (activity == null)
+                {
+                    <Button id="btn-save-character-settings"
+                            Type="@ButtonType.Primary"
+                            Icon="@IconType.Outline.Save"
+                            Loading="isSaving" OnClick="@(SaveSettings)">保存变更
+                    </Button>
+                }
+            </div>
+
+            <Alert Message="提示" Description="角色活动时无法修改配置喵。" Type="@AlertType.Info"
+                   ShowIcon="true"
+                   Style="@($"margin-bottom: 16px; flex-shrink: 0; display: {(activity != null ? "block" : "none")}")"/>
+
+            <div style="flex: 1; display: flex; gap: 24px; min-height: 0;">
+                <div style="flex: 3; display: flex; flex-direction: column; min-width: 0;">
+                    <Title Level="5" Style="flex-shrink: 0;">简介 (Description)</Title>
+                    <Input @bind-Value="Character.Description"
+                           Placeholder="一句话介绍一下角色，如：一只的猫娘。"
+                           Disabled="@(activity != null)"
+                           Style="margin-bottom: 16px; border-radius: 8px; flex-shrink: 0;"/>
+
+                    <Title Level="5" Style="flex-shrink: 0;">设定 (System Prompt)</Title>
+                    <TextArea @bind-Value="Character.Prompt"
+                              Disabled="@(activity != null)"
+                              Style="border-radius: 8px; flex: 1; resize: none;"></TextArea>
+                </div>
+
+                <div style="flex: 2; display: flex; flex-direction: column; min-width: 0;">
+                    <Title Level="5" Style="flex-shrink: 0;">模块 (Modules)</Title>
+                    <div style="flex: 1; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; background: @(activity != null ? "#fafafa" : "#fff")">
+                        <StringFolderSelectorUI
+                            Context="@(ModuleSystem.GetModuleFolder())"
+                            ItemTitleFilter="@(fullName => GetModuleName(fullName))"
+                            IsChecking="moduleIDs"
+                            IsReadOnly="@(activity != null)"
+                            IsCheckingChanged="OnModuleCheckingChanged">
+                        </StringFolderSelectorUI>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <Empty Description="@("角色为空！")"/>
+        }
+    </div>
+}
+
+@code
+{
+    public ChatActivity? Activity => activity;
+    public HashSet<string> ModuleIDs => moduleIDs;
+
+    public Task StartActivity()
+    {
+        if (Character == null || activity != null)
+            return Task.CompletedTask;
+
+        _ = Task.Run(async () => {
+            try
+            {
+                SaveSettings();
+                await ChatActivitySystem.Activate(Character);
+            }
+            catch { }
+        });
+
+        return Task.CompletedTask;
+    }
+
+    public async Task StopActivity()
+    {
+        if (Character == null)
+            return;
+
+        await ChatActivitySystem.Deactivate(Character);
+    }
+
+    [Parameter] public Character? Character { get; set; }
+    [Parameter] public bool Visibility { get; set; }
+    [Parameter] public EventCallback StateChanged { get; set; }
+
+    ChatActivity? activity;
+    bool isSaving;
+    HashSet<string> moduleIDs = new();
+
+    protected override void OnInitialized()
+    {
+        if (Character != null)
+        {
+            moduleIDs = Character.Modules.ToHashSet();
+            activity = ChatActivitySystem.GetChatActivity(Character);
+        }
+
+        ChatActivitySystem.Activated += OnActivated;
+        ChatActivitySystem.Destroyed += OnChatActivityDestroyed;
+        UpdateState();
+    }
+
+    public void Dispose()
+    {
+        ChatActivitySystem.Activated -= OnActivated;
+        ChatActivitySystem.Destroyed -= OnChatActivityDestroyed;
+    }
+
+    void OnActivated(ChatActivity chatActivity)
+    {
+        if (chatActivity.Character.Name != Character?.Name) return;
+        activity = chatActivity;
+        InvokeAsync(UpdateState);
+    }
+
+    void OnChatActivityDestroyed(ChatActivity obj)
+    {
+        if (activity == obj)
+        {
+            activity = null;
+            InvokeAsync(UpdateState);
+        }
+    }
+
+    void UpdateState()
+    {
+        StateHasChanged();
+        StateChanged.InvokeAsync();
+    }
+
+    void OnModuleCheckingChanged(HashSet<string> ids)
+    {
+        if (activity != null)
+            return;
+
+        moduleIDs = ids;
+    }
+
+    string GetModuleName(string fullName)
+    {
+        Type? type = ModuleSystem.GetModule(fullName);
+        if (type == null) return "[未知模块] " + fullName;
+        ModuleAttribute? attr = type.GetCustomAttribute<ModuleAttribute>();
+        return attr?.Name ?? type.Name;
+    }
+
+    void SaveSettings()
+    {
+        if (isSaving || Character == null || activity != null) return;
+        isSaving = true;
+        try
+        {
+            Character.Modules = moduleIDs.ToHashSet();
+            CharacterSystem.SaveCharacter(Character);
+
+            _ = NotificationService.Success(new NotificationConfig { Message = "角色配置已成功保存！" });
+        }
+        finally
+        {
+            isSaving = false;
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+}

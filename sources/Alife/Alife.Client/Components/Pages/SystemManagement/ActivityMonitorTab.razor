@@ -1,0 +1,13 @@
+@using Alife.Components.Services
+@inject ChatActivitySystem ChatActivitySystem
+
+<div style="padding: 24px; height: 100%; overflow-y: auto; background: #fafafa;">
+    <Title Level="4">活跃活动</Title>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+        @foreach (ChatActivity chatActivity in ChatActivitySystem.GetAllChatActivities())
+        {
+            <ChatActivityUI Context="chatActivity"
+                            Stopped="@(() => ChatActivitySystem.Deactivate(chatActivity.Character))"></ChatActivityUI>
+        }
+    </div>
+</div>

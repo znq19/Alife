@@ -1,0 +1,67 @@
+@page "/system"
+
+<div
+    style="height: calc(100vh - 24px); margin: 12px; overflow: hidden; display: flex; flex-direction: column; background: #fff; border-radius: 8px; border: 1px solid #f0f0f0; animation: fadeIn 0.5s ease-out;">
+    <div
+        style="padding: 16px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center;">
+        <Title Level="3" Style="margin: 0;">系统管理中心</Title>
+    </div>
+
+    <div style="flex: 1; overflow: hidden;">
+        <Tabs DefaultActiveKey="1" TabPosition="@TabPosition.Left" Style="height: 100%;">
+            <TabPane Key="1">
+                <TabTemplate>
+                    <Flex Direction="@FlexDirection.Vertical" Align="@FlexAlign.Center" Gap="@("4")">
+                        <Icon Type="@IconType.Outline.Home"/>
+                        <span style="font-size: 12px">系统概览</span>
+                    </Flex>
+                </TabTemplate>
+                <ChildContent>
+                    <OverviewTab/>
+                </ChildContent>
+            </TabPane>
+
+            <TabPane Key="2">
+                <TabTemplate>
+                    <Flex Direction="@FlexDirection.Vertical" Align="@FlexAlign.Center" Gap="@("4")">
+                        <Icon Type="@IconType.Outline.AppstoreAdd"/>
+                        <span style="font-size: 12px">模块中心</span>
+                    </Flex>
+                </TabTemplate>
+                <ChildContent>
+                    <ModuleCenterTab/>
+                </ChildContent>
+            </TabPane>
+
+            <TabPane Key="4">
+                <TabTemplate>
+                    <Flex Direction="@FlexDirection.Vertical" Align="@FlexAlign.Center" Gap="@("4")">
+                        <Icon Type="@IconType.Outline.Shop"/>
+                        <span style="font-size: 12px">插件市场</span>
+                    </Flex>
+                </TabTemplate>
+                <ChildContent>
+                    <PluginMarketTab/>
+                </ChildContent>
+            </TabPane>
+        </Tabs>
+    </div>
+</div>
+
+<style>
+    .ant-tabs-content-holder {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .ant-tabs-content {
+        height: 100%;
+    }
+
+    .ant-tabs-tabpane {
+        height: 100%;
+        overflow: hidden;
+    }
+</style>

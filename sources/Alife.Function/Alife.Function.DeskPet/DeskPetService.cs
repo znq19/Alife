@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -118,31 +119,35 @@ public class DeskPetService(XmlFunctionCaller functionService) : InteractiveModu
     {
         await base.AwakeAsync(context);
 
+        // 确保 DeskPet.Client 存在
+        string clientPath = Path.Combine(AlifePath.RuntimeFolderPath, "Alife.DeskPet.Client");
+        if (!Directory.Exists(clientPath))
+        {
+            string zipUrl = "https://github.com/BDFFZI/Alife.OfficialPluginStorage/raw/refs/heads/main/Alife.DeskPet.Client/1.0.0.zip";
+            await AlifePlatform.DownloadZipFileAsync(clientPath, zipUrl);
+        }
+
         string? modelName = Configuration?.ModelName;
         if (string.IsNullOrWhiteSpace(modelName))
             modelName = "Mao";
-        client = new PetServer(modelName);
+        client = new PetServer(clientPath, modelName);
         string supportedExpressionsDescription = string.Join(", ", client.SupportedExpressions);
         if (string.IsNullOrEmpty(supportedExpressionsDescription)) supportedExpressionsDescription = $"当前不支持<{nameof(Expression)}>功能";
         string supportedMotionsDescription = string.Join(", ", client.SupportedMotions.Keys);
         if (string.IsNullOrEmpty(supportedMotionsDescription)) supportedMotionsDescription = $"当前不支持<{nameof(Motion)}>功能";
 
-        XmlHandler xmlHandler = new(this);
-        functionService.RegisterHandlerWithoutDocument(xmlHandler);
+        XmlHandler xmlHandler = new(this) {
+            Description = "此服务让你获得一副交互性的Live2D身体。这是你主要的对外输出表情动作等外观信息的工具，需要积极使用。",
+            Explanation = $"""
+                           ## 支持选项
+                           - 支持的 {nameof(Expression)} 选项：{supportedExpressionsDescription}
+                           - 支持的 {nameof(Motion)} 选项：{supportedMotionsDescription}
 
-        Prompt($"""
-                此服务让你获得一副交互性的Live2D身体。这是你主要的对外输出表情动作等外观信息的工具，需要积极使用。
-
-                ## 支持工具
-                {xmlHandler.FunctionDocument()}
-
-                ## 工具选项
-                - 支持的 {nameof(Expression)} 选项：{supportedExpressionsDescription}
-                - 支持的 {nameof(Motion)} 选项：{supportedMotionsDescription}
-
-                ## 其他信息
-                - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
-                """);
+                           ## 其他信息
+                           - 当前屏幕分辨率：{AlifePlatform.GetResolution()}
+                           """
+        };
+        functionService.RegisterHandler(xmlHandler, DocumentMode.Explicit);
     }
 
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)

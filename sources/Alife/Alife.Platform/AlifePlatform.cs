@@ -1,6 +1,9 @@
+using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Alife.Platform;
@@ -10,6 +13,80 @@ namespace Alife.Platform;
 /// </summary>
 public static class AlifePlatform
 {
+    /// <summary>
+    /// 通过 HttpClient 下载文件到本地
+    /// </summary>
+    public static async Task DownloadFileAsync(string url, string savePath)
+    {
+        //伪装用户
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        if (url.Contains("multimedia.nt.qq.com.cn") || url.Contains("qpic.cn"))
+            request.Headers.Add("Referer", "https://q.qq.com/");
+
+        //下载文件
+        using var response = await SharedHttpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        byte[] data = await response.Content.ReadAsByteArrayAsync();
+
+        string? dir = Path.GetDirectoryName(savePath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
+        await File.WriteAllBytesAsync(savePath, data);
+    }
+    public static async Task DownloadZipFileAsync(string rootPath, string url)
+    {
+        if (Directory.Exists(rootPath) == false)
+            Directory.CreateDirectory(rootPath);
+
+        string zipPath = Path.Combine(rootPath, "temp.zip");
+        await DownloadFileAsync(url, zipPath);
+
+        ZipFile.ExtractToDirectory(zipPath, rootPath, overwriteFiles: true);
+        File.Delete(zipPath);
+    }
+    public static string Command(string fileName, string arguments)
+    {
+        if (CommandIgnore.Length != 0)
+        {
+            string fullCommand = $"{fileName} {arguments}";
+            if (CommandIgnore.Any(ignore => Regex.IsMatch(fullCommand, ignore)))
+                return "";
+        }
+
+        ProcessStartInfo psi = new() {
+            FileName = "cmd.exe",
+            Arguments = $"/c {fileName} {arguments}",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        using Process? process = Process.Start(psi);
+        StringBuilder stdoutBuilder = new();
+        StringBuilder stderrBuilder = new();
+        if (process != null)
+        {
+            process.OutputDataReceived += (s, e) => {
+                Console.WriteLine(e.Data);
+                stdoutBuilder.AppendLine(e.Data);
+            };
+            process.ErrorDataReceived += (s, e) => {
+                Console.WriteLine(e.Data);
+                stderrBuilder.AppendLine(e.Data);
+            };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+        }
+
+        string stdout = stdoutBuilder.ToString();
+        string stderr = stderrBuilder.ToString();
+
+        return string.IsNullOrEmpty(stderr) ? stdout : $"{stdout}\n{stderr}";
+    }
+
     public static (int Width, int Height) GetResolution()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -40,25 +117,6 @@ public static class AlifePlatform
         AlifeTerminal.LogWarning($"[Notification] {title}: {message} (当前平台暂不支持弹出式通知)");
     }
 
-    public static void Command(string fileName, string arguments)
-    {
-        if (CommandIgnore.Length != 0)
-        {
-            string fullCommand = $"{fileName} {arguments}";
-            if (CommandIgnore.Any(ignore => Regex.IsMatch(fullCommand, ignore)))
-                return;
-        }
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            WindowsPlatform.Command(fileName, arguments);
-            return;
-        }
-
-        // 未来可在此添加 Linux/macOS 的 Shell 调用实现 (如使用 /bin/sh)
-        throw new PlatformNotSupportedException("当前平台暂不支持执行命令行。");
-    }
-
     public static string GetRunningWindowTitles()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -75,6 +133,12 @@ public static class AlifePlatform
         throw new PlatformNotSupportedException("当前平台暂不支持目录选择对话框。");
     }
 
+    public static async Task<string?> PickFolderAsync(string title = "请选择文件夹")
+    {
+        await Task.Delay(50);
+        return PickFolder(title);
+    }
+
     public static async Task<string> OcrAsync(string path)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -83,28 +147,7 @@ public static class AlifePlatform
         return "当前平台不支持 OCR";
     }
 
-    /// <summary>
-    /// 通过 HttpClient 下载文件到本地
-    /// </summary>
-    public static async Task DownloadFileAsync(string url, string savePath)
-    {
-        //伪装用户
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        if (url.Contains("multimedia.nt.qq.com.cn") || url.Contains("qpic.cn"))
-            request.Headers.Add("Referer", "https://q.qq.com/");
 
-        //下载文件
-        using var response = await SharedHttpClient.SendAsync(request);
-        response.EnsureSuccessStatusCode();
-        byte[] data = await response.Content.ReadAsByteArrayAsync();
-
-        string? dir = Path.GetDirectoryName(savePath);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-
-        await File.WriteAllBytesAsync(savePath, data);
-    }
 
     static readonly HttpClient SharedHttpClient = new();
     static readonly string[] CommandIgnore;

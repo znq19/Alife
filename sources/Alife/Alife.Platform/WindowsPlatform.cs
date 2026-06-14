@@ -89,27 +89,6 @@ public static class WindowsPlatform
         });
     }
 
-    public static void Command(string fileName, string arguments)
-    {
-        ProcessStartInfo psi = new() {
-            FileName = "cmd.exe",
-            Arguments = $"/c {fileName} {arguments}",
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        using Process? process = Process.Start(psi);
-        if (process != null)
-        {
-            process.OutputDataReceived += (s, e) => Console.WriteLine(e.Data);
-            process.ErrorDataReceived += (s, e) => Console.WriteLine(e.Data);
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.WaitForExit();
-        }
-    }
-
     public static string GetActiveWindowTitle()
     {
         const int nChars = 256;

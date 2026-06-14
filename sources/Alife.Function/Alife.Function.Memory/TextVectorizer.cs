@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
-using Alife.Platform;
+using Alife.Function.AIModelUtility;
 using Alife.Function.PythonPipe;
 
 namespace Alife.Function.Memory;
@@ -16,7 +14,7 @@ public class TextVectorizer : IAsyncDisposable
 {
     public static async Task<TextVectorizer> CreateAsync()
     {
-        string modelPath = AlifeModel.EnsureModelExisting("BAAI/bge-small-zh-v1.5");
+        string modelPath = Alife.Function.AIModelUtility.AIModelUtility.EnsureModelExisting("BAAI/bge-small-zh-v1.5");
         var vectorizer = new TextVectorizer(modelPath);
         await vectorizer.InitAsync();
         return vectorizer;
@@ -29,8 +27,6 @@ public class TextVectorizer : IAsyncDisposable
 
     async Task InitAsync()
     {
-        AlifePlatform.Command("python", "-m pip install transformers torch sentencepiece");
-
         pythonPipe = new("text_embed", PythonCode);
         pythonPipe.OnStderr += line => Console.WriteLine(line);
         await pythonPipe.StartAsync();

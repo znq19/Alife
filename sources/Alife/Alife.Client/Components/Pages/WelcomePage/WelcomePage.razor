@@ -1,46 +1,124 @@
+@page "/"
 @page "/welcome"
-@using Alife.Components.Elements.Character
-@inject CharacterSystem CharacterSystem
-@inject ChatActivitySystem ChatActivitySystem
-@inject NavigationManager Navigation
+@using Alife.Components.Services
 
-@if (!isActivating)
-{
-    <WelcomeUI/>
-}
+<div class="welcome-page">
+    <div class="welcome-bubble">
+        <div class="bubble-header">
+            <div class="step-indicator">
+                @for (int i = 1; i <= 4; i++)
+                {
+                    <div class="step-dot @(currentStep == i ? "active" : "") @(currentStep > i ? "completed" : "")">
+                        @if (currentStep > i)
+                        {
+                            <Icon Type="@IconType.Outline.Check" Style="font-size:12px;"/>
+                        }
+                        else
+                        {
+                            @i
+                        }
+                    </div>
+                    @if (i < 4)
+                    {
+                        <div class="step-line @(currentStep > i ? "completed" : "")"></div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="bubble-body">
+            @if (currentStep == 1)
+            {
+                <EnvSetup OnNextStep="@(() => GoToStep(2))"/>
+            }
+            else if (currentStep == 2)
+            {
+                <LlmConfig OnPrevStep="@(() => GoToStep(1))" OnNextStep="@(() => GoToStep(3))"/>
+            }
+            else if (currentStep == 3)
+            {
+                <PresetDownload OnPrevStep="@(() => GoToStep(2))" OnNextStep="@(() => GoToStep(4))"/>
+            }
+            else if (currentStep == 4)
+            {
+                <Complete/>
+            }
+        </div>
+    </div>
+</div>
 
 @code {
-    bool isActivating;
-    static bool hasBootstrapped;
+    int currentStep = 1;
 
-    protected override void OnAfterRender(bool firstRender)
+    void GoToStep(int step)
     {
-        if (hasBootstrapped) return;
-        hasBootstrapped = true;
-
-        Task.Run(async () => {
-            List<Character> startingCharacters = CharacterSystem.GetAllCharacters()
-                .Where(c => c.AutoActivate && !ChatActivitySystem.IsActivated(c))
-                .ToList();
-
-            if (startingCharacters.Count > 0)
-            {
-                isActivating = true;
-                await InvokeAsync(StateHasChanged);
-            }
-
-            foreach (Character startingCharacter in startingCharacters)
-            {
-                try
-                {
-                    await ChatActivitySystem.Activate(startingCharacter);
-                }
-                catch { }
-            }
-
-            if (CharacterSystem.GetAllCharacters().Count != 0)
-                Navigation.NavigateTo("/system", replace: true);
-        });
+        currentStep = step;
+        StateHasChanged();
     }
-
 }
+
+<style>
+.welcome-page {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(24,144,255,.03) 0%, rgba(24,144,255,.08) 50%, rgba(24,144,255,.03) 100%);
+    padding: 24px;
+}
+
+.welcome-bubble {
+    width: 100%;
+    max-width: 520px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+    animation: bubbleIn 0.4s ease-out;
+}
+
+@@keyframes bubbleIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.bubble-header { padding: 24px 32px 0; }
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.step-dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #f0f0f0; color: rgba(0,0,0,.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; transition: all 0.3s ease;
+}
+
+.step-dot.active { background: #1890ff; color: #fff; box-shadow: 0 2px 8px rgba(24,144,255,.3); }
+.step-dot.completed { background: #52c41a; color: #fff; }
+
+.step-line { width: 40px; height: 2px; background: #e8e8e8; margin: 0 8px; transition: background 0.3s ease; }
+.step-line.completed { background: #52c41a; }
+
+.bubble-body {
+    padding: 24px 32px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+}
+
+@@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>

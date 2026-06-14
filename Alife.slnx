@@ -5,6 +5,7 @@
     <Project Path="Demos/Alife.Demo.Mcp/Alife.Demo.Mcp.csproj" />
     <Project Path="Demos/Alife.Demo.Memory/Alife.Demo.Memory.csproj" />
     <Project Path="Demos/Alife.Demo.Plugin/Alife.Demo.Plugin.csproj" />
+    <Project Path="Demos/Alife.Demo.PluginMarket/Alife.Demo.PluginMarket.csproj" />
     <Project Path="Demos/Alife.Demo.Python/Alife.Demo.Python.csproj" />
     <Project Path="Demos/Alife.Demo.QChat/Alife.Demo.QChat.csproj" />
     <Project Path="Demos/Alife.Demo.Speech/Alife.Demo.Speech.csproj" />
@@ -40,14 +41,20 @@
     <Project Path="Sources/Alife.Function/Alife.Function.Speech/Alife.Function.Speech.csproj" />
   </Folder>
   <Folder Name="/Sources/Alife.Function/Models/">
-    <Project Path="Sources/Alife.Function/Alife.Function.AuditoryModel/Alife.Function.AuditoryModel.csproj" />
-    <Project Path="Sources/Alife.Function/Alife.Function.SpeechModel/Alife.Function.SpeechModel.csproj" />
-    <Project Path="Sources/Alife.Function/Alife.Function.VisionModel/Alife.Function.VisionModel.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.AIModelUtility/Alife.Function.AIModelUtility.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Auditory.SenseVoice/Alife.Function.Auditory.SenseVoice.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Speech.EdgeTTS/Alife.Function.Speech.EdgeTTS.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Speech.Genie/Alife.Function.Speech.Genie.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Speech.VITS/Alife.Function.Speech.VITS.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Vision.MiniCPM/Alife.Function.Vision.MiniCPM.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Vision.OpenAI/Alife.Function.Vision.OpenAI.csproj" />
+    <Project Path="Sources/Alife.Function/Alife.Function.Vision.Qwen/Alife.Function.Vision.Qwen.csproj" />
   </Folder>
   <Folder Name="/Sources/Alife/">
     <Project Path="Sources/Alife/Alife.Client/Alife.Client.csproj" />
     <Project Path="Sources/Alife/Alife.Framework/Alife.Framework.csproj" />
     <Project Path="Sources/Alife/Alife.Platform/Alife.Platform.csproj" />
+    <Project Path="Sources/Alife/Alife.PluginMarket/Alife.PluginMarket.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Tests/Alife.Test.Browser/Alife.Test.Browser.csproj" />

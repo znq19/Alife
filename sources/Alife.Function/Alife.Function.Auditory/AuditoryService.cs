@@ -9,7 +9,7 @@ using Windows.Media.Render;
 using Alife.Framework;
 using Microsoft.SemanticKernel;
 
-namespace Alife.Function.Speech;
+namespace Alife.Function.Auditory;
 
 [Module("语音识别", "为AI增加语音识别能力。",
     defaultCategory: "Alife 官方/交互方式",

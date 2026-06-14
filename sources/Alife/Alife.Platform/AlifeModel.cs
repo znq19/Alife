@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 
 namespace Alife.Platform;
 
@@ -6,6 +6,7 @@ namespace Alife.Platform;
 /// 通用的模型与资源下载引导器。
 /// 负责检测文件完整性并调用独立的 WPF 下载器窗口。
 /// </summary>
+[Obsolete("请使用 AIModelUtility 插件代替。由于 AlifeModel 直接使用独立的pip安装，导致无法确保多插件间的依赖兼容性。")]
 public static class AlifeModel
 {
     public static string EnsureModelExisting(string modelId, string? targetFile = null)
@@ -15,7 +16,7 @@ public static class AlifeModel
 
         if (!File.Exists(checkFile))
             AlifePlatform.Command("python",
-            $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
+                $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
         if (!File.Exists(checkFile))
             throw new DirectoryNotFoundException($"模型下载失败，目录不存在：{localPath}");
 

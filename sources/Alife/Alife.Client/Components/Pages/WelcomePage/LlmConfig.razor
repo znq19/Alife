@@ -1,0 +1,127 @@
+@using Alife.Components.Services
+@using Alife.Framework
+@inject ConfigurationSystem ConfigurationSystem
+@inject IMessageService MessageService
+@inject INotificationService NotificationService
+
+<div class="step-content">
+    <div class="step-icon" style="background:rgba(82,196,26,.1);color:#52c41a;">
+        <Icon Type="@IconType.Outline.Setting" Style="font-size:28px;"/>
+    </div>
+    <h2 class="step-title">配置 LLM 信息</h2>
+    <p class="step-desc">接入 OpenAI 兼容协议的大语言模型</p>
+    
+    <Form TModel="OpenAILanguageModelConfig" Model="@llmConfig" Layout="@FormLayout.Vertical" Size="@FormSize.Small">
+        <FormItem Label="API Base URL（端点）">
+            <Input @bind-Value="@llmConfig.endpoint" Placeholder="例如: https://api.deepseek.com/v1" Size="@InputSize.Small"/>
+        </FormItem>
+        <FormItem Label="API Key（密钥）">
+            <InputPassword @bind-Value="@llmConfig.apiKey" Placeholder="填入你的 API Key" Size="@InputSize.Small"/>
+        </FormItem>
+        <FormItem Label="Model ID（模型名称）">
+            @if (availableModels.Any())
+            {
+                <Select DataSource="@availableModels"
+                        @bind-Value="@llmConfig.modelId"
+                        Placeholder="选择模型"
+                        Size="@InputSize.Small"
+                        Style="width:100%;"
+                        ShowSearch="true"
+                        AllowClear="true">
+                </Select>
+            }
+            else
+            {
+                <div style="display:flex;gap:6px;">
+                    <Input @bind-Value="@llmConfig.modelId" Placeholder="例如: deepseek-chat" Size="@InputSize.Small" Style="flex:1;"/>
+                    <Button Size="@ButtonSize.Small" Icon="@IconType.Outline.Search" Loading="@isFetchingModels" OnClick="@FetchModels">探测</Button>
+                </div>
+            }
+        </FormItem>
+    </Form>
+    
+    <div class="step-nav">
+        <Button Size="@ButtonSize.Large" OnClick="@OnPrev">
+            <Icon Type="@IconType.Outline.ArrowLeft"/> 上一步
+        </Button>
+        <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" Disabled="@(string.IsNullOrWhiteSpace(llmConfig.endpoint) || string.IsNullOrWhiteSpace(llmConfig.apiKey))" OnClick="@OnSaveAndNext">
+            下一步 <Icon Type="@IconType.Outline.ArrowRight"/>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnPrevStep { get; set; }
+    [Parameter] public EventCallback OnNextStep { get; set; }
+
+    readonly OpenAILanguageModelConfig llmConfig = new();
+    bool isFetchingModels;
+    List<string> availableModels = new();
+
+    protected override void OnInitialized()
+    {
+        object? cfg = ConfigurationSystem.GetConfiguration(typeof(OpenAILanguageModel));
+        if (cfg is OpenAILanguageModelConfig existing)
+        {
+            llmConfig.endpoint = existing.endpoint;
+            llmConfig.modelId = existing.modelId;
+            llmConfig.apiKey = existing.apiKey;
+            llmConfig.reasoningEffort = existing.reasoningEffort;
+            llmConfig.extraHeaders = existing.extraHeaders;
+            llmConfig.extraBody = existing.extraBody;
+        }
+    }
+
+    async Task FetchModels()
+    {
+        if (string.IsNullOrWhiteSpace(llmConfig.endpoint) || string.IsNullOrWhiteSpace(llmConfig.apiKey))
+        { MessageService.Warning("请先填写 Endpoint 和 API Key"); return; }
+        isFetchingModels = true; StateHasChanged();
+        try
+        {
+            using HttpClient c = new();
+            c.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", llmConfig.apiKey);
+            string url = llmConfig.endpoint.TrimEnd('/');
+            if (!url.EndsWith("/models")) url += "/models";
+            var r = await c.GetAsync(url);
+            if (r.IsSuccessStatusCode)
+            {
+                var obj = Newtonsoft.Json.Linq.JObject.Parse(await r.Content.ReadAsStringAsync());
+                availableModels = obj["data"]?.Select(m => m["id"]?.ToString()).Where(id => !string.IsNullOrEmpty(id)).Cast<string>().OrderBy(id => id).ToList() ?? new();
+                if (availableModels.Any())
+                    MessageService.Success($"探测到 {availableModels.Count} 个模型");
+                else
+                    MessageService.Warning("未发现可用模型");
+            }
+            else MessageService.Error($"拉取失败 ({r.StatusCode})");
+        }
+        catch (Exception ex) { MessageService.Error($"连接出错: {ex.Message}"); }
+        finally { isFetchingModels = false; StateHasChanged(); }
+    }
+
+    void OnSaveLlmConfig()
+    {
+        if (string.IsNullOrWhiteSpace(llmConfig.apiKey) || string.IsNullOrWhiteSpace(llmConfig.endpoint))
+        { MessageService.Warning("Endpoint 和 API Key 不能为空"); return; }
+        ConfigurationSystem.SetConfiguration(typeof(OpenAILanguageModel), llmConfig);
+        _ = NotificationService.Success(new NotificationConfig { Message = "LLM 配置已保存！" });
+    }
+
+    async Task OnSaveAndNext()
+    {
+        OnSaveLlmConfig();
+        await OnNextStep.InvokeAsync();
+    }
+
+    async Task OnPrev()
+    {
+        await OnPrevStep.InvokeAsync();
+    }
+}
+
+<style>
+.step-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.step-title { margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1a1a1a; text-align: center; }
+.step-desc { margin: 0 0 20px; font-size: 13px; color: rgba(0,0,0,.45); text-align: center; }
+.step-nav { display: flex; justify-content: space-between; margin-top: 16px; gap: 12px; }
+</style>

@@ -11,8 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-        <ProjectReference Include="..\Alife.Function.FunctionCaller\Alife.Function.FunctionCaller.csproj" />
-        <ProjectReference Include="..\..\Alife\Alife.Framework\Alife.Framework.csproj" />
-        <ProjectReference Include="..\Alife.Function.VisionModel\Alife.Function.VisionModel.csproj" />
+    <ProjectReference Include="..\Alife.Function.FunctionCaller\Alife.Function.FunctionCaller.csproj" />
+    <ProjectReference Include="..\..\Alife\Alife.Framework\Alife.Framework.csproj" />
   </ItemGroup>
 </Project>
