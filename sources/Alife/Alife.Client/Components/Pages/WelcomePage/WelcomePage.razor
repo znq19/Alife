@@ -6,7 +6,7 @@
     <div class="welcome-bubble">
         <div class="bubble-header">
             <div class="step-indicator">
-                @for (int i = 1; i <= 4; i++)
+                @for (int i = 1; i <= 5; i++)
                 {
                     <div class="step-dot @(currentStep == i ? "active" : "") @(currentStep > i ? "completed" : "")">
                         @if (currentStep > i)
@@ -18,7 +18,7 @@
                             @i
                         }
                     </div>
-                    @if (i < 4)
+                    @if (i < 5)
                     {
                         <div class="step-line @(currentStep > i ? "completed" : "")"></div>
                     }
@@ -29,17 +29,21 @@
         <div class="bubble-body">
             @if (currentStep == 1)
             {
-                <EnvSetup OnNextStep="@(() => GoToStep(2))"/>
+                <PathSetup OnNextStep="@(() => GoToStep(2))"/>
             }
             else if (currentStep == 2)
             {
-                <LlmConfig OnPrevStep="@(() => GoToStep(1))" OnNextStep="@(() => GoToStep(3))"/>
+                <EnvSetup OnNextStep="@(() => GoToStep(3))"/>
             }
             else if (currentStep == 3)
             {
-                <PresetDownload OnPrevStep="@(() => GoToStep(2))" OnNextStep="@(() => GoToStep(4))"/>
+                <LlmConfig OnPrevStep="@(() => GoToStep(2))" OnNextStep="@(() => GoToStep(4))"/>
             }
             else if (currentStep == 4)
+            {
+                <PresetDownload OnPrevStep="@(() => GoToStep(3))" OnNextStep="@(() => GoToStep(5))"/>
+            }
+            else if (currentStep == 5)
             {
                 <Complete/>
             }
@@ -62,10 +66,11 @@
     height: 100%;
     min-height: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     background: linear-gradient(135deg, rgba(24,144,255,.03) 0%, rgba(24,144,255,.08) 50%, rgba(24,144,255,.03) 100%);
     padding: 24px;
+    overflow-y: auto;
 }
 
 .welcome-bubble {

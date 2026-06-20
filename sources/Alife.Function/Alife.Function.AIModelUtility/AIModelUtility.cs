@@ -15,11 +15,10 @@ public static class AIModelUtility
         string localPath = Path.Combine(ModelScopeModelPath, modelId.Replace(".", "___"));
         string checkFile = Path.Combine(localPath, targetFile ?? "README.md");
 
+        AlifePlatform.Command("python", $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
+
         if (!File.Exists(checkFile))
-            AlifePlatform.Command("python",
-            $"-c \"from modelscope import snapshot_download; snapshot_download('{modelId}')\"");
-        if (!File.Exists(checkFile))
-            throw new DirectoryNotFoundException($"模型下载失败，目录不存在：{localPath}");
+            throw new DirectoryNotFoundException($"模型下载失败，目录不完整（{localPath}），请尝试删除后重试");
 
         return targetFile != null ? checkFile : localPath;
     }
@@ -30,6 +29,16 @@ public static class AIModelUtility
     {
         string modelScopeCachePath = Environment.GetEnvironmentVariable("MODELSCOPE_CACHE") ??
                                      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache", "modelscope", "hub");
+
+        try
+        {
+            Directory.Delete(Path.Combine(modelScopeCachePath, ".lock"), true);
+        }
+        catch (Exception e)
+        {
+            throw new Exception("检测到模型下载任务中断或冲突，请重启电脑后继续");
+        }
+
         ModelScopeModelPath = Path.Combine(modelScopeCachePath, "models").Replace(Path.DirectorySeparatorChar, '/');
     }
 }

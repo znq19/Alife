@@ -66,54 +66,51 @@ public class UpdateService
         string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
         string exeName = Path.GetFileName(exePath);
         string psPath = Path.Combine(tempDir, "update.ps1");
-        File.WriteAllText(psPath, $@"
+        File.WriteAllText(psPath, $$"""
 Write-Host '=== Alife Update ===' -ForegroundColor Cyan
 Write-Host ''
 
-$proc = Get-Process -Name '{exeName.Replace(".exe", "")}' -ErrorAction SilentlyContinue
-if ($proc) {{
+$proc = Get-Process -Name '{{exeName.Replace(".exe", "")}}' -ErrorAction SilentlyContinue
+if ($proc) {
     Write-Host 'Waiting for old process to exit...' -ForegroundColor Yellow
     $proc | Wait-Process -Timeout 15 -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
-}}
+}
 
-Write-Host 'ZipPath:    {zipPath}'
-Write-Host 'CurrentDir: {currentDir}'
+Write-Host 'ZipPath:    {{zipPath}}'
+Write-Host 'CurrentDir: {{currentDir}}'
 Write-Host ''
-if (-not (Test-Path '{zipPath}')) {{
+if (-not (Test-Path '{{zipPath}}')) {
     Write-Host 'ERROR: ZIP not found!' -ForegroundColor Red
     Read-Host 'Press Enter to exit'
     exit 1
-}}
+}
 
-$extractTemp = '{tempDir}\_extract_tmp'
-if (Test-Path $extractTemp) {{ Remove-Item $extractTemp -Recurse -Force }}
+$extractTemp = '{{tempDir}}\_extract_tmp'
+if (Test-Path $extractTemp) { Remove-Item $extractTemp -Recurse -Force }
 New-Item -ItemType Directory -Path $extractTemp -Force | Out-Null
 
 Write-Host 'Extracting to temp...' -ForegroundColor Yellow
-try {{
-    Expand-Archive -Path '{zipPath}' -DestinationPath $extractTemp -Force
+try {
+    Expand-Archive -Path '{{zipPath}}' -DestinationPath $extractTemp -Force
     Write-Host 'Extraction succeeded.' -ForegroundColor Green
-}} catch {{
-    Write-Host ""Extraction failed: $($_.Exception.Message)"" -ForegroundColor Red
+} catch {
+    Write-Host "Extraction failed: $($_.Exception.Message)" -ForegroundColor Red
     Read-Host 'Press Enter to exit'
     exit 1
-}}
+}
 
-Write-Host 'Cleaning old files...' -ForegroundColor Yellow
-Get-ChildItem '{currentDir}' -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-
-Write-Host 'Moving new files...' -ForegroundColor Yellow
-Get-ChildItem $extractTemp | Move-Item -Destination '{currentDir}' -Force
+Write-Host 'Copying new files (overwrite)...' -ForegroundColor Yellow
+Copy-Item -Path "$extractTemp\*" -Destination '{{currentDir}}' -Recurse -Force
 Remove-Item $extractTemp -Recurse -Force -ErrorAction SilentlyContinue
 
 Write-Host ''
 Write-Host 'Starting Alife...' -ForegroundColor Cyan
-Start-Process -FilePath '{exePath}'
+Start-Process -FilePath '{{exePath}}'
 Write-Host ''
 Write-Host 'Upgrade successful! Press Enter to exit.' -ForegroundColor Green
 Read-Host
-");
+""");
 
         Process.Start(new ProcessStartInfo
         {
