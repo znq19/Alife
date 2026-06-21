@@ -1,0 +1,35 @@
+@namespace Alife.Function.MessageFilter
+@using AntDesign
+
+<div style="background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #e8e8e8; margin-bottom: 12px;">
+    <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 12px;">
+        <Flex Align="FlexAlign.Center" Gap="@("8")">
+            <Switch @bind-Checked="@Rule.Enabled"/>
+            <Text Strong Style="font-size: 13px;">
+                @(string.IsNullOrEmpty(Rule.InputRegex) ? $"规则 {Index + 1}" : (Rule.InputRegex.Length > 30 ? Rule.InputRegex[..30] + "..." : Rule.InputRegex))
+            </Text>
+        </Flex>
+        <Button Size="@ButtonSize.Small" Danger OnClick="@(() => OnRemove.InvokeAsync(Rule))">删除</Button>
+    </Flex>
+
+    <Flex Direction="FlexDirection.Vertical" Gap="@("8")">
+        <Flex Align="FlexAlign.Center" Gap="@("8")">
+            <Text Style="font-size: 12px; white-space: nowrap;">输入正则</Text>
+            <Input @bind-Value="@Rule.InputRegex" Placeholder="匹配 ChatSend 处理后的消息" Size="@InputSize.Small" Style="flex: 1;"/>
+        </Flex>
+        <Flex Align="FlexAlign.Center" Gap="@("8")">
+            <Text Style="font-size: 12px; white-space: nowrap;">输出正则</Text>
+            <Input @bind-Value="@Rule.OutputRegex" Placeholder="匹配 AI 回复，留空则跳过检查" Size="@InputSize.Small" Style="flex: 1;"/>
+        </Flex>
+        <div>
+            <Text Style="font-size: 12px; display: block; margin-bottom: 4px;">纠正提示</Text>
+            <TextArea @bind-Value="@Rule.CorrectionMessage" Rows="2" Placeholder="AI 回复不匹配时 Poke 的提示文本"/>
+        </div>
+    </Flex>
+</div>
+
+@code {
+    [Parameter] public MessageReplyRule Rule { get; set; } = null!;
+    [Parameter] public int Index { get; set; }
+    [Parameter] public EventCallback<MessageReplyRule> OnRemove { get; set; }
+}

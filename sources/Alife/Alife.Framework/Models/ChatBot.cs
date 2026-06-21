@@ -23,11 +23,14 @@ public class ChatBot : IAsyncDisposable
     public event Action<string>? ChatSent;//消息发送前
     public event Action<string>? ChatReceived;//消息接收到
     public event Action<string>? ReasoningReceived;//思考消息接收到
+    public event Action<string, string>? ChatFinished;//消息结束 参数为(输入消息,输出消息)
     public event Action? ChatOver;//消息结束
 
     public event Action<ChatMessageContent>? ChatHistoryAdd;
     public event Action<ChatTokenUsage>? TokenUsed;
-    public ChatHistory ChatHistory => llmAgentThread.ChatHistory;
+    public ChatCompletionAgent ChatCompletionAgent => chatCompletionAgent;
+    public ChatHistoryAgentThread ChatHistoryAgentThread => chatHistoryAgentThread;
+    public ChatHistory ChatHistory => chatHistoryAgentThread.ChatHistory;
     public bool IsChatting => chatSemaphore.CurrentCount == 0;
     public CancellationTokenSource ChatBreakTokenSource => chatBreakSource;
 
@@ -63,7 +66,7 @@ public class ChatBot : IAsyncDisposable
             }
 
             message = message.Trim();
-            llmAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
+            chatHistoryAgentThread.ChatHistory.AddMessage(role ?? AuthorRole.User, message);
 
             ChaseChatHistory();
 
@@ -71,8 +74,8 @@ public class ChatBot : IAsyncDisposable
             string? error = null;
             StringBuilder cleanResponseBuilder = new();// 用于存储不含思考过程的最终回复
 
-            await using IAsyncEnumerator<AgentResponseItem<StreamingChatMessageContent>> enumerator = llmAgent
-                .InvokeStreamingAsync(llmAgentThread, cancellationToken: chatBreakSource.Token)
+            await using IAsyncEnumerator<AgentResponseItem<StreamingChatMessageContent>> enumerator = chatCompletionAgent
+                .InvokeStreamingAsync(chatHistoryAgentThread, cancellationToken: chatBreakSource.Token)
                 .GetAsyncEnumerator();
             while (true)
             {
@@ -137,20 +140,22 @@ public class ChatBot : IAsyncDisposable
             }
 
             // 在同步历史记录前，清洗掉可能存入 ChatHistory 的思考内容（防止污染上下文）
-            if (llmAgentThread.ChatHistory.Count > 0)
+            string aiMessage = cleanResponseBuilder.ToString();
+            if (chatHistoryAgentThread.ChatHistory.Count > 0)
             {
-                ChatMessageContent lastMsg = llmAgentThread.ChatHistory[^1];
+                ChatMessageContent lastMsg = chatHistoryAgentThread.ChatHistory[^1];
                 if (lastMsg.Role == AuthorRole.Assistant && (lastMsg.Content?.Contains(ThinkContentPrefix) ?? false))
-                    lastMsg.Content = cleanResponseBuilder.ToString();
+                    lastMsg.Content = aiMessage;
             }
 
+            ChatFinished?.Invoke(message, aiMessage);
             ChatOver?.Invoke();
 
             ChaseChatHistory();
 
             if (error != null)
             {
-                llmAgentThread.ChatHistory.AddMessage(AuthorRole.System, error);
+                chatHistoryAgentThread.ChatHistory.AddMessage(AuthorRole.System, error);
                 yield return error;
             }
         }
@@ -200,8 +205,8 @@ public class ChatBot : IAsyncDisposable
         lastContentIndex = ChatHistory.Count;
     }
 
-    readonly ChatCompletionAgent llmAgent;
-    readonly ChatHistoryAgentThread llmAgentThread;
+    readonly ChatCompletionAgent chatCompletionAgent;
+    readonly ChatHistoryAgentThread chatHistoryAgentThread;
     readonly ConcurrentQueue<string> messageCache;
     readonly SemaphoreSlim chatSemaphore;
     CancellationTokenSource chatBreakSource = new();
@@ -215,10 +220,10 @@ public class ChatBot : IAsyncDisposable
     const int DeltaTime = 1;
 
 
-    public ChatBot(ChatCompletionAgent llmAgent, ChatHistoryAgentThread llmAgentThread)
+    public ChatBot(ChatCompletionAgent chatCompletionAgent, ChatHistoryAgentThread chatHistoryAgentThread)
     {
-        this.llmAgent = llmAgent;
-        this.llmAgentThread = llmAgentThread;
+        this.chatCompletionAgent = chatCompletionAgent;
+        this.chatHistoryAgentThread = chatHistoryAgentThread;
         messageCache = new ConcurrentQueue<string>();
         chatSemaphore = new SemaphoreSlim(1, 1);
 

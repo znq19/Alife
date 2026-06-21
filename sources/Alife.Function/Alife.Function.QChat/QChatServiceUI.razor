@@ -159,9 +159,17 @@
         <FormItem Label="主人 ID">
             <Input @bind-Value="@Configuration.OwnerId" Style="width: 100%;"/>
         </FormItem>
-        <FormItem Label="回复提示">
-            <TextArea @bind-Value="@Configuration.AppendChatPrompt" Rows="2"
-                      Placeholder="附加在消息末尾的指导提示词"></TextArea>
+        <FormItem Label="文档提示词">
+            <TextArea @bind-Value="@Configuration.AppendDocumentPrompt" Rows="3"
+                      Placeholder="附加在AI功能文档中的聊天规则要求"></TextArea>
+        </FormItem>
+        <FormItem Label="私聊提示词">
+            <TextArea @bind-Value="@Configuration.AppendPrivateChatPrompt" Rows="2"
+                      Placeholder="收到私聊消息时附加给AI的提示词"></TextArea>
+        </FormItem>
+        <FormItem Label="群聊提示词">
+            <TextArea @bind-Value="@Configuration.AppendGroupChatPrompt" Rows="2"
+                      Placeholder="收到群聊消息时附加给AI的提示词"></TextArea>
         </FormItem>
 
 

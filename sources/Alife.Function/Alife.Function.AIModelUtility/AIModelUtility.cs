@@ -32,11 +32,13 @@ public static class AIModelUtility
 
         try
         {
-            Directory.Delete(Path.Combine(modelScopeCachePath, ".lock"), true);
+            string lockFile = Path.Combine(modelScopeCachePath, ".lock");
+            if (Directory.Exists(lockFile))
+                Directory.Delete(lockFile, true);
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            throw new Exception("检测到模型下载任务中断或冲突，请重启电脑后继续");
+            throw new Exception("检测到模型下载任务中断或冲突，请重启电脑后继续\n" + ex);
         }
 
         ModelScopeModelPath = Path.Combine(modelScopeCachePath, "models").Replace(Path.DirectorySeparatorChar, '/');

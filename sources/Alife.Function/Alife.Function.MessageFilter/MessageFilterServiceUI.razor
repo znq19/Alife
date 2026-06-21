@@ -51,6 +51,49 @@
                                  Style="width: 200px;" />
                 </Flex>
             </GridCol>
+
+            <GridCol Span="24">
+                <div style="margin-bottom: 16px;">
+                    <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 12px;">
+                        <div>
+                            <Text Strong Style="display: block;">消息回复规则 (ReplyRules)</Text>
+                            <Text Type="TextElementType.Secondary" Style="font-size: 12px;">
+                                当 AI 回复不满足正则条件时，自动 Poke 提示文本进行纠正。共 @Configuration.MessageReplyRules.Count 条规则。
+                            </Text>
+                        </div>
+                        <Button Size="@ButtonSize.Small" Type="@ButtonType.Primary" OnClick="AddRule">添加规则</Button>
+                    </Flex>
+
+                    @if (Configuration.MessageReplyRules.Count == 0)
+                    {
+                        <div style="margin-bottom: 12px;">
+                            <Text Type="TextElementType.Secondary" Style="font-size: 12px;">暂无规则，点击"添加规则"创建。</Text>
+                        </div>
+                    }
+
+                    @for (int i = 0; i < Configuration.MessageReplyRules.Count; i++)
+                    {
+                        var index = i;
+                        var rule = Configuration.MessageReplyRules[index];
+                        <MessageReplyRuleCard @key="rule" Rule="@rule" Index="@index" OnRemove="@RemoveRule"/>
+                    }
+                </div>
+            </GridCol>
         </GridRow>
     </Flex>
 </div>
+
+@code {
+    void AddRule()
+    {
+        var list = new List<MessageReplyRule>(Configuration.MessageReplyRules) { new MessageReplyRule() };
+        Configuration.MessageReplyRules = list;
+    }
+
+    void RemoveRule(MessageReplyRule rule)
+    {
+        var list = new List<MessageReplyRule>(Configuration.MessageReplyRules);
+        list.Remove(rule);
+        Configuration.MessageReplyRules = list;
+    }
+}

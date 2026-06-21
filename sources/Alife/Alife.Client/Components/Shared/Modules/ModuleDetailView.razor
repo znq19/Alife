@@ -97,7 +97,8 @@
         if (raw != null)
         {
             string json = JsonConvert.SerializeObject(raw);
-            configuration = JsonConvert.DeserializeObject(json, raw.GetType());
+            configuration = JsonConvert.DeserializeObject(json, raw.GetType(),
+                new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace });
         }
         else
         {

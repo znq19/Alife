@@ -44,6 +44,13 @@
             </GridCol>
         </GridRow>
 
+        <FormItem Label="记忆提醒关键词 (Keywords)">
+            <TextArea Value="@keywordsString" ValueChanged="@((string value) => { keywordsString = value; UpdateKeywords(); })" ValueExpression="@(() => keywordsString)" Rows="2" Placeholder="输入关键词，用逗号分隔（如：记得,记住,忆）"/>
+            <Text Type="TextElementType.Secondary" Style="font-size: 11px;">
+                当用户消息包含这些关键词时，系统会提醒AI使用记忆搜索功能
+            </Text>
+        </FormItem>
+
         <FormItem Label="压缩提示词模板 (CompressPrompt)">
             <TextArea @bind-Value="@Configuration.CompressPrompt" Rows="12"
                       Placeholder="使用 {range} 作为被压缩内容的占位符"/>
@@ -96,6 +103,38 @@
 
     ArchiveModel newArchiveModel = new();
     bool isProcessing;
+    string keywordsString = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (Configuration?.Keywords != null)
+        {
+            keywordsString = string.Join(",", Configuration.Keywords);
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Configuration?.Keywords != null)
+        {
+            keywordsString = string.Join(",", Configuration.Keywords);
+        }
+    }
+
+    private Task UpdateKeywords()
+    {
+        if (Configuration != null)
+        {
+            Configuration.Keywords = keywordsString
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim())
+                .Where(k => !string.IsNullOrEmpty(k))
+                .ToList();
+        }
+        return Task.CompletedTask;
+    }
 
     class ArchiveModel
     {

@@ -1,24 +1,57 @@
 using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Alife.Framework;
 using Microsoft.SemanticKernel;
 
 namespace Alife.Function.MessageFilter;
 
+public class MessageReplyRule
+{
+    public bool Enabled { get; set; } = true;
+    public string InputRegex { get; set; } = "";
+    public string OutputRegex { get; set; } = "";
+    public string CorrectionMessage { get; set; } = "";
+}
+
 public class MessageFilterData
 {
     public bool EnableTimestamp { get; set; } = true;
-    public string MessageAppend { get; set; } = "(注意！处理消息时必须根据消息来源选用正确的标签，如果遇到特殊消息类型，一定要先查文档再回复，不要随便回复。回复时要保持发言简洁，禁用旁白、emoji，但允许也建议多用系统支持的图片动作表情等)";
+    public string MessageAppend { get; set; } = "(注意！看清消息来源和意图，不同场合用不同的标签，不要混用；有文档的一定要先查文档，学习标签用法后再进行回复；调用工具时不要编造结果，调完立即停下等待结果返回，然后再进行下一步；回复时要保持发言简洁，禁用旁白、emoji，但允许也建议多用系统支持的图片动作表情等)";
+    public int InjectionInterval { get; set; } = 10;
     public string PokeAppend { get; set; } = "";
     public int MaxMessageLength { get; set; } = 8000;
+    public List<MessageReplyRule> MessageReplyRules { get; set; } = new() {
+        new MessageReplyRule {
+            Enabled = true,
+            InputRegex = @"\[QChatService\]",
+            OutputRegex = @"<qchat",
+            CorrectionMessage = "[QChatService]消息必须用<qchat>回复，具体请通过<QChatService/>查看QQ工具文档。如果是想发送空白消息，也必须输出标签，但可以将内容置空。"
+        },
+        new MessageReplyRule {
+            Enabled = true,
+            InputRegex = @"\[AuditoryService\]",
+            OutputRegex = @"<speak",
+            CorrectionMessage = "[AuditoryService]消息必须用<speak>标签回复。如果是想发送空白消息，也必须输出标签，但可以将内容置空。"
+        },
+        new MessageReplyRule {
+            Enabled = true,
+            InputRegex = @"\[DeskPetService\]",
+            OutputRegex = @"<speak",
+            CorrectionMessage = "[DeskPetService]消息必须用<speak>标签回复。如果是想发送空白消息，也必须输出标签，但可以将内容置空。"
+        }
+    };
 }
 
-[Module("消息过滤", "统一管理消息的提示词注入和格式化。负责添加时间戳、通用提示词以及系统消息头。",
+[Module("消息后处理", "提供添加时间戳、通用提示词、消息格式诊断的功能。是优化AI回复效果的必要插件。",
     defaultCategory: "Alife 官方/生活环境",
     LaunchOrder = -100, EditorUI = typeof(MessageFilterServiceUI))]
 public class MessageFilterService : InteractiveModule<MessageFilterService>, IConfigurable<MessageFilterData>
 {
     public MessageFilterData? Configuration { get; set; }
+
+    int injectionCountdown;
 
     public override async Task AwakeAsync(AwakeContext context)
     {
@@ -31,6 +64,25 @@ public class MessageFilterService : InteractiveModule<MessageFilterService>, ICo
         await base.StartAsync(kernel, chatActivity);
         ChatBot.ChatSend += OnChatSend;
         ChatBot.PokeSend += OnPokeSend;
+        ChatBot.ChatFinished += OnChatFinished;
+    }
+
+    void OnChatFinished(string inputMessage, string outputMessage)
+    {
+        if (Configuration?.MessageReplyRules == null) return;
+
+        foreach (var rule in Configuration.MessageReplyRules)
+        {
+            if (!rule.Enabled) continue;
+            if (string.IsNullOrEmpty(rule.InputRegex)) continue;
+            if (string.IsNullOrEmpty(rule.OutputRegex)) continue;
+            if (string.IsNullOrEmpty(rule.CorrectionMessage)) continue;
+
+            if (!Regex.IsMatch(inputMessage, rule.InputRegex, RegexOptions.IgnoreCase)) continue;
+            if (Regex.IsMatch(outputMessage, rule.OutputRegex, RegexOptions.IgnoreCase)) continue;
+
+            Poke(rule.CorrectionMessage);
+        }
     }
 
     string OnChatSend(string message)
@@ -43,7 +95,16 @@ public class MessageFilterService : InteractiveModule<MessageFilterService>, ICo
 
         if (Configuration?.EnableTimestamp == true)
             message = $"当前时间:[{DateTime.Now:yyyy-MM-dd HH:mm:ss}]\n{message}";
-        message = $"{message}\n{Configuration?.MessageAppend}";
+
+        if (injectionCountdown == 0)
+        {
+            message = $"{message}\n{Configuration?.MessageAppend}";
+            injectionCountdown = Configuration!.InjectionInterval;
+        }
+        else
+        {
+            injectionCountdown--;
+        }
 
         return message;
     }

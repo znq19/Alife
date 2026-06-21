@@ -22,6 +22,7 @@ public class DemoSuite : IAsyncDisposable
         ConfigurationSystem config = new(storage);
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         ModuleSystem plugins = new(storage, loggerFactory.CreateLogger<ModuleSystem>());
+        plugins.ReloadModules();
         configure?.Invoke(config);
 
         AlifeTerminal.LogInfo("正在创建 ChatActivity 并注入模块...");
