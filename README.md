@@ -22,7 +22,7 @@
 ![Alife Logo](https://img.shields.io/badge/Alife-AI_Assistant-blue?style=for-the-badge)
 ![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?style=for-the-badge&logo=dotnet)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python)
-![License](https://img.shields.io/badge/license-GPL--3.0-green?style=for-the-badge)
+![License](https://img.shields.io/badge/license-AGPL--3.0-green?style=for-the-badge)
 
 - 面向用户：一键自动部署，功能齐全，免费不用key，低配低开销，数据安全，稳定长久，功能强大。
 - 面向开发者：超强扩展，极易复用，代码精简，框架简单，DotNet生态，小众个人没有任何负担约束。
