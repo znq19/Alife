@@ -118,6 +118,6 @@ Write-Host "[Success] Publish complete!"                           -ForegroundCo
 Write-Host "  Plugins: $PluginTarget"                               -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Green
 
-Write-Host ""
-Write-Host "Press any key to exit..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+# Write-Host ""
+# Write-Host "Press any key to exit..."
+# $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

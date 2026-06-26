@@ -115,13 +115,10 @@
     {
         if (!firstRender) return;
 
-        if (PluginMarketService.GetAllPlugins().Count() == 0)
-        {
-            installProgress = (0, 0, "正在拉取插件市场...");
-            StateHasChanged();
-            await PluginMarketService.FetchOnlinePluginsAsync();
-            installProgress = null;
-        }
+        installProgress = (0, 0, "正在获取最新插件市场...");
+        StateHasChanged();
+        await PluginMarketService.FetchOnlinePluginsAsync();
+        installProgress = null;
 
         var allPlugins = PluginMarketService.GetAllPlugins().ToList();
         foreach (string id in RecommendedPluginIds)
