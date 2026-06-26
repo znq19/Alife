@@ -1,12 +1,14 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Alife.Function.Interpreter;
 
-namespace Alife.Function.Interpreter;
+namespace Alife.Function.FunctionCaller;
 
 public class XmlHandler
 {
@@ -15,40 +17,29 @@ public class XmlHandler
     public string? Explanation { get; set; }
     public List<XmlFunction> Functions { get; init; } = new();
     public object? Instance { get; init; }
-    
+
     public string FunctionDocument()
     {
         StringBuilder sb = new();
         foreach (XmlFunction function in Functions)
-        {
-            sb.Append($"- <{function.Name}");
-            foreach (XmlParameter param in function.Parameters)
-            {
-                string pDesc = string.IsNullOrEmpty(param.Description) ? "" : $"（{param.Description}）";
-                sb.Append($" {param.Name}=\"{param.Type}\"{pDesc}");
-            }
-
-            if (function.ContentName != null)
-            {
-                sb.Append(">");
-                string cDesc = string.IsNullOrEmpty(function.ContentDescription)
-                    ? ""
-                    : $"（{function.ContentDescription}）";
-                sb.Append($"{function.ContentName}{cDesc}</{function.Name}>");
-            }
-            else
-            {
-                sb.Append(" />");
-            }
-
-            if (string.IsNullOrEmpty(function.Description) == false)
-                sb.Append($" : {function.Description}");
-
-            sb.AppendLine();
-        }
-        return sb.ToString().TrimEnd();
+            sb.AppendLine(function.Document());
+        return sb.ToString().Trim();
     }
-    
+    public string Document()
+    {
+        StringBuilder stringBuilder = new();
+        stringBuilder.AppendLine($"# {Name} 功能介绍");
+        stringBuilder.AppendLine(Description);
+        stringBuilder.AppendLine("## 提供函数");
+        stringBuilder.AppendLine(FunctionDocument());
+        if (string.IsNullOrEmpty(Explanation) == false)
+        {
+            stringBuilder.AppendLine("## 使用说明");
+            stringBuilder.AppendLine(Explanation);
+        }
+        return stringBuilder.ToString();
+    }
+
     public XmlHandler() {}
     public XmlHandler(object instance, string? explanation = null)
     {
@@ -65,7 +56,7 @@ public class XmlHandler
                 Functions.Add(function);
         }
     }
-    
+
     static XmlFunction? ParseFunction(MethodInfo method, object handler)
     {
         XmlFunctionAttribute? functionAttribute = method.GetCustomAttribute<XmlFunctionAttribute>();
@@ -74,7 +65,7 @@ public class XmlHandler
 
         ParameterInfo[] rawParameters = method.GetParameters();
         //统计参数信息
-        string? contentName = functionAttribute.Mode == FunctionMode.Content ? "Content" : null;
+        string? contentName = null;
         string? contentDescription = null;
         List<XmlParameter> normalParameters = new();
         foreach (ParameterInfo parameterInfo in rawParameters)
@@ -111,6 +102,7 @@ public class XmlHandler
                     Name = parameterName,
                     Description = parameterDescription,
                     Type = parameterTypeName,
+                    IsXmlForm = parameterInfo.GetCustomAttribute<XmlFormAttribute>() != null
                 });
                 continue;
             }
@@ -198,8 +190,8 @@ public class XmlHandler
 
                 if (isFilled)
                     parameterValuesBuffer[index] = result;
-                else
-                    throw new Exception($"{method.Name} 标签缺少 {parameterInfo.Name} 参数，或参数值解析失败！");
+                else if (parameterInfo.GetCustomAttribute<XmlFormAttribute>() == null)
+                    throw new Exception($"{method.Name}标签缺少{parameterInfo.Name}参数，或参数值解析失败！");
             }
 
             //调用
@@ -213,71 +205,11 @@ public class XmlHandler
         return new XmlFunction {
             Name = functionAttribute.Name ?? method.Name.ToLower(),
             Description = method.GetCustomAttribute<DescriptionAttribute>()?.Description,
-            ContentName = contentName,
+            ContentName = contentName ?? (functionAttribute.Mode != FunctionMode.Content ? null : normalParameters.Any(parameter => parameter.IsXmlForm) ? "" : "Content"),
             ContentDescription = contentDescription,
             Parameters = normalParameters,
             Order = functionAttribute.Order,
             Invoker = Invoker,
         };
     }
-}
-
-[Flags]
-public enum FunctionMode
-{
-    All = ~0,
-    Content = 0b_01,
-    OneShot = 0b_10,
-}
-
-[AttributeUsage(AttributeTargets.Method)]
-public class XmlFunctionAttribute(FunctionMode mode, string? name = null, int order = 0) : Attribute
-{
-    public string? Name { get; } = name;
-    public int Order { get; } = order;
-    public FunctionMode Mode { get; } = mode;
-}
-
-public class XmlFunction : IComparable<XmlFunction>
-{
-    public required string Name { get; init; }
-    public int Order { get; init; }
-    public FunctionMode Mode { get; init; }
-    public string? Description { get; init; }
-    public string? ContentName { get; init; }
-    public string? ContentDescription { get; init; }
-    public List<XmlParameter> Parameters { get; init; } = new();
-    public required Func<XmlContext, CancellationToken, Task> Invoker { get; init; }
-
-    public int CompareTo(XmlFunction? other)
-    {
-        if (ReferenceEquals(this, other)) return 0;
-        if (other is null) return 1;
-        return Order.CompareTo(other.Order);
-    }
-}
-
-public enum CallMode
-{
-    Opening = 0,
-    Content = 1,
-    Closing = 2,
-    OneShot = 3,
-}
-
-public class XmlContext
-{
-    public CallMode CallMode { get; init; }
-    public string Content { get; set; } = "";
-    public required IReadOnlyDictionary<string, string> Parameters { get; init; }
-}
-
-[AttributeUsage(AttributeTargets.Parameter)]
-public class XmlContentAttribute : Attribute {}
-
-public record XmlParameter
-{
-    public required string Name { get; init; }
-    public string? Description { get; init; }
-    public required string Type { get; init; }
 }

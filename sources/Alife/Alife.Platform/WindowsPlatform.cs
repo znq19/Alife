@@ -26,6 +26,7 @@ public static class WindowsPlatform
         }
     }
 
+    [Obsolete("实际测试发现无法检测自然锁屏")]
     public static bool IsLocking()
     {
         IntPtr hDesktop = WindowsNative.OpenInputDesktop(0, false, WindowsNative.DesktopReadobjects);

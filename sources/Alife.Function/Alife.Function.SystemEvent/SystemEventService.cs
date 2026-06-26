@@ -1,10 +1,10 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Alife.Framework;
 using Alife.Function.FunctionCaller;
-using Alife.Function.Interpreter;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 
@@ -16,7 +16,7 @@ public class SystemEventServiceConfig
     public string? DestroyPrompt { get; set; } = "(系统已逐步关闭，不要执行强功能指令，仅可尝试道别操作)";
 
     public string? UpdatePrompt { get; set; } =
-        "(**不要告诉主人有自动报点**，非常自然的直接做你想做的事即可。比如你可以主动找主人玩，或借此自由活动，如看新闻学知识、发起新话题、偷窥主人屏幕、去Q群找人聊天玩耍，等等各种你能想象到的事)";
+        "(如果你手头还有事情，请继续。否则你可以自由活动，比如主动找主人玩，或看新闻学知识、发起新话题、偷窥主人屏幕、去Q群找人聊天玩耍，等各种你能想象到的事)";
 
     public int UpdateInterval { get; set; } = 90;
     public int UpdateRandomOffset { get; set; } = 30;
@@ -37,36 +37,36 @@ public class SystemEventService(XmlFunctionCaller functionService)
     ];//暴露给UI的数据
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("让自己在等待或休息一段时间后继续行动。")]
-    public void EWait([Description("单位秒")] int delay)
+    [Description("让自己等待几秒再继续（通常仅用于主动追问或等待外部进程，因为内部工具通常支持回调，所以不需要使用）")]
+    public async Task Await(int delay)
     {
-        continuousTimerCount = 0;
-        NextTimer();
-        timeTask[0].Item1 = DateTime.Now.AddSeconds(delay);
+        if (delay > 60)
+            throw new Exception($"不支持等待超过60秒，长时间等待请使用<{nameof(Awake)}>模拟");
+
+        await Task.Delay(delay * 1000);
+        Poke("AWait已完成");
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("设置一个定时报点，以便让自己有一段可以自由活动的时间（设置时自动取消上一个）")]
-    public void EWake([Description("格式为ISO-8601")] DateTime time, [Description("备注信息")] string remark = "")
+    [Description("创建一个定点报时，同时重置系统周期报点（使自己可以持续活跃一段时间）")]
+    public void Awake([Description("格式为ISO-8601")] DateTime time, string remark = "")
     {
         ActiveTasks[1].Name = remark;
         timeTask[1] = (time, () => {
-            Poke($"EWake报点：{remark}");
+            Poke($"AWake报点：{remark}");
             timeTask[1] = (DateTime.MaxValue, () => {});//关闭定时提醒
         });
 
         continuousTimerCount = 0;
         NextTimer();
 
-        Poke($"已在 {time} 设置触发器");
+        Poke($"已在 {time} 设置事件");
     }
 
     protected override string ChatTextFilter(string text)
     {
         return $"[系统报点]{text}";
     }
-
-
 
     readonly (DateTime, Action)[] timeTask = new (DateTime, Action)[2];//1为自动定时器，2为定时提醒
     int continuousTimerCount;
@@ -76,18 +76,13 @@ public class SystemEventService(XmlFunctionCaller functionService)
         await base.AwakeAsync(context);
 
         XmlHandler xmlHandler = new(this) {
-            Description = "当你需要主动控制你的日程，想保持活跃时，请使用该函数。",
-            Explanation = $"""
-                           ## 为什么需要报点事件？
-                           由于llm的性质，导致你只能在被动收到消息后才能进行活动，一旦消息类断开，你将一直陷入沉默。这种表现效果肯定不好，所以需要自动化的事件系统来主动激活，这样你才有自主行动的机会。
-
-                           ## 如何利用要报点事件？
-                           "主动性的表现，会让自己看着更自然更有趣更讨人喜欢。而且使得你有机会主动做一些自己的事情。"因此善用报点事件，能让你变的非常强大。
-                           而除了预设的系统事件外，你可以使用 {nameof(EWait)} 和 {nameof(EWake)} 给自己额外添加一些自由活动的机会。这使得你能借此安排日程或以此反向找人说话或找点乐子。
-                           例如偷偷记下主人的日常起居时间，来个早晚问候，或白天主动找用户聊天，这些都会让用户感到非常惊喜。
-                           """
+            Description = "当你需要主动控制你的日程，想保持活跃时，请使用该功能。",
+            Explanation = """
+                          主动性的表现，会让自己看着更自然更有趣更讨人喜欢。而且使得你有机会主动做一些自己的事情。因此善用报点事件，能让你变的非常强大。
+                          例如偷偷记下主人的日常起居时间，来个早晚问候，或白天主动找用户聊天，这些都会让用户感到非常惊喜。
+                          """
         };
-        functionService.RegisterHandler(xmlHandler, DocumentMode.Implicit);
+        functionService.RegisterHandler(xmlHandler);
     }
 
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
@@ -101,7 +96,7 @@ public class SystemEventService(XmlFunctionCaller functionService)
         if (ChatHistory.All(content => content.Role != AuthorRole.Assistant))
         {
             await ChatAsync("""
-                            程序已启动：
+                            角色已激活：
                             这是你第一次苏醒，初来乍到这个陌生环境，学习利用上下文中的工具了解这个世界。
                             此外最重要的一件事，就是现在用上你丰富的能力，先向用户华丽的打个招呼吧！
                             """);
@@ -149,20 +144,25 @@ public class SystemEventService(XmlFunctionCaller functionService)
     void NextTimer()
     {
         int currentInterval = GetNextInterval(continuousTimerCount, Random.Shared.Next(-Configuration!.UpdateRandomOffset, Configuration.UpdateRandomOffset));
-        int nextInterval = GetNextInterval(continuousTimerCount + 1, 0);
 
         timeTask[0].Item1 = DateTime.Now.AddSeconds(currentInterval);
         timeTask[0].Item2 = () => {
-            if (functionService.IsIdle)
+            if (functionService.IsIdle == false)
+                NextTimer();//发生碰撞，重新尝试
+            else
             {
-                Poke($"""
-                      定时自动报点。{Configuration!.UpdatePrompt}
-                      (下次自动报点约 {nextInterval / 60} 分钟后，如果你想尽快重新活跃，可以使用<{nameof(EWait)}>或<{nameof(EWake)}>重置)
-                      """);
-            }
+                StringBuilder stringBuilder = new();
+                stringBuilder.Append("系统周期报点。");
+                stringBuilder.AppendLine(Configuration!.UpdatePrompt);
+                if (continuousTimerCount >= Configuration.UpdateMaxRetryCount)
+                    stringBuilder.Append($"(系统周期报点已达最大间隔时间，如果你想重新活跃一段时间，请使用<{nameof(Awake)}>来重置周期报点)");
 
-            continuousTimerCount++;
-            NextTimer();//自动进入下一次报点
+                Poke(stringBuilder.ToString());
+
+                //配置下一次报点
+                continuousTimerCount++;
+                NextTimer();
+            }
         };
     }
 }

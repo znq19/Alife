@@ -35,6 +35,8 @@ public partial class App
         Console.WriteLine(typeof(Function.Browser.BrowserService).Assembly);
         Console.WriteLine(typeof(Function.Python.PythonService).Assembly);
         Console.WriteLine(typeof(Function.Vision.VisionService).Assembly);
+        Console.WriteLine(typeof(Function.FileService.FileService).Assembly);
+        Console.WriteLine(typeof(Function.ProcessService.ProcessService).Assembly);
 
         Console.WriteLine(typeof(Function.Auditory.AuditoryService).Assembly);
         Console.WriteLine(typeof(Function.DeskPet.DeskPetService).Assembly);

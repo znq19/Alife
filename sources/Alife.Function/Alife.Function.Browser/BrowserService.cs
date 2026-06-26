@@ -8,53 +8,63 @@ using Alife.Function.Interpreter;
 
 namespace Alife.Function.Browser;
 
-[Module("网上冲浪", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。",
+[Module("浏览器工具", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。",
     defaultCategory: "Alife 官方/实用工具")]
 public class BrowserService(XmlFunctionCaller functionService)
     : InteractiveModule<BrowserService>, IDisposable
 {
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("打开网页。")]
-    public async Task Navigate(string url)
+    [Description("同时只能打开一个页面，打开自动顶掉前一个，使用后需等待结果返回")]
+    public async Task OpenWebsite(string url)
     {
+        if (browser.HasActivePopup)
+        {
+            Poke("当前处于弹出窗口中，无法直接导航。请先关闭弹出窗口");
+            return;
+        }
         await browser.NavigateAsync(url);
-        Poke($"[Navigate] 已打开: {url}（接下来可以使用 observe 来查看页面内容）");
+        Poke("已打开网站");
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("查看页面内容（注意！内容过多时会被分页，所以当你没看到想要的内容时，可以尝试用 page 翻页。可交互元素会以[ID:文本]格式标记，需要获取元素详情（如href）时使用 GetElementInfo）")]
-    public async Task Observe([Description("观察的页面区域，从1开始")] int page)
+    public async Task ClosePopupWindow()
+    {
+        bool closed = await browser.CloseTopPopupAsync();
+        Poke(closed ? "已关闭弹出窗口" : "当前没有弹出窗口");
+    }
+
+    [XmlFunction(FunctionMode.OneShot)]
+    [Description("会自动探测可交互元素并打上data-alife-id，然后以[ID:文本]返回")]
+    public async Task ViewWebsite([Description("观察的页码，从1开始")] int page)
     {
         string result = await browser.ObserveAsync(page);
-        Poke($"页面结果如下（注意！网站页面大多不能一次全显示，必须通过 page 翻页来查看完整内容。此外若遇到人机验证或登录，可请求主人协助）：\n{result}");
+        Poke($"当前页码内容如下：\n{result}");
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("查询页面中指定ID元素的详细信息（href、type、placeholder等），ID来自Observe中标记的[ID:文本]")]
-    public async Task GetElementInfo([Description("元素的data-alife-id")] int id)
+    [Description("查看View结果中被标记的可交互元素信息，如他们的href,type等")]
+    public async Task GetWebsiteElementInfo([Description("元素的data-alife-id")] int id)
     {
         string result = await browser.GetElementInfoAsync(id);
-        Poke($"[GetElementInfo] 元素详情：\n{result}");
+        Poke($"元素详情：\n{result}");
     }
 
     [XmlFunction(FunctionMode.Content)]
-    [Description("执行JS表达式（这只能在浏览器沙盒中使用，不能执行全局性脚本操作）")]
-    public async Task RunJs(XmlExecutorContext context, [XmlContent] string script)
+    public async Task RunWebsiteJs(XmlExecutorContext context, [XmlContent] string script)
     {
         if (context.CallMode == CallMode.Closing)
         {
             string code = context.FullContent.Trim();
             string result = await browser.ExecuteScriptAsync(code);
-            Poke($"[RunJS] 执行结果：\n{result}");
+            Poke($"JS执行结果：\n{result}");
         }
     }
 
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("下载文件。")]
-    public async Task Download([Description("下载链接")] string url, [Description("本地绝对路径")] string path)
+    public async Task DownloadFile(string url, string path)
     {
         await AlifePlatform.DownloadFileAsync(url, path);
-        Poke($"[Download] 文件已下载至：{path}");
+        Poke("已下载");
     }
 
     readonly BrowserEngine browser = new();
@@ -65,19 +75,25 @@ public class BrowserService(XmlFunctionCaller functionService)
         await browser.WaitToLoadedAsync(TimeSpan.FromSeconds(3));
 
         XmlHandler xmlHandler = new(this) {
-            Description = "当你需要使用浏览器上网时调用",
+            Description = "这让你有个浏览器，可借此上网，学知识，找话题",
             Explanation = """
-                          你拥有一个独属于自己的真实浏览器，可借此进行网上冲浪，每天学点新知识，找点新话题。
+                          1. 遇到验证或登录，可请求用户，绕过反爬
+                          2. 优先使用高质量搜索引擎，开源、个人网站，并跳过收费网站（如爱给网、百度文库等）
+                          3. 此浏览器叫`Alife Browser`，注意区分
 
-                          ## 使用提示
+                          交互示例
+                          获取元素：let e=document.querySelector('[data-alife-id="1"]');
+                          点击元素：e.click()
+                          输入文本：e.focus();e.value='';document.execCommand('insertText',false,'内容');
 
-                          1. 若遇到验证或登录，可以请求主人协助，从而避免被反爬。
-                          2. 办事前先明确需求，再行动。
-                          3. 优先使用搜索引擎`谷歌 > 必应 > 百度`
+                          注意事项
+                          1. 示例方法不一定有效，要学会变通
+                          2. 每次交互后一定要检查结果，比如输入文本后文本是否变化
+                          3. 很多时候不是你的思路有问题，而是元素操作失误，不要过于依赖data-alife-id
                           """
         };
-        functionService.RegisterHandler(xmlHandler, DocumentMode.Implicit);
-        functionService.AddPlainAreas(nameof(RunJs));
+        functionService.RegisterHandler(xmlHandler);
+        functionService.AddPlainAreas(nameof(RunWebsiteJs));
     }
 
     public void Dispose() => browser.Dispose();

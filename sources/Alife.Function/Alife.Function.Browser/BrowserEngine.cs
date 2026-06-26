@@ -30,14 +30,18 @@ public class BrowserEngine : IDisposable
     {
         return worker.AddFormTask(async webView => {
             var tcs = new TaskCompletionSource<NavigateResult>();
-            webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
+            webView.CoreWebView2.NavigationCompleted += OnCompleted;
             webView.CoreWebView2.Navigate(url);
-            return await tcs.Task;
 
-            void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+            if (completed != tcs.Task)
+                webView.CoreWebView2.NavigationCompleted -= OnCompleted;
+            return completed == tcs.Task ? await tcs.Task : new NavigateResult { Success = true, StatusCode = 0 };
+
+            void OnCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
             {
-                webView.CoreWebView2.NavigationCompleted -= OnNavigationCompleted;
-                tcs.SetResult(new NavigateResult { Success = e.IsSuccess, StatusCode = (int)e.WebErrorStatus });
+                webView.CoreWebView2.NavigationCompleted -= OnCompleted;
+                tcs.TrySetResult(new NavigateResult { Success = e.IsSuccess, StatusCode = (int)e.WebErrorStatus });
             }
         });
     }
@@ -122,9 +126,8 @@ public class BrowserEngine : IDisposable
         int currentPage = page < 1 ? 1 : page;
         string jsCode = $$$"""
                            (() => {
-                               const M_CLS = 'al-m';
-                               const TEXT_LIMIT = 1000;  // 期望单页文本上限
-                               const ITEM_LIMIT = 20;   // 期望单页按钮上限
+                                const M_CLS = 'al-m';
+                                const TEXT_LIMIT = 700;  // 每页文本字符上限
                                const ATTR_OLD = 'data-al-old';
                                const scope = {{{currentPage}}};
                                
@@ -152,7 +155,7 @@ public class BrowserEngine : IDisposable
                                        if (!isI && !t && !h) continue;
                                        const cur = ++id;
                                        n.setAttribute('data-alife-id', cur);
-                                       map[cur] = { t: t || (isI ? '输入框' : '按钮'), h: h ? h.substring(0, 150) : '', isI };
+                                        map[cur] = { t: isI ? '输入框' : (t || '按钮'), h: h ? h.substring(0, 150) : '', isI };
                                        n.setAttribute(ATTR_OLD, n.style.display);
                                        n.style.display = 'none';
                                        const m = document.createElement('span');
@@ -172,25 +175,16 @@ public class BrowserEngine : IDisposable
                                    n.removeAttribute(ATTR_OLD);
                                }
 
-                               // --- 核心：复合分页逻辑 ---
-                               const totalItems = id;
-                               // 总页数取文本页数和按钮页数的最大值
-                               const totalPages = Math.max(
-                                   Math.ceil(fullText.length / TEXT_LIMIT), 
-                                   Math.ceil(totalItems / ITEM_LIMIT), 
-                                   1
-                               );
-                               // 根据总页数计算本页应截取的平均字符步长
-                               const stride = Math.ceil(fullText.length / totalPages);
-                               const startIdx = (scope - 1) * stride;
-                               let endIdx = startIdx + stride;
-                               
-                               if (endIdx < fullText.length) {
-                                   const nextSpace = fullText.indexOf(' ', endIdx);
-                                   if (nextSpace !== -1 && (nextSpace - endIdx) < 30) endIdx = nextSpace;
-                               }
-                               const pageContent = fullText.substring(startIdx, endIdx);
-                               // ---------------------------
+                                // --- 纯字数分页 ---
+                                const totalPages = Math.max(Math.ceil(fullText.length / TEXT_LIMIT), 1);
+                                const startIdx = (scope - 1) * TEXT_LIMIT;
+                                let endIdx = startIdx + TEXT_LIMIT;
+                                if (endIdx < fullText.length) {
+                                    const nextSpace = fullText.indexOf(' ', endIdx);
+                                    if (nextSpace !== -1 && (nextSpace - endIdx) < 30) endIdx = nextSpace;
+                                }
+                                const pageContent = fullText.substring(startIdx, endIdx);
+                                // --------------------
 
                                const found = [];
                                const re = /\[(\d+)\]/g;
@@ -212,7 +206,6 @@ public class BrowserEngine : IDisposable
                            })();
                            """;
 
-
         return await ExecuteScriptAsync(jsCode);
     }
 
@@ -222,25 +215,35 @@ public class BrowserEngine : IDisposable
     public Task<string> GetElementInfoAsync(int id)
     {
         string jsCode = $$$"""
-            (() => {
-                const el = document.querySelector('[data-alife-id="{{{id}}}"]');
-                if (!el) return JSON.stringify({ found: false });
-                const info = {
-                    found: true,
-                    id: {{{id}}},
-                    tag: el.tagName.toLowerCase(),
-                    text: (el.innerText || el.value || el.placeholder || el.title || '').trim().slice(0, 200),
-                    href: el.href || '',
-                    type: el.type || '',
-                    placeholder: el.placeholder || '',
-                    ariaLabel: el.getAttribute('aria-label') || '',
-                    className: el.className || '',
-                };
-                return JSON.stringify(info, null, 2);
-            })();
-            """;
+                           (() => {
+                               const el = document.querySelector('[data-alife-id="{{{id}}}"]');
+                               if (!el) return JSON.stringify({ found: false });
+                               const info = {
+                                   found: true,
+                                   id: {{{id}}},
+                                   tag: el.tagName.toLowerCase(),
+                                   text: (el.innerText || el.value || el.placeholder || el.title || '').trim().slice(0, 200),
+                                   href: el.href || '',
+                                   type: el.type || '',
+                                   placeholder: el.placeholder || '',
+                                   ariaLabel: el.getAttribute('aria-label') || '',
+                                   className: el.className || '',
+                               };
+                               return JSON.stringify(info, null, 2);
+                           })();
+                           """;
         return ExecuteScriptAsync(jsCode);
     }
+
+    /// <summary>
+    /// 是否有弹出窗口
+    /// </summary>
+    public bool HasActivePopup => worker.HasActivePopup;
+
+    /// <summary>
+    /// 关闭最顶层的弹出窗口
+    /// </summary>
+    public Task<bool> CloseTopPopupAsync() => worker.CloseTopPopupAsync();
 
     readonly WebViewWorker worker = new();
 
