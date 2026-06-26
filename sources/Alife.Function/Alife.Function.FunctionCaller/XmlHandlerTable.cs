@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Alife.Function.FunctionCaller;
 
 namespace Alife.Function.Interpreter;
 
@@ -23,6 +24,12 @@ public class XmlHandlerTable
             }
 
             xmlFunctionGroup.Add(xmlFunction);
+
+            foreach (XmlParameter parameter in xmlFunction.Parameters)
+            {
+                if (parameter.IsXmlForm)
+                    xmlForms.Add(parameter.Name.ToLower());
+            }
         }
     }
 
@@ -38,13 +45,19 @@ public class XmlHandlerTable
 
     public async Task Handle(string name, XmlContext tagContext, CancellationToken cancellationToken = default)
     {
-        SortedSet<XmlFunction>? xmlFunctionGroup = xmlFunctions.GetValueOrDefault(name.ToLower());
+        name = name.ToLower();
+        SortedSet<XmlFunction>? xmlFunctionGroup = xmlFunctions.GetValueOrDefault(name);
         if (xmlFunctionGroup == null || xmlFunctionGroup.Count == 0)
-            throw new Exception($"未找到名为 {name} 的可调用函数");
+        {
+            if (xmlForms.Contains(name))
+                return;
+            throw new Exception($"当前环境没有{name}函数，请停止使用");
+        }
         foreach (XmlFunction xmlFunction in xmlFunctionGroup)
             await xmlFunction.Invoker(tagContext, cancellationToken);
     }
 
     readonly List<XmlHandler> xmlHandlers = new();
     readonly Dictionary<string, SortedSet<XmlFunction>> xmlFunctions = new();
+    readonly HashSet<string> xmlForms = new();
 }

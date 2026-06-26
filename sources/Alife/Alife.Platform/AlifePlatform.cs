@@ -151,9 +151,7 @@ public static class AlifePlatform
         throw new PlatformNotSupportedException("当前平台不支持获取分辨率。");
     }
 
-    /// <summary>
-    /// 判断当前系统是否处于锁屏/息屏状态。
-    /// </summary>
+    [Obsolete("实际测试发现无法检测自然锁屏")]
     public static bool IsLocking()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

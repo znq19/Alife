@@ -25,22 +25,25 @@ public class ChatBot : IAsyncDisposable
     public event Action<string>? ReasoningReceived;//思考消息接收到
     public event Action<string, string>? ChatFinished;//消息结束 参数为(输入消息,输出消息)
     public event Action? ChatOver;//消息结束
-
     public event Action<ChatMessageContent>? ChatHistoryAdd;
+    public event Action<Exception>? ChatExceptionThrow;
     public event Action<ChatTokenUsage>? TokenUsed;
+    public Func<string>? ChatOccupiedReason { get; private set; }//当前llm被占用的利用描述
     public ChatCompletionAgent ChatCompletionAgent => chatCompletionAgent;
     public ChatHistoryAgentThread ChatHistoryAgentThread => chatHistoryAgentThread;
     public ChatHistory ChatHistory => chatHistoryAgentThread.ChatHistory;
     public bool IsChatting => chatSemaphore.CurrentCount == 0;
     public CancellationTokenSource ChatBreakTokenSource => chatBreakSource;
 
-    public async Task RequestChatAsync(CancellationToken cancellationToken = default)
+    public async Task RequestChatAsync(CancellationToken cancellationToken = default, Func<string>? reason = null)
     {
         await chatSemaphore.WaitAsync(cancellationToken);
+        ChatOccupiedReason = reason;
     }
 
     public void ReleaseChat()
     {
+        ChatOccupiedReason = null;
         chatSemaphore.Release();
     }
 
@@ -71,7 +74,7 @@ public class ChatBot : IAsyncDisposable
             ChaseChatHistory();
 
             ChatSent?.Invoke(message);
-            string? error = null;
+            Exception? error = null;
             StringBuilder cleanResponseBuilder = new();// 用于存储不含思考过程的最终回复
 
             await using IAsyncEnumerator<AgentResponseItem<StreamingChatMessageContent>> enumerator = chatCompletionAgent
@@ -90,7 +93,7 @@ public class ChatBot : IAsyncDisposable
                 }
                 catch (Exception e)
                 {
-                    error = e.ToString();
+                    error = e;
                     break;
                 }
 
@@ -154,10 +157,7 @@ public class ChatBot : IAsyncDisposable
             ChaseChatHistory();
 
             if (error != null)
-            {
-                chatHistoryAgentThread.ChatHistory.AddMessage(AuthorRole.System, error);
-                yield return error;
-            }
+                ChatExceptionThrow?.Invoke(error);
         }
         finally
         {

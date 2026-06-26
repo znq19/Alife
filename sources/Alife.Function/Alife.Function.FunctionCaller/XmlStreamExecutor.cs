@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Alife.Function.FunctionCaller;
 
 namespace Alife.Function.Interpreter;
 
@@ -20,6 +21,8 @@ public class XmlExecutorContext : XmlContext
 public class XmlStreamExecutor : IAsyncDisposable
 {
     public event Action<string, Exception>? Error;
+    public event Action<string, XmlContext>? Handling;
+
     public bool IsInactive =>
         commandChannel.Reader.TryPeek(out _) == false &&
         lastTask is null or { IsCompleted: true } || processingTokenSource.IsCancellationRequested;
@@ -229,6 +232,7 @@ public class XmlStreamExecutor : IAsyncDisposable
     {
         try
         {
+            Handling?.Invoke(name, tagContext);
             await handler.Handle(name, tagContext, handleTokenSource.Token);
         }
         catch (Exception e)

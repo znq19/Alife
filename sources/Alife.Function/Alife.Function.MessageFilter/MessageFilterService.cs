@@ -25,26 +25,26 @@ public class MessageFilterData
     public List<MessageReplyRule> MessageReplyRules { get; set; } = new() {
         new MessageReplyRule {
             Enabled = true,
-            InputRegex = @"\[QChatService\]",
-            OutputRegex = @"<qchat",
-            CorrectionMessage = "[QChatService]消息必须用<qchat>回复，具体请通过<QChatService/>查看QQ工具文档。如果是想发送空白消息，也必须输出标签，但可以将内容置空。"
+            InputRegex = @":\[QChatService\]",
+            OutputRegex = @"<q(?:chat|image)",
+            CorrectionMessage = "[QChatService]消息必须用<qchat>回复。如果不想发送消息，也请发送空标签。"
         },
         new MessageReplyRule {
             Enabled = true,
-            InputRegex = @"\[AuditoryService\]",
+            InputRegex = @":\[AuditoryService\]",
             OutputRegex = @"<speak",
-            CorrectionMessage = "[AuditoryService]消息必须用<speak>标签回复。如果是想发送空白消息，也必须输出标签，但可以将内容置空。"
+            CorrectionMessage = "[AuditoryService]消息必须用<speak>标签回复。如果不想发送消息，也请发送空标签。"
         },
         new MessageReplyRule {
             Enabled = true,
-            InputRegex = @"\[DeskPetService\]",
+            InputRegex = @":\[DeskPetService\]",
             OutputRegex = @"<speak",
-            CorrectionMessage = "[DeskPetService]消息必须用<speak>标签回复。如果是想发送空白消息，也必须输出标签，但可以将内容置空。"
+            CorrectionMessage = "[DeskPetService]消息必须用<speak>标签回复。如果不想发送消息，也请发送空标签。"
         }
     };
 }
 
-[Module("消息后处理", "提供添加时间戳、通用提示词、消息格式诊断的功能。是优化AI回复效果的必要插件。",
+[Module("消息过滤", "提供添加时间戳、通用提示词、消息格式诊断、最大字长截断等功能。是优化保护AI回复效果的必要插件。",
     defaultCategory: "Alife 官方/生活环境",
     LaunchOrder = -100, EditorUI = typeof(MessageFilterServiceUI))]
 public class MessageFilterService : InteractiveModule<MessageFilterService>, IConfigurable<MessageFilterData>
@@ -70,6 +70,7 @@ public class MessageFilterService : InteractiveModule<MessageFilterService>, ICo
     void OnChatFinished(string inputMessage, string outputMessage)
     {
         if (Configuration?.MessageReplyRules == null) return;
+        if (string.IsNullOrEmpty(outputMessage)) return;
 
         foreach (var rule in Configuration.MessageReplyRules)
         {

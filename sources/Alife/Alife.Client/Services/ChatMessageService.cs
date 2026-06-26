@@ -5,7 +5,7 @@ namespace Alife.Components.Services;
 public class ChatSettings
 {
     public string UserTag { get; set; } = "消息来源:[ChatWindow]";
-    public int MaxMessageCount { get; set; } = 200;
+    public int MaxMessageCount { get; set; } = 100;
 }
 
 public class ChatMessage
@@ -24,6 +24,7 @@ public class ChatMessageService
 {
     public event Action<string>? OnMessageChanged;
     public event Action<string>? OnUserMessageSent;
+    public event Action<string, Exception>? OnChatException;
 
     public string MessageTag
     {
@@ -143,6 +144,7 @@ public class ChatMessageService
                 OnMessageChanged?.Invoke(name);
             }
         };
+        activity.ChatBot.ChatExceptionThrow += exception => OnChatException?.Invoke(name, exception);
     }
     void OnActivationFailed(Character arg1, Exception arg2)
     {

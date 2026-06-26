@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,9 +30,8 @@ public class WebViewWorker : IDisposable
         formTasks.Add(async () => {
             try
             {
-                if (webView == null)
-                    throw new ArgumentNullException(nameof(webView));
-                T result = await action(webView);
+                var active = ActiveWebView;
+                T result = await action(active);
                 tcs.SetResult(result);
             }
             catch (Exception ex)
@@ -49,6 +49,60 @@ public class WebViewWorker : IDisposable
     readonly BlockingCollection<Func<Task>> formTasks = new();
     bool isNavigating;
     bool isLoaded;
+    CoreWebView2Environment? env;
+
+    readonly object popupLock = new();
+    readonly Stack<WebView2> popupStack = new();
+    readonly Dictionary<WebView2, Window> popupWindowMap = new();
+
+    WebView2 ActiveWebView
+    {
+        get
+        {
+            lock (popupLock)
+                return popupStack.Count > 0 ? popupStack.Peek() : webView!;
+        }
+    }
+
+    public bool HasActivePopup
+    {
+        get
+        {
+            lock (popupLock)
+                return popupStack.Count > 0;
+        }
+    }
+
+    public int PopupCount
+    {
+        get
+        {
+            lock (popupLock)
+                return popupStack.Count;
+        }
+    }
+
+    void RemovePopupFromStack(WebView2 popup)
+    {
+        lock (popupLock)
+        {
+            if (popupStack.Count == 0) return;
+            if (popupStack.Peek() == popup)
+            {
+                popupStack.Pop();
+                return;
+            }
+            var temp = new List<WebView2>();
+            while (popupStack.Count > 0)
+            {
+                var item = popupStack.Pop();
+                if (item == popup) break;
+                temp.Add(item);
+            }
+            for (int i = temp.Count - 1; i >= 0; i--)
+                popupStack.Push(temp[i]);
+        }
+    }
 
     public WebViewWorker()
     {
@@ -56,7 +110,7 @@ public class WebViewWorker : IDisposable
             try
             {
                 window = new UnclosableWindow {
-                    Title = "Alife.Client Browser",
+                    Title = "Alife Browser",
                     Width = 1024,
                     Height = 768,
                     WindowState = WindowState.Minimized,
@@ -82,9 +136,32 @@ public class WebViewWorker : IDisposable
         thread.Start();
     }
 
+    public async Task<bool> CloseTopPopupAsync()
+    {
+        Window? popupWindow;
+        lock (popupLock)
+        {
+            if (popupStack.Count == 0) return false;
+            if (!popupWindowMap.TryGetValue(popupStack.Peek(), out popupWindow)) return false;
+        }
+
+        await popupWindow.Dispatcher.InvokeAsync(() => popupWindow.Close());
+        return true;
+    }
+
     public void Dispose()
     {
         formTasks.CompleteAdding();
+        var popupWindows = new List<Window>();
+        lock (popupLock)
+        {
+            foreach (var w in popupWindowMap.Values)
+                popupWindows.Add(w);
+            popupStack.Clear();
+            popupWindowMap.Clear();
+        }
+        foreach (var pw in popupWindows)
+            pw.Dispatcher.Invoke(() => pw.Close());
         if (window != null)
             window.Dispatcher.Invoke(() => window.Close());
     }
@@ -96,15 +173,92 @@ public class WebViewWorker : IDisposable
             string userDataFolder = Path.Combine(AlifePath.RuntimeFolderPath, "WebView2Data");
             if (!Directory.Exists(userDataFolder))
                 Directory.CreateDirectory(userDataFolder);
-            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
+            env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
 
             await webView!.Dispatcher.InvokeAsync(async () => {
                 await webView!.EnsureCoreWebView2Async(env);
                 webView.CoreWebView2.Settings.UserAgent =
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edge/122.0.0.0";
-                webView.CoreWebView2.NewWindowRequested += (_, ev) => {
-                    ev.Handled = true;
-                    webView.CoreWebView2.Navigate(ev.Uri);
+                webView.CoreWebView2.NewWindowRequested += async (_, ev) => {
+                    var deferral = ev.GetDeferral();
+                    try
+                    {
+                        var mainSource = webView.Source;
+                        var popupWindow = new Window {
+                            Title = "Alife.Client Popup",
+                            Width = 800,
+                            Height = 600,
+                            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                        };
+                        var popupWebView = new WebView2();
+                        popupWindow.Content = popupWebView;
+
+                        var loadedTcs = new TaskCompletionSource();
+                        popupWindow.Loaded += (_, _) => loadedTcs.SetResult();
+                        popupWindow.Show();
+                        await loadedTcs.Task;
+
+                        await popupWebView.EnsureCoreWebView2Async(env);
+                        popupWebView.CoreWebView2.Settings.UserAgent =
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edge/122.0.0.0";
+
+                        var mainHost = mainSource?.Host ?? "";
+                        CancellationTokenSource? autoCloseCts = null;
+                        void TryAutoClosePopup(CoreWebView2 cwv)
+                        {
+                            try
+                            {
+                                if (Uri.TryCreate(cwv.Source, UriKind.Absolute, out var popupUri) &&
+                                    mainHost.Length > 0 &&
+                                    (popupUri.Host.Equals(mainHost, StringComparison.OrdinalIgnoreCase) ||
+                                     popupUri.Host.EndsWith("." + mainHost, StringComparison.OrdinalIgnoreCase) ||
+                                     mainHost.EndsWith("." + popupUri.Host, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    autoCloseCts?.Cancel();
+                                    autoCloseCts = new CancellationTokenSource();
+                                    var token = autoCloseCts.Token;
+                                    Task.Delay(2000, token).ContinueWith(_ => {
+                                        if (!token.IsCancellationRequested)
+                                        {
+                                            popupWindow.Dispatcher.Invoke(() => {
+                                                webView!.CoreWebView2.Navigate(popupUri.ToString());
+                                                popupWindow.Close();
+                                            });
+                                        }
+                                    }, token);
+                                }
+                            }
+                            catch { }
+                        }
+
+                        popupWebView.CoreWebView2.NavigationCompleted += (_, e) => {
+                            TryAutoClosePopup(popupWebView.CoreWebView2);
+                        };
+                        popupWebView.CoreWebView2.SourceChanged += (_, _) => {
+                            TryAutoClosePopup(popupWebView.CoreWebView2);
+                        };
+
+                        lock (popupLock)
+                        {
+                            popupStack.Push(popupWebView);
+                            popupWindowMap[popupWebView] = popupWindow;
+                        }
+
+                        popupWebView.CoreWebView2.WindowCloseRequested += (_, _) => {
+                            popupWindow.Dispatcher.Invoke(() => popupWindow.Close());
+                        };
+                        popupWindow.Closing += (_, _) => {
+                            RemovePopupFromStack(popupWebView);
+                            popupWindowMap.Remove(popupWebView);
+                        };
+
+                        ev.NewWindow = popupWebView.CoreWebView2;
+                        ev.Handled = true;
+                    }
+                    finally
+                    {
+                        deferral.Complete();
+                    }
                 };
                 webView.CoreWebView2.NavigationStarting += (_, ev) => {
                     isNavigating = true;

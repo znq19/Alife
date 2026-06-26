@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Alife.Function.FunctionCaller;
 using Alife.Function.Interpreter;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;

@@ -101,8 +101,8 @@
                     {
                         <div class="input-busy-tag">
                             <Icon Type="@IconType.Outline.Loading" Style="font-size: 14px; color: #1890ff;"/>
-                            <span
-                                style="color: #1890ff; font-size: 12px; font-weight: 500;">@(CharacterName)工作/记忆中...</span>
+                        <span
+                            style="color: #1890ff; font-size: 12px; font-weight: 500;">@(CharacterName)@(string.IsNullOrEmpty(occupiedReasonText) ? "工作中..." : occupiedReasonText)</span>
                         </div>
                     }
                 </div>
@@ -116,6 +116,8 @@
         </div>
     }
 </Flex>
+
+<ErrorWindowUI @bind-Value="@chatException" Title="聊天出错喵！"/>
 
 <style>
     .chat-input-container {
@@ -382,6 +384,8 @@
     bool isWorking;
     List<ChatMessage>? messages;
     string lastCharacterName = "";
+    string occupiedReasonText = "";
+    Exception? chatException;
     bool isDisposed;
     bool shouldPreventDefault;
 
@@ -392,6 +396,7 @@
         messages = ChatMessageService.GetMessages(CharacterName);
         ChatMessageService.OnMessageChanged += OnMessageChanged;
         ChatMessageService.OnUserMessageSent += OnUserMessageSent;
+        ChatMessageService.OnChatException += OnChatException;
 
         _ = UpdateStatusLoop();
     }
@@ -426,6 +431,7 @@
 
         ChatMessageService.OnMessageChanged -= OnMessageChanged;
         ChatMessageService.OnUserMessageSent -= OnUserMessageSent;
+        ChatMessageService.OnChatException -= OnChatException;
     }
 
     async Task UpdateStatusLoop()
@@ -436,9 +442,12 @@
             if (chatBot != null)
             {
                 bool chatting = chatBot.IsChatting;
-                if (chatting != isWorking)
+                string newReason = chatting ? chatBot.ChatOccupiedReason?.Invoke() ?? "" : "";
+
+                if (chatting != isWorking || newReason != occupiedReasonText)
                 {
                     isWorking = chatting;
+                    occupiedReasonText = newReason;
                     await InvokeAsync(StateHasChanged);
                 }
             }
@@ -474,6 +483,14 @@
     {
         if (name == CharacterName)
             InvokeAsync(StateHasChanged);
+    }
+    void OnChatException(string name, Exception exception)
+    {
+        if (name == CharacterName)
+        {
+            chatException = exception;
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     void OnClear()

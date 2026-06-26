@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Alife.Framework;
 using Alife.Function.FunctionCaller;
-using Alife.Function.Interpreter;
 
 namespace Alife.Function.Vision;
 
@@ -30,6 +29,7 @@ public class VisionService(XmlFunctionCaller functionService, IVisionModel? visi
     /// 获取当前可以截取的所有可用窗口的列表，供 AI 选择截屏目标。
     /// </summary>
     [XmlFunction(FunctionMode.OneShot)]
+    [Description("查询hwnd，以便调用其他功能")]
     public void GetWindows()
     {
         var windows = WindowCaptureHelper.EnumerateWindows()
@@ -46,16 +46,45 @@ public class VisionService(XmlFunctionCaller functionService, IVisionModel? visi
     }
 
     /// <summary>
+    /// 截取指定窗口或全屏的屏幕截图，保存到本地并返回路径。
+    /// </summary>
+    [XmlFunction(FunctionMode.OneShot)]
+    public async Task CaptureWindow(long hwnd)
+    {
+        //验证窗口句柄是否存在
+        if (hwnd != -1)
+        {
+            var windows = WindowCaptureHelper.EnumerateWindows();
+            bool exists = windows.Any(w => w.Handle.ToInt64() == hwnd);
+            if (!exists) throw new Exception("hwnd不存在，请先查询");
+        }
+
+        //截取目标画面
+        string screenshotPath = Path.Combine(AlifePath.TempFolderPath, $"vision_capture_{DateTime.Now.Ticks}.png");
+        {
+            using var bmp = hwnd == -1
+                ? await WindowCaptureHelper.CaptureFullscreenAsync()
+                : await WindowCaptureHelper.CaptureWindowAsync(new IntPtr(hwnd));
+            bmp.Save(screenshotPath, System.Drawing.Imaging.ImageFormat.Png);
+        }
+
+        Poke($"""
+              截图已保存到：{screenshotPath}
+              """);
+    }
+
+    /// <summary>
     /// 截取指定窗口或全屏并进行视觉理解，将结果反馈给 AI。
     /// </summary>
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("(使用后需等待结果返回)")]
     public async Task LookWindow(long hwnd, string prompt, int replyCharCount = 64)
     {
-        if (AlifePlatform.IsLocking())
+        //验证窗口句柄是否存在
+        if (hwnd != -1)
         {
-            Poke("【屏幕分析结果】当前电脑处于锁屏状态，无法获取屏幕内容，用户应该不在电脑前。");
-            return;
+            var windows = WindowCaptureHelper.EnumerateWindows();
+            bool exists = windows.Any(w => w.Handle.ToInt64() == hwnd);
+            if (!exists) throw new Exception("hwnd不存在，请先查询");
         }
 
         //截取目标画面
@@ -84,17 +113,16 @@ public class VisionService(XmlFunctionCaller functionService, IVisionModel? visi
         if (hwnd == -1)
         {
             Poke($"""
-                  【屏幕分析结果】
-                  - 文字识别：全屏识图不支持文字识别，请针对特定窗口识别
-                  - 深度视觉：{deepVisionResult}（内容不一定准确仅供参考）
+                  屏幕分析结果
+                  深度视觉：{deepVisionResult}（内容不一定准确仅供参考）
                   """);
         }
         else
         {
             Poke($"""
-                  【窗口分析结果】
-                  - 文字识别：{await AlifePlatform.OcrAsync(screenshotPath)}
-                  - 深度视觉：{deepVisionResult}（内容不一定准确仅供参考）
+                  窗口分析结果
+                  文字识别：{await AlifePlatform.OcrAsync(screenshotPath)}
+                  深度视觉：{deepVisionResult}（内容不一定准确仅供参考）
                   """);
         }
     }
@@ -103,7 +131,6 @@ public class VisionService(XmlFunctionCaller functionService, IVisionModel? visi
     /// 分析指定路径的图片。
     /// </summary>
     [XmlFunction(FunctionMode.OneShot)]
-    [Description("(使用后需等待结果返回)")]
     public async Task LookImage(
         string pathOrUrl, string prompt, int replyLength = 64)
     {
@@ -128,9 +155,9 @@ public class VisionService(XmlFunctionCaller functionService, IVisionModel? visi
             : "未开启";
 
         Poke($"""
-              【图片分析结果】
-              - 文字识别：{await AlifePlatform.OcrAsync(pathOrUrl)}
-              - 深度视觉：{deepVisionResult}（内容不一定准确仅供参考）
+              图片分析结果
+              文字识别：{await AlifePlatform.OcrAsync(pathOrUrl)}
+              深度视觉：{deepVisionResult}（内容不一定准确仅供参考）
               """);
     }
 
