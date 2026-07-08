@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Numerics;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -35,6 +36,19 @@ public partial class MainWindow
         return mainWindow;
     }
 
+    public Vector2 GetSize()
+    {
+        return new Vector2((float)Width, (float)Height);
+    }
+    public void SetSize(Vector2 size)
+    {
+        double centerX = Left + Width / 2;
+        double centerY = Top + Height / 2;
+        Width = size.X;
+        Height = size.Y;
+        Left = centerX - Width / 2;
+        Top = centerY - Height / 2;
+    }
     public (double Left, double Top, double Width, double Height) GetLayout()
     {
         return (Left, Top, Width, Height);
@@ -49,6 +63,12 @@ public partial class MainWindow
         }
 
         return (1.0, 1.0);
+    }
+    public (double X, double Y) GetCenterPosition()
+    {
+        (double Left, double Top, double Width, double Height) layout = GetLayout();
+        (double ScaleX, double ScaleY) dpi = GetDpi();
+        return ((layout.Left + layout.Width / 2) * dpi.ScaleX, (layout.Top + layout.Height / 2) * dpi.ScaleY);
     }
     public void ProgrammaticMove(double offsetX, double offsetY, int durationMs)
     {
@@ -72,12 +92,10 @@ public partial class MainWindow
         BeginAnimation(TopProperty, yAnim);
     }
 
-    void Window_Loaded(object sender, RoutedEventArgs e)
+    void OnWindowLoaded(object sender, RoutedEventArgs e)
     {
-        // 同步 Create 中的特殊定位偏量
+        // 默认桌宠位置
         Left = SystemParameters.WorkArea.Width - Width + Width * -1f;
         Top = SystemParameters.WorkArea.Height - Height + Height * 0.5f;
     }
-
-    MainWindow() { }
 }

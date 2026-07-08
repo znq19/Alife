@@ -2,14 +2,13 @@ using System;
 using System.IO;
 using System.Text;
 using System.Windows;
-
 using Alife.Function.DeskPet;
 
 namespace Alife.DeskPet;
 
 public partial class App
 {
-    PetActivity activity = null!;
+    PetEngine engine = null!;
 
     protected override async void OnStartup(StartupEventArgs startupEvent)
     {
@@ -18,23 +17,20 @@ public partial class App
             Console.InputEncoding = new UTF8Encoding(false);
             Console.OutputEncoding = new UTF8Encoding(false);
             File.Create("pet.log").Close();
-
             base.OnStartup(startupEvent);
 
-            string[] args = Environment.GetCommandLineArgs();
-            string defaultModel = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot/model/Mao/Mao.model3.json");
-            string modelPath = args.Length > 1 ? args[1] : defaultModel;
-            PetModelMetadata metadata = PetModelMetadata.Load(modelPath);
-            MainWindow mainWindow = await DeskPet.MainWindow.Create();
-            PetProcess petProcess = new(Console.Out, Console.In); //与客户端的通讯
-            PetBridge bridge = new(mainWindow.WebView, metadata); //与前端的通讯
-
-            MainWindow = mainWindow;
-            activity = new(petProcess, bridge, metadata, mainWindow);
+            engine = await PetEngine.Create(Environment.GetCommandLineArgs());
+            MainWindow = engine.MainWindow;
         }
         catch (Exception e)
         {
             await File.AppendAllTextAsync("pet.log", e + Environment.NewLine);
         }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        engine.DisposeAsync().AsTask().Wait();
+        base.OnExit(e);
     }
 }

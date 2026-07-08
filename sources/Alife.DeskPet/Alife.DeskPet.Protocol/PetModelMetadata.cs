@@ -24,6 +24,17 @@ public class PetModelMetadata
     public Dictionary<string, List<InteractionItem>> Interactions { get; } = new();
     public string ModelPath { get; private set; } = string.Empty;
 
+    public static string ResolveModelJsonPath(string modelRootPath, string modelName)
+    {
+        string model3JsonPath = Path.Combine(modelRootPath, modelName, $"{modelName}.model3.json");
+        if (File.Exists(model3JsonPath)) return model3JsonPath;
+
+        string modelJsonPath = Path.Combine(modelRootPath, modelName, $"{modelName}.model.json");
+        if (File.Exists(modelJsonPath)) return modelJsonPath;
+
+        return model3JsonPath;
+    }
+
     public static PetModelMetadata Load(string jsonPath)
     {
         PetModelMetadata metadata = new();
@@ -43,35 +54,45 @@ public class PetModelMetadata
             JsonElement root = jsonDoc.RootElement;
 
             // 1. 解析表达式与动作
-            if (root.TryGetProperty("FileReferences", out JsonElement refs))
-            {
-                if (refs.TryGetProperty("Expressions", out JsonElement exps))
-                {
-                    foreach (JsonElement exp in exps.EnumerateArray())
-                    {
-                        if (exp.TryGetProperty("Name", out JsonElement nameProp))
-                        {
-                            string? name = nameProp.GetString();
-                            if (string.IsNullOrEmpty(name) == false) metadata.Expressions.Add(name);
-                        }
-                    }
-                }
+            JsonElement refs = root.TryGetProperty("FileReferences", out JsonElement fileRefs) ? fileRefs : root;
 
-                if (refs.TryGetProperty("Motions", out JsonElement motionsJson))
+            // expressions（支持 Cubism3/4 大写 Name 和 Cubism2 小写 name）
+            if (refs.TryGetProperty("Expressions", out JsonElement exps) || refs.TryGetProperty("expressions", out exps))
+            {
+                foreach (JsonElement exp in exps.EnumerateArray())
                 {
-                    foreach (JsonProperty groupProp in motionsJson.EnumerateObject())
+                    if (exp.TryGetProperty("Name", out JsonElement nameProp) == false)
+                        exp.TryGetProperty("name", out nameProp);
+                    string? name = nameProp.GetString();
+                    if (string.IsNullOrEmpty(name) == false) metadata.Expressions.Add(name);
+                }
+            }
+
+            // motions（支持 Cubism3/4 大写 Name 和 Cubism2 小写 name/file）
+            if (refs.TryGetProperty("Motions", out JsonElement motionsJson) || refs.TryGetProperty("motions", out motionsJson))
+            {
+                foreach (JsonProperty groupProp in motionsJson.EnumerateObject())
+                {
+                    string groupName = groupProp.Name;
+                    int index = 0;
+                    foreach (JsonElement motionItem in groupProp.Value.EnumerateArray())
                     {
-                        string groupName = groupProp.Name;
-                        int index = 0;
-                        foreach (JsonElement motionItem in groupProp.Value.EnumerateArray())
+                        string? motionName = null;
+                        if (motionItem.TryGetProperty("Name", out JsonElement nameProp) ||
+                            motionItem.TryGetProperty("name", out nameProp))
                         {
-                            if (motionItem.TryGetProperty("Name", out JsonElement nameProp))
-                            {
-                                string? name = nameProp.GetString();
-                                if (string.IsNullOrEmpty(name) == false) metadata.Motions[name] = (groupName, index);
-                            }
-                            index++;
+                            motionName = nameProp.GetString();
                         }
+                        if (string.IsNullOrEmpty(motionName))
+                        {
+                            if (motionItem.TryGetProperty("File", out JsonElement fileProp) ||
+                                motionItem.TryGetProperty("file", out fileProp))
+                            {
+                                motionName = Path.GetFileNameWithoutExtension(fileProp.GetString());
+                            }
+                        }
+                        if (string.IsNullOrEmpty(motionName) == false) metadata.Motions[motionName] = (groupName, index);
+                        index++;
                     }
                 }
             }

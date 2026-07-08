@@ -28,9 +28,8 @@ public class MiniCPMVisionModel(
     {
         try
         {
-            string downsampleMode = Configuration?.DownsampleMode ?? "16x";
             return await pythonPipe!.InvokeAsync<string>("query",
-            new { image_path = imagePath, question, max_new_tokens = maxResponseTokens, downsample_mode = downsampleMode });
+            new { image_path = imagePath, question, max_new_tokens = maxResponseTokens });
         }
         catch (Exception ex)
         {
@@ -69,7 +68,7 @@ public class MiniCPMVisionModel(
             processor = AutoProcessor.from_pretrained(model_path)
             return "ready"
 
-        def query(image_path, question, max_new_tokens, downsample_mode):
+        def query(image_path, question, max_new_tokens):
             image = Image.open(image_path).convert("RGB")
             messages = [
                 {
@@ -86,7 +85,6 @@ public class MiniCPMVisionModel(
                 tokenize=True,
                 return_dict=True,
                 return_tensors="pt",
-                processor_kwargs={"downsample_mode": downsample_mode},
             ).to(model.device, dtype=model.dtype)
             with torch.no_grad():
                 generated_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)

@@ -60,7 +60,7 @@ else
                     </MenuItem>
                     <MenuItem Key="modules" OnClick="@(() => activeTab = "modules")">
                         <Icon Type="@IconType.Outline.Build"/>
-                        <span>功能信息</span>
+                        <span>功能配置</span>
                     </MenuItem>
                 </Menu>
             </div>
@@ -82,7 +82,7 @@ else
                     }
                     else
                     {
-                        <Button Danger Block OnClick="@(characterHomeUI.StopActivity)">停止运行</Button>
+                        <Button Danger Block Loading="@(characterHomeUI.IsStopping)" OnClick="@(characterHomeUI.StopActivity)">停止运行</Button>
                     }
                 }
 

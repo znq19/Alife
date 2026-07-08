@@ -13,7 +13,7 @@
         ShowInTaskbar="False"
         WindowStartupLocation="Manual"
         ResizeMode="CanResize"
-        Loaded="Window_Loaded">
+        Loaded="OnWindowLoaded">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="8" GlassFrameThickness="-1" CornerRadius="0"/>
     </WindowChrome.WindowChrome>

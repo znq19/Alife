@@ -41,7 +41,8 @@
 
                 <div style="flex: 2; display: flex; flex-direction: column; min-width: 0;">
                     <Title Level="5" Style="flex-shrink: 0;">模块 (Modules)</Title>
-                    <div style="flex: 1; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; background: @(activity != null ? "#fafafa" : "#fff")">
+                    <div
+                        style="flex: 1; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; background: @(activity != null ? "#fafafa" : "#fff")">
                         <StringFolderSelectorUI
                             Context="@(ModuleSystem.GetModuleFolder())"
                             ItemTitleFilter="@(fullName => GetModuleName(fullName))"
@@ -71,23 +72,25 @@
             return Task.CompletedTask;
 
         _ = Task.Run(async () => {
-            try
-            {
-                SaveSettings();
-                await ChatActivitySystem.Activate(Character);
-            }
-            catch { }
+            SaveSettings();
+            await ChatActivitySystem.Activate(Character);
         });
 
         return Task.CompletedTask;
     }
 
+    public bool IsStopping { get; set; }
+
     public async Task StopActivity()
     {
-        if (Character == null)
+        if (Character == null || IsStopping)
             return;
 
+        IsStopping = true;
+        UpdateState();
         await ChatActivitySystem.Deactivate(Character);
+        IsStopping = false;
+        UpdateState();
     }
 
     [Parameter] public Character? Character { get; set; }

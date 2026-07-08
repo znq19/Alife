@@ -115,6 +115,8 @@ public class BrowserEngine : IDisposable
     /// <summary>
     /// 观察当前页面，返回格式化后的页面信息，同时会对可交互组件增加data-alife-id属性
     /// </summary>
+    public int PageCharLimit { get; set; } = 700;
+
     public async Task<string> ObserveAsync(int page)
     {
         //等待页面稳定
@@ -124,10 +126,11 @@ public class BrowserEngine : IDisposable
         }
 
         int currentPage = page < 1 ? 1 : page;
+        int pageCharLimit = PageCharLimit < 1 ? 700 : PageCharLimit;
         string jsCode = $$$"""
                            (() => {
                                 const M_CLS = 'al-m';
-                                const TEXT_LIMIT = 700;  // 每页文本字符上限
+                                const TEXT_LIMIT = {{{pageCharLimit}}};  // 每页文本字符上限
                                const ATTR_OLD = 'data-al-old';
                                const scope = {{{currentPage}}};
                                
@@ -175,32 +178,24 @@ public class BrowserEngine : IDisposable
                                    n.removeAttribute(ATTR_OLD);
                                }
 
-                                // --- 纯字数分页 ---
-                                const totalPages = Math.max(Math.ceil(fullText.length / TEXT_LIMIT), 1);
-                                const startIdx = (scope - 1) * TEXT_LIMIT;
-                                let endIdx = startIdx + TEXT_LIMIT;
-                                if (endIdx < fullText.length) {
-                                    const nextSpace = fullText.indexOf(' ', endIdx);
-                                    if (nextSpace !== -1 && (nextSpace - endIdx) < 30) endIdx = nextSpace;
-                                }
-                                const pageContent = fullText.substring(startIdx, endIdx);
-                                // --------------------
-
-                               const found = [];
-                               const re = /\[(\d+)\]/g;
-                               let m;
-                               while ((m = re.exec(pageContent)) !== null) {
-                                   if (!found.includes(m[1])) found.push(m[1]);
-                               }
-
-                                const replaced = pageContent.replace(/\[(\d+)\]/g, (_, id) => {
+                                // --- 基于替换后的文本分页 ---
+                                const finalText = fullText.replace(/\[(\d+)\]/g, (_, id) => {
                                     const i = map[id];
                                     return i ? `[${id}:${i.t}]` : `[${id}]`;
                                 });
+                                const totalPages = Math.max(Math.ceil(finalText.length / TEXT_LIMIT), 1);
+                                const startIdx = (scope - 1) * TEXT_LIMIT;
+                                let endIdx = startIdx + TEXT_LIMIT;
+                                if (endIdx < finalText.length) {
+                                    const nextSpace = finalText.indexOf(' ', endIdx);
+                                    if (nextSpace !== -1 && (nextSpace - endIdx) < 30) endIdx = nextSpace;
+                                }
+                                const pageContent = finalText.substring(startIdx, endIdx);
+                                // ----------------------------
 
-                                let out = `标题:${document.title}\n链接:${location.href}\n分页:${scope}/${totalPages}`;
-                                if (scope < totalPages) out += ` (注意！当前页面显示不完整，请使用 page=${scope + 1} 来查看下一页)`;
-                                out += `\n\n${replaced}`;
+                                 let out = `标题:${document.title}\n链接:${location.href}\n分页:${scope}/${totalPages}`;
+                                 if (scope < totalPages) out += ` (注意！当前页面显示不完整，请使用 page=${scope + 1} 来查看下一页)`;
+                                 out += `\n\n${pageContent}`;
                                 
                                 return out.trim();
                            })();
@@ -234,12 +229,7 @@ public class BrowserEngine : IDisposable
                            """;
         return ExecuteScriptAsync(jsCode);
     }
-
-    /// <summary>
-    /// 确保浏览器窗口可见并激活
-    /// </summary>
-    public void EnsureVisible() => worker.EnsureVisible();
-
+    
     /// <summary>
     /// 是否有弹出窗口
     /// </summary>

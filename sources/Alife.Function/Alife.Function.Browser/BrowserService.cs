@@ -8,11 +8,18 @@ using Alife.Function.Interpreter;
 
 namespace Alife.Function.Browser;
 
+public class BrowserConfig
+{
+    [Description("每页文本字符上限")]
+    public int PageCharLimit { get; set; } = 700;
+}
+
 [Module("浏览器工具", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。",
     defaultCategory: "Alife 官方/实用工具")]
 public class BrowserService(XmlFunctionCaller functionService)
-    : InteractiveModule<BrowserService>, IDisposable
+    : InteractiveModule<BrowserService>, IConfigurable<BrowserConfig>, IDisposable
 {
+    public BrowserConfig? Configuration { get; set; }
     [XmlFunction(FunctionMode.OneShot)]
     [Description("同时只能打开一个页面，打开自动顶掉前一个，使用后需等待结果返回")]
     public async Task OpenWebsite(string url)
@@ -22,7 +29,6 @@ public class BrowserService(XmlFunctionCaller functionService)
             Poke("当前处于弹出窗口中，无法直接导航。请先关闭弹出窗口");
             return;
         }
-        browser.EnsureVisible();
         await browser.NavigateAsync(url);
         Poke("已打开网站");
     }
@@ -66,6 +72,7 @@ public class BrowserService(XmlFunctionCaller functionService)
     public override async Task AwakeAsync(AwakeContext context)
     {
         await base.AwakeAsync(context);
+        browser.PageCharLimit = Configuration?.PageCharLimit ?? 700;
         await browser.WaitToLoadedAsync(TimeSpan.FromSeconds(3));
 
         XmlHandler xmlHandler = new(this) {

@@ -21,17 +21,4 @@
             切换精度后需重启模块生效。
         </Text>
     </FormItem>
-
-    <FormItem Label="视觉Token降采样模式">
-        <RadioGroup @bind-Value="@Configuration.DownsampleMode">
-            <Radio Value="@("16x")">16x（更快，默认）</Radio>
-            <Radio Value="@("4x")">4x（保留更多细节）</Radio>
-        </RadioGroup>
-        <Text Type="TextElementType.Secondary" Style="font-size: 12px; margin-top: 4px; display: block;">
-            16x 模式：视觉token压缩率高，推理速度快，适合常规任务。
-            4x 模式：保留更多视觉细节，适合密集OCR、小文字识别等高精度场景。
-        </Text>
-    </FormItem>
 </Form>
-
-@DefaultUI
