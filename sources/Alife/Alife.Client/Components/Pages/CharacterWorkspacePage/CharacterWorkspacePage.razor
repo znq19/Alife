@@ -32,7 +32,7 @@ else
                 <Title Level="4" Style="margin-top: 12px; margin-bottom: 0;">@character.Name</Title>
                 <div
                     style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
-                    <span class="status-dot @(activity != null ? "status-online" : "")"></span>
+                    <StatusDot Online="@(activity != null)" />
                     <Text Type="@TextElementType.Secondary"
                           Style="font-size: 12px">@(activity != null ? "正在运行" : "待机中")</Text>
                 </div>

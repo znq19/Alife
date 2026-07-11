@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Windows;
 using Alife.Platform;
 using Newtonsoft.Json.Linq;
 
@@ -22,8 +21,8 @@ public class UpdateService
     {
         try
         {
-            var response = await AlifePlatform.FetchStringAsync(RawGitHubApiUrl);
-            var json = JObject.Parse(response);
+            string response = await AlifePlatform.FetchStringAsync(RawGitHubApiUrl);
+            JObject json = JObject.Parse(response);
 
             string? tagName = json["tag_name"]?.ToString();
             if (string.IsNullOrEmpty(tagName))
@@ -37,7 +36,7 @@ public class UpdateService
                 string? body = json["body"]?.ToString();
                 string? downloadUrl = json["assets"]?[0]?["browser_download_url"]?.ToString();
 
-                if (!string.IsNullOrEmpty(downloadUrl))
+                if (string.IsNullOrEmpty(downloadUrl) == false)
                     return new UpdateInfo(latestVersion, body, downloadUrl);
             }
         }
@@ -56,8 +55,7 @@ public class UpdateService
             Directory.Delete(tempDir, true);
 
         string zipPath = Path.Combine(tempDir, "Alife.zip");
-        await AlifePlatform.DownloadFileAsync(updateInfo.DownloadUrl, zipPath, (read, total) =>
-        {
+        await AlifePlatform.DownloadFileAsync(updateInfo.DownloadUrl, zipPath, (read, total) => {
             if (total > 0)
                 onProgress?.Invoke((int)(read * 100 / total));
         });
@@ -67,59 +65,58 @@ public class UpdateService
         string exeName = Path.GetFileName(exePath);
         string psPath = Path.Combine(tempDir, "update.ps1");
         File.WriteAllText(psPath, $$"""
-Write-Host '=== Alife Update ===' -ForegroundColor Cyan
-Write-Host ''
+                                    Write-Host '=== Alife Update ===' -ForegroundColor Cyan
+                                    Write-Host ''
 
-$proc = Get-Process -Name '{{exeName.Replace(".exe", "")}}' -ErrorAction SilentlyContinue
-if ($proc) {
-    Write-Host 'Waiting for old process to exit...' -ForegroundColor Yellow
-    $proc | Wait-Process -Timeout 15 -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
-}
+                                    $proc = Get-Process -Name '{{exeName.Replace(".exe", "")}}' -ErrorAction SilentlyContinue
+                                    if ($proc) {
+                                        Write-Host 'Waiting for old process to exit...' -ForegroundColor Yellow
+                                        $proc | Wait-Process -Timeout 15 -ErrorAction SilentlyContinue
+                                        Start-Sleep -Seconds 2
+                                    }
 
-Write-Host 'ZipPath:    {{zipPath}}'
-Write-Host 'CurrentDir: {{currentDir}}'
-Write-Host ''
-if (-not (Test-Path '{{zipPath}}')) {
-    Write-Host 'ERROR: ZIP not found!' -ForegroundColor Red
-    Read-Host 'Press Enter to exit'
-    exit 1
-}
+                                    Write-Host 'ZipPath:    {{zipPath}}'
+                                    Write-Host 'CurrentDir: {{currentDir}}'
+                                    Write-Host ''
+                                    if (-not (Test-Path '{{zipPath}}')) {
+                                        Write-Host 'ERROR: ZIP not found!' -ForegroundColor Red
+                                        Read-Host 'Press Enter to exit'
+                                        exit 1
+                                    }
 
-$extractTemp = '{{tempDir}}\_extract_tmp'
-if (Test-Path $extractTemp) { Remove-Item $extractTemp -Recurse -Force }
-New-Item -ItemType Directory -Path $extractTemp -Force | Out-Null
+                                    $extractTemp = '{{tempDir}}\_extract_tmp'
+                                    if (Test-Path $extractTemp) { Remove-Item $extractTemp -Recurse -Force }
+                                    New-Item -ItemType Directory -Path $extractTemp -Force | Out-Null
 
-Write-Host 'Extracting to temp...' -ForegroundColor Yellow
-try {
-    Expand-Archive -Path '{{zipPath}}' -DestinationPath $extractTemp -Force
-    Write-Host 'Extraction succeeded.' -ForegroundColor Green
-} catch {
-    Write-Host "Extraction failed: $($_.Exception.Message)" -ForegroundColor Red
-    Read-Host 'Press Enter to exit'
-    exit 1
-}
+                                    Write-Host 'Extracting to temp...' -ForegroundColor Yellow
+                                    try {
+                                        Expand-Archive -Path '{{zipPath}}' -DestinationPath $extractTemp -Force
+                                        Write-Host 'Extraction succeeded.' -ForegroundColor Green
+                                    } catch {
+                                        Write-Host "Extraction failed: $($_.Exception.Message)" -ForegroundColor Red
+                                        Read-Host 'Press Enter to exit'
+                                        exit 1
+                                    }
 
-Write-Host 'Copying new files (overwrite)...' -ForegroundColor Yellow
-Copy-Item -Path "$extractTemp\*" -Destination '{{currentDir}}' -Recurse -Force
-Remove-Item $extractTemp -Recurse -Force -ErrorAction SilentlyContinue
+                                    Write-Host 'Copying new files (overwrite)...' -ForegroundColor Yellow
+                                    Copy-Item -Path "$extractTemp\*" -Destination '{{currentDir}}' -Recurse -Force
+                                    Remove-Item $extractTemp -Recurse -Force -ErrorAction SilentlyContinue
 
-Write-Host ''
-Write-Host 'Starting Alife...' -ForegroundColor Cyan
-Start-Process -FilePath '{{exePath}}'
-Write-Host ''
-Write-Host 'Upgrade successful! Press Enter to exit.' -ForegroundColor Green
-Read-Host
-""");
+                                    Write-Host ''
+                                    Write-Host 'Starting Alife...' -ForegroundColor Cyan
+                                    Start-Process -FilePath '{{exePath}}'
+                                    Write-Host ''
+                                    Write-Host 'Upgrade successful! Press Enter to exit.' -ForegroundColor Green
+                                    Read-Host
+                                    """);
 
-        Process.Start(new ProcessStartInfo
-        {
+        Process.Start(new ProcessStartInfo {
             FileName = "powershell.exe",
             Arguments = $"-ExecutionPolicy Bypass -File \"{psPath}\"",
             CreateNoWindow = false,
             UseShellExecute = true
         });
 
-        System.Windows.Application.Current.Shutdown();
+        Application.Exit();
     }
 }

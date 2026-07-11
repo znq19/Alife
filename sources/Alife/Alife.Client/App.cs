@@ -1,31 +1,19 @@
-using System.IO;
 using System.Text;
-using System.Windows;
-using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Alife.Framework;
 using Alife.Components.Services;
 using Alife.Platform;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 
 namespace Alife;
 
-public partial class App
+public class App
 {
     public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
-    protected override void OnStartup(StartupEventArgs e)
+    [STAThread]
+    static void Main()
     {
-        Console.WriteLine("123");
-        base.OnStartup(e);
-
-        //托管日志系统
-        Console.OutputEncoding = Encoding.UTF8;
-        Console.InputEncoding = Encoding.UTF8;
-        // Environment.SetEnvironmentVariable("DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION", "1");//保留颜色码以便解析
-        // ConsoleCapture.Install();
-
 #if DEBUG
         Console.WriteLine(typeof(Function.Memory.MemoryService).Assembly.FullName);
         Console.WriteLine(typeof(Function.MessageFilter.MessageFilterService).Assembly);
@@ -58,20 +46,24 @@ public partial class App
         Console.WriteLine(typeof(Function.Vision.Qwen.QwenVisionModel).Assembly);
 #endif
 
-        //准备依赖注入容器
+        //控制台编码设置
+        Console.OutputEncoding = Encoding.UTF8;
+        Console.InputEncoding = Encoding.UTF8;
+
+        //应用异常处理
+        TaskScheduler.UnobservedTaskException += UnobservedTaskException;
+        AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+
+        //业务功能注册
         {
             ServiceCollection services = new();
-            // 基础 Blazor Desktop 支持
-            services.AddWpfBlazorWebView();
-            services.AddBlazorWebViewDeveloperTools();// 允许 F12
-            // UI 库
+            services.AddWindowsFormsBlazorWebView();
+            services.AddBlazorWebViewDeveloperTools();
             services.AddAntDesign();
-            // logger 库
             services.AddLogging(builder => {
                 builder.AddConsole();
                 builder.SetMinimumLevel(LogLevel.Information);
             });
-            // Alife.Client 核心业务系统
             services.AddSingleton<StorageSystem>();
             services.AddSingleton<ConfigurationSystem>();
             services.AddSingleton<ModuleSystem>();
@@ -85,82 +77,65 @@ public partial class App
             ServiceProvider = services.BuildServiceProvider();
         }
 
-        // 订阅全局异常处理
-        DispatcherUnhandledException += App_DispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-        TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
-
+        //业务环境初始化
         EnvironmentInstaller.SetupEnvironmentPaths();
         MirrorProvider.SetupEnvironment();
-
-        //开始应用
         ServiceProvider.GetRequiredService<ChatMessageService>();
         ServiceProvider.GetRequiredService<PluginMarketService>();
-        ServiceProvider.GetRequiredService<MainWindow>().Show();
+
+        //前端配置并启动
+        Application.ThreadException += ThreadException;
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.Run(ServiceProvider.GetRequiredService<MainWindow>());
     }
 
-    void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    static void ThreadException(object sender, ThreadExceptionEventArgs e)
     {
-        HandleUnhandledException(e.Exception, "UI线程异常");
-        e.Handled = true;
+        HandleException(e.Exception, nameof(ThreadException), false);
     }
-
-    void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+    static void UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
-        if (e.ExceptionObject is Exception ex)
-        {
-            HandleUnhandledException(ex, "非UI线程异常");
-        }
-    }
-
-    void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
-    {
-        HandleUnhandledException(e.Exception, "任务异常");
+        HandleException(e.Exception, nameof(UnobservedTaskException), false);
         e.SetObserved();
     }
-
-    void HandleUnhandledException(Exception exception, string source)
+    static void UnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        string crashFilePath = "";
+        if (e.ExceptionObject is Exception ex)
+            HandleException(ex, nameof(UnhandledException), true);
+    }
+    static void HandleException(Exception exception, string source, bool termination)
+    {
         try
         {
             string logDir = Path.Combine(AlifePath.TempFolderPath, "Logs");
             Directory.CreateDirectory(logDir);
-            crashFilePath = Path.Combine(logDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            string exceptionFilePath = Path.Combine(logDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            string content = $"""
+                              发生时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}
+                              异常来源: {source}
 
-            StringBuilder sb = new();
-            sb.AppendLine($"崩溃时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
-            sb.AppendLine($"异常来源: {source}");
-            sb.AppendLine();
-            sb.AppendLine("=== 异常信息 ===");
-            sb.AppendLine(exception.ToString());
-            sb.AppendLine();
-            sb.AppendLine("=== 最近日志 ===");
+                              === 详细报错 ===
+                              {exception}
+                              """;
+            File.WriteAllText(exceptionFilePath, content);
 
-            IReadOnlyList<LogEntry> recentLogs = ConsoleCapture.GetBuffer();
-            foreach (LogEntry entry in recentLogs)
-                sb.AppendLine($"[{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{entry.Level}] {AnsiColorConverter.StripAnsi(entry.Message)}");
+            string message = $"""
+                              程序发生未处理的异常：
+                              {exception.Message}
 
-            File.WriteAllText(crashFilePath, sb.ToString(), Encoding.UTF8);
+                              详情信息已保存至:
+                              {exceptionFilePath}
+                              """;
+
+            MessageBox.Show(message, "Alife - 错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+            if (termination)
+                Application.Exit();
         }
-        catch
+        catch (Exception e)
         {
-            // 忽略崩溃日志写入异常
+            Console.WriteLine(e);
         }
-
-        try
-        {
-            string message = $"程序发生未处理的异常，即将退出。\n\n错误信息: {exception.Message}";
-            if (string.IsNullOrEmpty(crashFilePath) == false)
-                message += $"\n\n崩溃详情已保存至:\n{crashFilePath}";
-
-            System.Windows.MessageBox.Show(message, "Alife - 错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        catch
-        {
-            // 忽略消息框异常
-        }
-
-        Environment.Exit(1);
     }
 }

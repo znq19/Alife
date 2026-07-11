@@ -1,5 +1,6 @@
+@using System.IO
 @using System.Text
-@using Alife.Components.Services
+@using Alife.Platform
 @inject IJSRuntime JsRuntime
 @implements IAsyncDisposable
 
@@ -26,7 +27,7 @@
             <div style="word-break: break-all;"><span
                     style="color: #666;">@entry.Timestamp.ToString("HH:mm:ss.fff")</span><span
                     style="margin: 0 6px; color: #555;">|</span>
-                @foreach (AnsiSegment segment in AnsiColorConverter.Parse(entry.Message))
+                @foreach (AnsiSegment segment in ParseAnsi(entry.Message))
                 {
                     if (string.IsNullOrEmpty(segment.CssColor))
                     {
@@ -88,18 +89,139 @@
         "a.href=u;a.download=fname;document.body.appendChild(a);a.click();" +
         "setTimeout(function(){URL.revokeObjectURL(u);a.remove();},200);};";
 
+    const int MaxLogCount = 5000;
+    const string LogFileName = "alife.log";
+    static readonly Dictionary<int, string> ForegroundColors = new()
+    {
+        [30] = "#000000", [31] = "#cd3131", [32] = "#0dbc79", [33] = "#e5e510",
+        [34] = "#2472c8", [35] = "#bc3fbc", [36] = "#11a8cd", [37] = "#e5e5e5",
+        [90] = "#666666", [91] = "#f14c4c", [92] = "#23d18b", [93] = "#f5f543",
+        [94] = "#3b8eea", [95] = "#d670d6", [96] = "#29b8db", [97] = "#e5e5e5",
+    };
+
+    readonly List<LogEntry> logs = new();
+    readonly object syncLock = new();
+    StreamWriter? logFileWriter;
+    readonly string logFilePath;
+
     bool visible;
     bool autoScroll = false;
     IReadOnlyList<LogEntry> entries = Array.Empty<LogEntry>();
     ElementReference container;
     System.Timers.Timer? refreshTimer;
 
+    public LogOverlay()
+    {
+        logFilePath = Path.Combine(AlifePath.TempFolderPath, LogFileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
+        logFileWriter = new StreamWriter(logFilePath, false, Encoding.UTF8) { AutoFlush = true };
+        Install();
+    }
+
+    void Install()
+    {
+        Console.SetOut(new CapturingWriter("INF", Console.Out, this));
+        Console.SetError(new CapturingWriter("ERR", Console.Error, this));
+    }
+
+    void Push(LogEntry entry)
+    {
+        string message = entry.Message.Trim();
+        if (string.IsNullOrEmpty(message)) return;
+        entry = entry with { Message = message };
+
+        lock (syncLock)
+        {
+            logs.Add(entry);
+            if (logs.Count > MaxLogCount)
+                logs.RemoveRange(0, logs.Count - MaxLogCount);
+        }
+
+        logFileWriter?.WriteLine($"[{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{entry.Level}] {StripAnsi(entry.Message)}");
+    }
+
+    IReadOnlyList<LogEntry> GetEntries()
+    {
+        lock (syncLock)
+            return logs.ToArray();
+    }
+
+    static string StripAnsi(string text)
+    {
+        StringBuilder sb = new(text.Length);
+        int i = 0;
+        while (i < text.Length)
+        {
+            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            {
+                int end = text.IndexOf('m', i + 2);
+                if (end < 0) break;
+                i = end + 1;
+            }
+            else
+            {
+                sb.Append(text[i]);
+                i++;
+            }
+        }
+        return sb.ToString();
+    }
+
+    static IReadOnlyList<AnsiSegment> ParseAnsi(string text)
+    {
+        List<AnsiSegment> segments = new();
+        StringBuilder sb = new();
+        string currentColor = "";
+        int i = 0;
+
+        while (i < text.Length)
+        {
+            if (text[i] == '\x1b' && i + 1 < text.Length && text[i + 1] == '[')
+            {
+                if (sb.Length > 0)
+                {
+                    segments.Add(new AnsiSegment(sb.ToString(), currentColor));
+                    sb.Clear();
+                }
+
+                int end = text.IndexOf('m', i + 2);
+                if (end < 0) break;
+
+                string seq = text.Substring(i + 2, end - (i + 2));
+                foreach (string part in seq.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (int.TryParse(part, out int code))
+                    {
+                        if (code == 0 || code == 39)
+                            currentColor = "";
+                        else if (ForegroundColors.TryGetValue(code, out string? color))
+                            currentColor = color;
+                    }
+                }
+
+                i = end + 1;
+            }
+            else
+            {
+                sb.Append(text[i]);
+                i++;
+            }
+        }
+
+        if (sb.Length > 0)
+            segments.Add(new AnsiSegment(sb.ToString(), currentColor));
+        if (segments.Count == 0)
+            segments.Add(new AnsiSegment(text, ""));
+
+        return segments;
+    }
+
     void ToggleLog()
     {
         visible = visible == false;
         if (visible)
         {
-            entries = ConsoleCapture.GetBuffer();
+            entries = GetEntries();
             StartRefreshTimer();
         }
         else
@@ -108,26 +230,18 @@
         }
     }
 
-    void OnModalOpened()
-    {
-        _ = ScrollToEnd();
-    }
-
-    void OnModalClosed()
-    {
-        StopRefreshTimer();
-    }
+    void OnModalOpened() => _ = ScrollToEnd();
+    void OnModalClosed() => StopRefreshTimer();
 
     void StartRefreshTimer()
     {
         StopRefreshTimer();
         refreshTimer = new System.Timers.Timer(100);
         refreshTimer.Elapsed += (_, _) => {
-            entries = ConsoleCapture.GetBuffer();
+            entries = GetEntries();
             _ = InvokeAsync(() => {
                 StateHasChanged();
-                if (autoScroll)
-                    _ = ScrollToEnd();
+                if (autoScroll) _ = ScrollToEnd();
             });
         };
         refreshTimer.Start();
@@ -144,7 +258,7 @@
     {
         StringBuilder sb = new();
         foreach (LogEntry e in entries)
-            sb.AppendLine($"[{e.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{e.Level}] {AnsiColorConverter.StripAnsi(e.Message)}");
+            sb.AppendLine($"[{e.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{e.Level}] {StripAnsi(e.Message)}");
         await JsRuntime.InvokeVoidAsync("alifeDownloadText", sb.ToString(), $"alife-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
     }
 
@@ -163,6 +277,62 @@
     public async ValueTask DisposeAsync()
     {
         StopRefreshTimer();
+        logFileWriter?.Dispose();
+        logFileWriter = null;
         await Task.CompletedTask;
     }
+
+    sealed class CapturingWriter : TextWriter
+    {
+        readonly string level;
+        readonly TextWriter inner;
+        readonly LogOverlay overlay;
+        readonly StringBuilder line = new();
+
+        public CapturingWriter(string level, TextWriter inner, LogOverlay overlay)
+        {
+            this.level = level;
+            this.inner = inner;
+            this.overlay = overlay;
+        }
+
+        public override Encoding Encoding => inner.Encoding;
+
+        void FlushLine()
+        {
+            if (line.Length == 0) return;
+            string msg = line.ToString().TrimEnd('\r');
+            line.Clear();
+            overlay.Push(new LogEntry(DateTime.Now, level, msg));
+        }
+
+        void Append(char c)
+        {
+            if (c == '\n') FlushLine();
+            else line.Append(c);
+        }
+
+        public override void Write(char value) { inner.Write(value); Append(value); }
+        public override void Write(char[] buffer, int index, int count)
+        {
+            inner.Write(buffer, index, count);
+            for (int i = 0; i < count; i++) Append(buffer[index + i]);
+        }
+        public override void Write(string? value)
+        {
+            if (value == null) return;
+            inner.Write(value);
+            foreach (char c in value) Append(c);
+        }
+        public override void WriteLine(string? value)
+        {
+            inner.WriteLine(value);
+            if (value != null) line.Append(value);
+            FlushLine();
+        }
+        public override void WriteLine() { inner.WriteLine(); FlushLine(); }
+    }
+
+    readonly record struct AnsiSegment(string Text, string CssColor);
+    readonly record struct LogEntry(DateTime Timestamp, string Level, string Message);
 }
