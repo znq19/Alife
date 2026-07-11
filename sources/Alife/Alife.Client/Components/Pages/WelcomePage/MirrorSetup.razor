@@ -15,25 +15,25 @@
                 <div class="mirror-main">
                     <div class="mirror-name">
                         @mirror.Name
-                        <span class="mirror-provider">@mirror.Provider</span>
+                        <Tag>@mirror.Provider</Tag>
                         @if (mirror.Recommended)
                         {
-                            <span class="mirror-tag">推荐</span>
+                            <Tag Color="@("green")">推荐</Tag>
                         }
                         else
                         {
-                            <span class="mirror-tag-not-recommended">不推荐</span>
+                            <Tag Color="@("gold")">不推荐</Tag>
                         }
                     </div>
-                    <div class="mirror-desc">@mirror.Description</div>
+                    <Text Type="@TextElementType.Secondary" Style="font-size: 12px;">@mirror.Description</Text>
                     @if (mirror.UrlMappings.Any())
                     {
                         <div class="mirror-urls">
                             @foreach (var kv in mirror.UrlMappings)
                             {
                                 <div class="mirror-url-row">
-                                    <span class="mirror-url-label">镜像</span>
-                                    <span class="mirror-url-value">@kv.Value</span>
+                                    <Text Type="@TextElementType.Secondary" Style="font-size: 11px;">镜像</Text>
+                                    <Text Code Style="font-size: 11px;">@kv.Value</Text>
                                 </div>
                             }
                         </div>
@@ -44,8 +44,8 @@
                             @foreach (var kv in mirror.EnvironmentVariables)
                             {
                                 <div class="mirror-url-row">
-                                    <span class="mirror-url-label">@kv.Key</span>
-                                    <span class="mirror-url-value">@kv.Value</span>
+                                    <Text Type="@TextElementType.Secondary" Style="font-size: 11px;">@kv.Key</Text>
+                                    <Text Code Style="font-size: 11px;">@kv.Value</Text>
                                 </div>
                             }
                         </div>
@@ -244,6 +244,9 @@
     .mirror-main {
         flex: 1;
         min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
     }
 
     .mirror-name {
@@ -253,42 +256,6 @@
         display: flex;
         align-items: center;
         gap: 6px;
-    }
-
-    .mirror-tag {
-        font-size: 10px;
-        background: #f6ffed;
-        color: #52c41a;
-        border: 1px solid #b7eb8f;
-        padding: 1px 6px;
-        border-radius: 4px;
-        line-height: 16px;
-    }
-
-    .mirror-tag-not-recommended {
-        font-size: 10px;
-        background: #fff1f0;
-        color: #ff4d4f;
-        border: 1px solid #ffccc7;
-        padding: 1px 6px;
-        border-radius: 4px;
-        line-height: 16px;
-    }
-
-    .mirror-provider {
-        font-size: 10px;
-        background: #f0f0f0;
-        color: rgba(0, 0, 0, .45);
-        padding: 1px 6px;
-        border-radius: 4px;
-        line-height: 16px;
-    }
-
-    .mirror-desc {
-        font-size: 12px;
-        color: rgba(0, 0, 0, .45);
-        margin-top: 4px;
-        line-height: 1.5;
     }
 
     .mirror-urls {
@@ -301,16 +268,5 @@
         gap: 6px;
         font-size: 11px;
         line-height: 1.6;
-    }
-
-    .mirror-url-label {
-        color: rgba(0, 0, 0, .35);
-        flex-shrink: 0;
-    }
-
-    .mirror-url-value {
-        color: rgba(0, 0, 0, .55);
-        font-family: monospace;
-        word-break: break-all;
     }
 </style>

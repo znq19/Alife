@@ -32,9 +32,9 @@ public class MainWindow : Form
         // Form设置
         Text = "Alife";
         Icon = icon;
-        ClientSize = new Size(1264, 681);
+        ClientSize = new Size(1200, 800);
         StartPosition = FormStartPosition.CenterScreen;
-        
+
         ResumeLayout(false);
     }
     void InitializeTrayIcon(Icon icon)
@@ -69,18 +69,18 @@ public class MainWindow : Form
         if (e.CloseReason == CloseReason.UserClosing)
         {
             DialogResult result = MessageBox.Show(
-                "是 - 最小化到托盘\n否 - 直接退出",
-                "是否最小化到托盘？",
-                MessageBoxButtons.YesNo,
+                "是 - 直接关闭\n否 - 最小化到托盘",
+                "是否直接关闭应用？",
+                MessageBoxButtons.YesNoCancel,
                 MessageBoxIcon.Question);
 
             if (result == DialogResult.Yes)
             {
-                HintWindow();
+                Application.Exit();
             }
             else if (result == DialogResult.No)
             {
-                Application.Exit();
+                HintWindow();
             }
 
             e.Cancel = true;

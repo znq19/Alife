@@ -85,7 +85,9 @@ public class App
 
         //前端配置并启动
         Application.ThreadException += ThreadException;
-        Application.EnableVisualStyles();
+        Environment.SetEnvironmentVariable("COREWEBVIEW2_FORCED_HOSTING_MODE", "COREWEBVIEW2_HOSTING_MODE_WINDOW_TO_VISUAL");//解决光标等渲染问题
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);//跟随系统 Dpi，解决字体模糊问题
+        Application.EnableVisualStyles();//现代化 Form 预设组件样式
         Application.SetCompatibleTextRenderingDefault(false);
         Application.Run(ServiceProvider.GetRequiredService<MainWindow>());
     }
@@ -110,7 +112,7 @@ public class App
         {
             string logDir = Path.Combine(AlifePath.TempFolderPath, "Logs");
             Directory.CreateDirectory(logDir);
-            string exceptionFilePath = Path.Combine(logDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            string exceptionFilePath = Path.Combine(logDir, $"error-{DateTime.Now:yyyyMMdd-HHmmss}.log");
             string content = $"""
                               发生时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}
                               异常来源: {source}
