@@ -6,43 +6,41 @@
 
 @if (showAppUpdate && updateInfo != null)
 {
-    <PopupNotification @ref="appPopup"
-                       Title="@($"发现新版本 v{updateInfo.Version}")"
+    <PopupNotification Title="@($"发现新版本 v{updateInfo.Version}")"
                        Icon="@IconType.Outline.Bell"
                        ProgressVisible="@isDownloading"
                        ProgressValue="@downloadProgress">
         <Body>
-            @if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes))
-            {
-                @updateInfo.ReleaseNotes
-            }
+        @if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes))
+        {
+            @updateInfo.ReleaseNotes
+        }
         </Body>
         <Actions>
-            <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="StartUpdate">
+            <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="@StartUpdate">
                 立即升级
             </Button>
-            <Button Size="@ButtonSize.Small" OnClick="OnDismissAppUpdate">下次再说（会影响插件功能！）</Button>
+            <Button Size="@ButtonSize.Small" OnClick="@OnDismissAppUpdate">下次再说（会影响插件功能！）</Button>
         </Actions>
     </PopupNotification>
 }
 else if (showPluginUpdate && upgradablePlugins.Length > 0)
 {
-    <PopupNotification @ref="pluginPopup"
-                       Title="@($"发现 {upgradablePlugins.Length} 个插件可升级")"
+    <PopupNotification Title="@($"发现 {upgradablePlugins.Length} 个插件可升级")"
                        Icon="@IconType.Outline.Bell">
         <Body>
-            @string.Join("、", upgradablePlugins.Take(3).Select(p => p.Name))
-            @if (upgradablePlugins.Length > 3)
-            {
-                @($" 等{upgradablePlugins.Length}个插件")
-            }
+        @string.Join("、", upgradablePlugins.Take(3).Select(p => p.Name))
+        @if (upgradablePlugins.Length > 3)
+        {
+            @($" 等{upgradablePlugins.Length}个插件")
+        }
         </Body>
         <Actions>
             <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small"
-                    OnClick="OnGoToPluginMarket">
+                    OnClick="@OnGoToPluginMarket">
                 前往升级
             </Button>
-            <Button Size="@ButtonSize.Small" OnClick="OnIgnorePluginUpdate">忽略</Button>
+            <Button Size="@ButtonSize.Small" OnClick="@OnIgnorePluginUpdate">忽略</Button>
         </Actions>
     </PopupNotification>
 }
@@ -54,8 +52,6 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
     int downloadProgress;
     bool showAppUpdate;
     bool showPluginUpdate;
-    PopupNotification? appPopup;
-    PopupNotification? pluginPopup;
 
     protected override async Task OnInitializedAsync()
     {
@@ -88,8 +84,9 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
                 await InvokeAsync(StateHasChanged);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine(ex);
         }
     }
 
@@ -121,8 +118,7 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
 
         try
         {
-            await UpdateService.ApplyUpdateAsync(updateInfo, progress =>
-            {
+            await UpdateService.ApplyUpdateAsync(updateInfo, progress => {
                 downloadProgress = progress;
                 InvokeAsync(StateHasChanged);
             });

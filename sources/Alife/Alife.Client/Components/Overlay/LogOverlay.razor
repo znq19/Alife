@@ -1,6 +1,6 @@
 @using System.Text
 @using Alife.Components.Services
-@inject IJSRuntime JS
+@inject IJSRuntime JsRuntime
 @implements IAsyncDisposable
 
 <div class="log-floating-button" @onclick="ToggleLog">
@@ -18,7 +18,7 @@
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; align-items: center;">
         <span style="font-size: 12px;">锁定到最新</span>
         <Switch @bind-Value="autoScroll"/>
-        <Button Size="@ButtonSize.Small" OnClick="ExportLogs">导出</Button>
+        <Button Size="@ButtonSize.Small" OnClick="@ExportLogs">导出</Button>
     </div>
     <div @ref="container" class="log-container">
         @foreach (LogEntry entry in entries)
@@ -75,10 +75,6 @@
         padding: 8px;
         border-radius: 4px;
         line-height: 1.5;
-    }
-
-    .log-modal-top {
-        z-index: 99999 !important;
     }
 </style>
 
@@ -149,18 +145,18 @@
         StringBuilder sb = new();
         foreach (LogEntry e in entries)
             sb.AppendLine($"[{e.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{e.Level}] {AnsiColorConverter.StripAnsi(e.Message)}");
-        await JS.InvokeVoidAsync("alifeDownloadText", sb.ToString(), $"alife-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+        await JsRuntime.InvokeVoidAsync("alifeDownloadText", sb.ToString(), $"alife-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
-            await JS.InvokeVoidAsync("eval", jsHelpers);
+            await JsRuntime.InvokeVoidAsync("eval", jsHelpers);
     }
 
     async Task ScrollToEnd()
     {
-        try { await JS.InvokeVoidAsync("alifeLogScroll", container); }
+        try { await JsRuntime.InvokeVoidAsync("alifeLogScroll", container); }
         catch {}
     }
 

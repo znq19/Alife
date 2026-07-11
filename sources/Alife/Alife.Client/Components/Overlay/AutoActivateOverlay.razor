@@ -1,0 +1,25 @@
+@inject CharacterSystem CharacterSystem
+@inject ChatActivitySystem ChatActivitySystem
+
+@code {
+    protected override void OnInitialized()
+    {
+        Task.Run(async () => {
+            var toActivate = CharacterSystem.GetAllCharacters()
+                .Where(c => c.AutoActivate && ChatActivitySystem.GetChatActivity(c) == null)
+                .ToList();
+
+            foreach (var character in toActivate)
+            {
+                try
+                {
+                    await ChatActivitySystem.Activate(character);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            }
+        });
+    }
+}

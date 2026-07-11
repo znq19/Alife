@@ -154,7 +154,7 @@ public partial class App
             if (string.IsNullOrEmpty(crashFilePath) == false)
                 message += $"\n\n崩溃详情已保存至:\n{crashFilePath}";
 
-            MessageBox.Show(message, "Alife - 错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show(message, "Alife - 错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch
         {

@@ -95,5 +95,8 @@ public class BrowserService(XmlFunctionCaller functionService)
         functionService.AddPlainAreas(nameof(RunWebsiteJs));
     }
 
-    public void Dispose() => browser.Dispose();
+    public void Dispose()
+    {
+        browser.Dispose();
+    }
 }

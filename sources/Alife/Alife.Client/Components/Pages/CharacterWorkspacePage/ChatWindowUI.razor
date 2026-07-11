@@ -101,8 +101,8 @@
                     {
                         <div class="input-busy-tag">
                             <Icon Type="@IconType.Outline.Loading" Style="font-size: 14px; color: #1890ff;"/>
-                        <span
-                            style="color: #1890ff; font-size: 12px; font-weight: 500;">@(CharacterName)@(string.IsNullOrEmpty(occupiedReasonText) ? "工作中..." : occupiedReasonText)</span>
+                            <span
+                                style="color: #1890ff; font-size: 12px; font-weight: 500;">@(CharacterName)@(string.IsNullOrEmpty(occupiedReasonText) ? "工作中..." : occupiedReasonText)</span>
                         </div>
                     }
                 </div>
@@ -238,11 +238,6 @@
         border-bottom-left-radius: 2px;
     }
 
-    .status-online {
-        background: #52c41a;
-        box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
-    }
-
     .chat-reasoning {
         margin-bottom: 12px;
         padding: 8px 12px;
@@ -373,11 +368,6 @@
 @using Alife.Components.Services
 
 @code {
-    public void UpdateState()
-    {
-        StateHasChanged();
-    }
-
     [Parameter] public string CharacterName { get; set; } = "";
 
     string inputText = "";
@@ -454,7 +444,7 @@
             await Task.Delay(200);
         }
     }
-    
+
     async Task HandlePaste()
     {
         string? content = NativeClipboard.GetPastedContent();
@@ -473,7 +463,7 @@
             _ = OnSend();
         }
     }
-    
+
     void OnMessageChanged(string name)
     {
         if (name == CharacterName)
@@ -502,7 +492,7 @@
     async Task OnSend()
     {
         string rawInputText = await JsRuntime.InvokeAsync<string>(
-        "eval", "var el = document.getElementById('chatInput'); var val = el.value; if(el) el.value = ''; val;"
+            "eval", "var el = document.getElementById('chatInput'); var val = el.value; if(el) el.value = ''; val;"
         );// 彻底绕过不同步的 C# 变量，直接从 DOM 获取最新值并清空
         inputText = string.Empty;
 

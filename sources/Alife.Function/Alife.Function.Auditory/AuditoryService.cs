@@ -57,14 +57,16 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
 
         graph.Start();
         graph.QuantumStarted += OnQuantumStarted;
-        graph.UnrecoverableErrorOccurred += (_, _) => {
-            StopRecording();
-        };
+        graph.UnrecoverableErrorOccurred += OnUnrecoverableErrorOccurred;
 
         IsRunning = true;
     }
     public void StopRecording()
     {
+        graph?.QuantumStarted -= OnQuantumStarted;
+        graph?.UnrecoverableErrorOccurred -= OnUnrecoverableErrorOccurred;
+        graph?.Stop();
+        
         outputNode?.Dispose();
         outputNode = null;
         inputNode?.Dispose();
@@ -83,12 +85,40 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
                 """;
     }
 
-    [DllImport("user32.dll")]
-    static extern short GetAsyncKeyState(int vKey);
-
     AudioGraph? graph;
     AudioDeviceInputNode? inputNode;
     AudioFrameOutputNode? outputNode;
+
+    void UpdateListeningState()
+    {
+        string? keyName = Configuration?.PushToTalkKey;
+        bool newState;
+        if (string.IsNullOrEmpty(keyName))
+        {
+            newState = true;
+        }
+        else if (Enum.TryParse(keyName, true, out ConsoleKey key))
+        {
+            newState = (GetAsyncKeyState((int)key) & 0x8000) != 0;
+
+            [DllImport("user32.dll")]
+            static extern short GetAsyncKeyState(int vKey);
+        }
+        else
+        {
+            newState = true;
+        }
+
+        if (newState != IsListening)
+        {
+            IsListening = newState;
+            IsListeningChanged?.Invoke(IsListening);
+        }
+    }
+    void OnRecognized(string text)
+    {
+        Chat(text);
+    }
 
     public override async Task StartAsync(Kernel kernel, ChatActivity chatActivity)
     {
@@ -161,32 +191,8 @@ public class AuditoryService(IAuditoryModel auditoryModel) :
             Marshal.Release(ptr);
         }
     }
-
-    void UpdateListeningState()
+    void OnUnrecoverableErrorOccurred(AudioGraph audioGraph, AudioGraphUnrecoverableErrorOccurredEventArgs audioGraphUnrecoverableErrorOccurredEventArgs)
     {
-        string? keyName = Configuration?.PushToTalkKey;
-        bool newState;
-        if (string.IsNullOrEmpty(keyName))
-        {
-            newState = true;
-        }
-        else if (Enum.TryParse(keyName, true, out ConsoleKey key))
-        {
-            newState = (GetAsyncKeyState((int)key) & 0x8000) != 0;
-        }
-        else
-        {
-            newState = true;
-        }
-
-        if (newState != IsListening)
-        {
-            IsListening = newState;
-            IsListeningChanged?.Invoke(IsListening);
-        }
-    }
-    void OnRecognized(string text)
-    {
-        Chat(text);
+        StopRecording();
     }
 }

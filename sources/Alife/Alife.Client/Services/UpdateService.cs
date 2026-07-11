@@ -120,6 +120,6 @@ Read-Host
             UseShellExecute = true
         });
 
-        Application.Current.Shutdown();
+        System.Windows.Application.Current.Shutdown();
     }
 }

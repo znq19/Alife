@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@using Alife.Components.Overlay
 @implements IDisposable
 @inject CharacterSystem CharacterSystem
 @inject NavigationManager Navigation
@@ -16,12 +17,13 @@
 </div>
 
 <CharacterLoadingOverlay/>
+<AutoActivateOverlay/>
 <UpdateNotificationOverlay/>
 <LogOverlay/>
 <AntContainer/>
 
 @code {
-    bool _redirected;
+    bool redirected;
 
     protected override void OnInitialized()
     {
@@ -36,11 +38,11 @@
 
     void TryRedirect()
     {
-        if (_redirected) return;
+        if (redirected) return;
         bool onWelcome = new Uri(Navigation.Uri).AbsolutePath is "/" or "/welcome";
         if (onWelcome && CharacterSystem.GetAllCharacters().Count > 0)
         {
-            _redirected = true;
+            redirected = true;
             Navigation.NavigateTo("/system");
         }
     }
