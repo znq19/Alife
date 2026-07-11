@@ -23,6 +23,11 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
 {
     public bool IsIdle => executor.IsInactive;
 
+    public string GetExplicitDocumentTag(string handlerName)
+    {
+        return $"[显式文档({handlerName})]";
+    }
+
     /// <summary>
     /// 可选显式或隐射注册一个xml执行器
     /// 显式：初始注入所有信息
@@ -102,11 +107,12 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
     XmlStreamExecutor executor = null!;
     readonly List<XmlHandler> explicitHandlers = new();
     readonly List<XmlHandler> implicitHandlers = new();
-    string currentProcess;
+    string currentProcess = "";
 
     string GetExplicitDocument(XmlHandler handler)
     {
         return $"""
+                {GetExplicitDocumentTag(handler.Name)}
                 ### {handler.Name}
                 {handler.Description} 
                 #### 提供函数
@@ -126,8 +132,8 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
             Name = source.Name + "_Trigger"
         };
         xmlHandler.Functions.Add(new XmlFunction() {
-            Name = source.Name!.ToLower(),
-            Invoker = (context, token) => {
+            Name = source.Name.ToLower(),
+            Invoker = (_, _) => {
                 Poke(GetExplicitDocument(source));
                 return Task.CompletedTask;
             }
@@ -139,7 +145,7 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
     {
         await base.StartAsync(kernel, chatActivity);
 
-        IEnumerable<XmlParameter> parameters = handlerTable.Handlers.SelectMany(handler => handler.Functions.SelectMany(function => function.Parameters));
+        IEnumerable<XmlParameter> parameters = handlerTable.GetAllHandlers().SelectMany(handler => handler.Functions.SelectMany(function => function.Parameters));
         plainAreas.AddRange(parameters.Where(parameter => parameter.IsXmlForm).Select(parameter => parameter.Name));
 
         //创建xml解析执行器等
@@ -153,10 +159,12 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
         parser.Error += OnError;
         executor.Error += OnError;
         executor.Handling += OnHandling;
-
         chatActivity.ChatBot.ChatReceived += OnChatReceived;
         chatActivity.ChatBot.ChatSent += OnChatSent;
 
+        //预计算参数
+
+        //注入函数文档
         Prompt($"""
                 默认情况下你仅支持输出普通文本，但由于各种插件功能的存在，使得你还拥有通过输出特定的xml标签执行功能调用的能力。
 
@@ -242,6 +250,18 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
     void OnHandling(string name, XmlContext context)
     {
         currentProcess = $"执行{name}函数中...";
+
+        //实现当ai调用隐射函数时自动注入对应的隐式文档
+        IReadOnlyList<XmlHandler>? handlers = handlerTable.GetHandlersOfFunction(name);
+        if (handlers != null)
+        {
+            foreach (XmlHandler xmlHandler in handlers.Intersect(implicitHandlers))
+            {
+                string explicitDocumentTag = GetExplicitDocumentTag(xmlHandler.Name);
+                if (ChatHistory.All(content => !content.Content?.Contains(explicitDocumentTag) ?? false))
+                    Poke(GetExplicitDocument(xmlHandler));
+            }
+        }
     }
     string GetChatOccupiedReason()
     {

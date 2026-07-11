@@ -46,6 +46,141 @@ public class BrowserEngine : IDisposable
         });
     }
 
+    public async Task<string> ObserveAsync(int page, int maxLength = 700)
+    {
+        //等待页面稳定
+        while (worker.IsNavigating)
+            await Task.Delay(300);
+
+        string jsCode = $$"""
+                          (function () {
+                              function canVisible(el) {
+                                  if (!el) return false;
+                                  if (el.nodeType !== Node.ELEMENT_NODE) return true;
+                                  const style = getComputedStyle(el);
+                                  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' && !el.classList.contains('sr-only');
+                              }
+
+                              function canClick(el) {
+                                  if (el === document.body) return false;
+                                  if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.onclick) return true;
+                              }
+
+                              function canEdit(el) {
+                                  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+                              }
+
+                              function getDescription(el) {
+                                  function getGeneralDescription() {
+                                      return (
+                                          el.getAttribute('aria-label') ||
+                                          el.getAttribute('title') ||
+                                          ''
+                                      ).trim();
+                                  }
+
+                                  if (el.nodeType === Node.TEXT_NODE) return el.textContent.trim();
+
+                                  if (el.nodeType !== Node.ELEMENT_NODE) {
+                                      return '';
+                                  }
+
+                                  // 输入框
+                                  if (canEdit(el)) {
+                                      const result = (
+                                          el.value ||
+                                          el.placeholder ||
+                                          el.getAttribute('data-placeholder') ||
+                                          ''
+                                      ).trim()
+                                      if (result)
+                                          return result;
+                                  }
+
+                                  // 图片
+                                  if (el.tagName === 'IMG') {
+                                      const result = (
+                                          el.alt ||
+                                          el.className ||
+                                          getGeneralDescription() ||
+                                          el.tagName
+                                      ).trim()
+                                      if (result)
+                                          return result;
+                                  }
+
+                                  return getGeneralDescription();
+                              }
+
+                              //重置id
+                              document.querySelectorAll('[data-alife-id]')
+                                  .forEach(el => el.removeAttribute('data-alife-id'));
+                              let id = 0;
+
+                              function getFullDescription(el, hadDescription = '') {
+                                  if (!canVisible(el)) return '';
+
+                                  //获取自身描述
+                                  let selfDescription = getDescription(el).trim();
+                                  //父元素可能包含子元素的描述
+                                  if (hadDescription.includes(selfDescription)) {
+                                      if (selfDescription.length > 4)
+                                          selfDescription = '';
+                                      else if (!selfDescription.match(/^[A-Za-z0-9]+$/))
+                                          selfDescription = '';
+                                  }
+
+                                  //获取所有子元素描述
+                                  let childrenDescription = '';
+                                  for (const child of el.childNodes) {
+                                      let childDescription = getFullDescription(child, hadDescription + selfDescription + childrenDescription).trim();
+                                      if (childDescription === '')
+                                          continue; //跳过不可见的子元素
+                                      childrenDescription += childDescription + '-';
+                                  }
+                                  childrenDescription = childrenDescription.slice(0, -1);
+
+                                  let description = (selfDescription + ' ' + childrenDescription).trim();
+                                  //补齐交互信息
+                                  if (canEdit(el) || canClick(el)) {
+                                      el.setAttribute('data-alife-id', ++id);
+                                      if (canEdit(el)) description = `[t${id}:${description}]`;
+                                      else if (canClick(el)) description = `[b${id}:${description}]`;
+                                  }
+
+                                  return description
+                              }
+
+                              let fullDescription = getFullDescription(document.body);
+
+                              const INPUT_MAX_PAGE_LENGTH = {{maxLength}};
+                              const INPUT_PAGE_INDEX = {{page}};
+                              let pageCount = Math.ceil(fullDescription.length / INPUT_MAX_PAGE_LENGTH);
+                              let pageIndex = Math.min(Math.max(1, INPUT_PAGE_INDEX), pageCount);
+                              let pageHint = `当前页码(${pageIndex}/${pageCount})` + (pageIndex < pageCount ? '可继续翻页' : '');
+                              let pageDescription = fullDescription.slice(INPUT_MAX_PAGE_LENGTH * (pageIndex - 1), INPUT_MAX_PAGE_LENGTH * pageIndex)
+
+                              return pageDescription + '\n\n' + pageHint;
+                          })();
+                          """;
+
+        return await ExecuteScriptAsync(jsCode);
+    }
+
+    /// <summary>
+    /// 查询指定data-alife-id元素
+    /// </summary>
+    public Task<string> CheckElementAsync(int id)
+    {
+        string jsCode = $$"""
+                           (() => {
+                               const el = document.querySelector('[data-alife-id="{{id}}"]');
+                               return el ? el.outerHTML : '[元素不存在]';
+                           })();
+                           """;
+        return ExecuteScriptAsync(jsCode);
+    }
+
     /// <summary>
     /// 执行JavaScript并易读的结果
     /// </summary>
@@ -112,124 +247,9 @@ public class BrowserEngine : IDisposable
         });
     }
 
-    /// <summary>
-    /// 观察当前页面，返回格式化后的页面信息，同时会对可交互组件增加data-alife-id属性
-    /// </summary>
-    public int PageCharLimit { get; set; } = 700;
 
-    public async Task<string> ObserveAsync(int page)
-    {
-        //等待页面稳定
-        while (worker.IsNavigating)
-        {
-            await Task.Delay(300);
-        }
 
-        int currentPage = page < 1 ? 1 : page;
-        int pageCharLimit = PageCharLimit < 1 ? 700 : PageCharLimit;
-        string jsCode = $$$"""
-                           (() => {
-                                const M_CLS = 'al-m';
-                                const TEXT_LIMIT = {{{pageCharLimit}}};  // 每页文本字符上限
-                               const ATTR_OLD = 'data-al-old';
-                               const scope = {{{currentPage}}};
-                               
-                               document.querySelectorAll('.' + M_CLS).forEach(e => e.remove());
-                               document.querySelectorAll(`[${ATTR_OLD}]`).forEach(e => {
-                                   e.style.display = e.getAttribute(ATTR_OLD);
-                                   e.removeAttribute(ATTR_OLD);
-                               });
-                               document.querySelectorAll('[data-alife-id]').forEach(e => e.removeAttribute('data-alife-id'));
 
-                               let id = 0;
-                               const map = {};
-                               const getT = e => (e.innerText || e.value || e.placeholder || e.title || e.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 50);
-
-                               const targetNodes = [];
-                               for (const n of document.querySelectorAll('body *')) {
-                                   if (!n.offsetWidth || ['SCRIPT', 'STYLE', 'SVG', 'META'].includes(n.tagName)) continue;
-                                   const s = window.getComputedStyle(n);
-                                   const isI = s.cursor === 'text' || ['INPUT', 'TEXTAREA'].includes(n.tagName) || n.isContentEditable;
-                                   const isB = s.cursor === 'pointer' || ['A', 'BUTTON'].includes(n.tagName) || n.getAttribute('role') === 'button';
-                                   if (!isI && (n.closest('a') && n.tagName !== 'A' || n.closest('button') && n.tagName !== 'BUTTON')) continue;
-
-                                   if (isI || isB) {
-                                       const t = getT(n), h = n.href || '';
-                                       if (!isI && !t && !h) continue;
-                                       const cur = ++id;
-                                       n.setAttribute('data-alife-id', cur);
-                                        map[cur] = { t: isI ? '输入框' : (t || '按钮'), h: h ? h.substring(0, 150) : '', isI };
-                                       n.setAttribute(ATTR_OLD, n.style.display);
-                                       n.style.display = 'none';
-                                       const m = document.createElement('span');
-                                       m.className = M_CLS;
-                                       m.innerText = `[${cur}]`;
-                                       m.style.cssText = 'position:absolute;opacity:0;font-size:1px;pointer-events:none;';
-                                       n.after(m);
-                                       targetNodes.push(n);
-                                   }
-                               }
-
-                               const fullText = (document.body?.innerText || '').replace(/\s+/g, ' ').trim();
-
-                               document.querySelectorAll('.' + M_CLS).forEach(e => e.remove());
-                               for (const n of targetNodes) {
-                                   n.style.display = n.getAttribute(ATTR_OLD);
-                                   n.removeAttribute(ATTR_OLD);
-                               }
-
-                                // --- 基于替换后的文本分页 ---
-                                const finalText = fullText.replace(/\[(\d+)\]/g, (_, id) => {
-                                    const i = map[id];
-                                    return i ? `[${id}:${i.t}]` : `[${id}]`;
-                                });
-                                const totalPages = Math.max(Math.ceil(finalText.length / TEXT_LIMIT), 1);
-                                const startIdx = (scope - 1) * TEXT_LIMIT;
-                                let endIdx = startIdx + TEXT_LIMIT;
-                                if (endIdx < finalText.length) {
-                                    const nextSpace = finalText.indexOf(' ', endIdx);
-                                    if (nextSpace !== -1 && (nextSpace - endIdx) < 30) endIdx = nextSpace;
-                                }
-                                const pageContent = finalText.substring(startIdx, endIdx);
-                                // ----------------------------
-
-                                 let out = `标题:${document.title}\n链接:${location.href}\n分页:${scope}/${totalPages}`;
-                                 if (scope < totalPages) out += ` (注意！当前页面显示不完整，请使用 page=${scope + 1} 来查看下一页)`;
-                                 out += `\n\n${pageContent}`;
-                                
-                                return out.trim();
-                           })();
-                           """;
-
-        return await ExecuteScriptAsync(jsCode);
-    }
-
-    /// <summary>
-    /// 查询指定data-alife-id元素的详细信息（href、文本等）
-    /// </summary>
-    public Task<string> GetElementInfoAsync(int id)
-    {
-        string jsCode = $$$"""
-                           (() => {
-                               const el = document.querySelector('[data-alife-id="{{{id}}}"]');
-                               if (!el) return JSON.stringify({ found: false });
-                               const info = {
-                                   found: true,
-                                   id: {{{id}}},
-                                   tag: el.tagName.toLowerCase(),
-                                   text: (el.innerText || el.value || el.placeholder || el.title || '').trim().slice(0, 200),
-                                   href: el.href || '',
-                                   type: el.type || '',
-                                   placeholder: el.placeholder || '',
-                                   ariaLabel: el.getAttribute('aria-label') || '',
-                                   className: el.className || '',
-                               };
-                               return JSON.stringify(info, null, 2);
-                           })();
-                           """;
-        return ExecuteScriptAsync(jsCode);
-    }
-    
     /// <summary>
     /// 是否有弹出窗口
     /// </summary>

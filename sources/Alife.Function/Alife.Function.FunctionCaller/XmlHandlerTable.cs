@@ -7,20 +7,41 @@ namespace Alife.Function.Interpreter;
 
 public class XmlHandlerTable
 {
-    public IReadOnlyList<XmlHandler> Handlers => xmlHandlers;
+    public IReadOnlyList<XmlHandler> GetAllHandlers()
+    {
+        return xmlHandlers;
+    }
+    public IReadOnlyList<XmlHandler>? GetHandlersOfFunction(string functionName)
+    {
+        return functionToHandler.GetValueOrDefault(functionName);
+    }
 
     public void Register(XmlHandler handler)
     {
         xmlHandlers.Add(handler);
         foreach (XmlFunction xmlFunction in handler.Functions)
         {
-            if (xmlFunctions.TryGetValue(xmlFunction.Name, out SortedSet<XmlFunction>? xmlFunctionGroup) == false)
+            //注册函数
             {
-                xmlFunctionGroup = new SortedSet<XmlFunction>();
-                xmlFunctions[xmlFunction.Name] = xmlFunctionGroup;
+                if (xmlFunctions.TryGetValue(xmlFunction.Name, out SortedSet<XmlFunction>? xmlFunctionGroup) == false)
+                {
+                    xmlFunctionGroup = new SortedSet<XmlFunction>();
+                    xmlFunctions[xmlFunction.Name] = xmlFunctionGroup;
+                }
+
+                xmlFunctionGroup.Add(xmlFunction);
             }
 
-            xmlFunctionGroup.Add(xmlFunction);
+            //注册函数到处理器映射
+            {
+                if (functionToHandler.TryGetValue(xmlFunction.Name, out List<XmlHandler>? xmlHandlerGroup) == false)
+                {
+                    xmlHandlerGroup = new List<XmlHandler>();
+                    functionToHandler[xmlFunction.Name] = xmlHandlerGroup;
+                }
+
+                xmlHandlerGroup.Add(handler);
+            }
 
             foreach (XmlParameter parameter in xmlFunction.Parameters)
             {
@@ -48,7 +69,7 @@ public class XmlHandlerTable
         {
             if (xmlForms.Contains(name))
                 return;
-            throw new Exception($"当前环境没有{name}函数，请停止使用");
+            throw new Exception($"环境中没有<{name}/>，请停止使用");
         }
         foreach (XmlFunction xmlFunction in xmlFunctionGroup)
             await xmlFunction.Invoker(tagContext, cancellationToken);
@@ -56,5 +77,6 @@ public class XmlHandlerTable
 
     readonly List<XmlHandler> xmlHandlers = new();
     readonly Dictionary<string, SortedSet<XmlFunction>> xmlFunctions = new();
+    readonly Dictionary<string, List<XmlHandler>> functionToHandler = new();
     readonly HashSet<string> xmlForms = new();
 }

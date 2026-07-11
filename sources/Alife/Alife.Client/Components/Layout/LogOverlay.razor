@@ -1,0 +1,172 @@
+@using System.Text
+@using Alife.Components.Services
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="log-floating-button" @onclick="ToggleLog">
+    <Icon Type="@IconType.Outline.FileText" Style="font-size: 20px; color: white;"/>
+</div>
+
+<Modal @bind-Visible="visible"
+       Title="运行日志"
+       Width="@("80%")"
+       Style="top: 20px;"
+       WrapClassName="log-modal-top"
+       Footer="null"
+       AfterOpen="OnModalOpened"
+       AfterClose="OnModalClosed">
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; align-items: center;">
+        <span style="font-size: 12px;">锁定到最新</span>
+        <Switch @bind-Value="autoScroll"/>
+        <Button Size="@ButtonSize.Small" OnClick="ExportLogs">导出</Button>
+    </div>
+    <div @ref="container" class="log-container">
+        @foreach (LogEntry entry in entries)
+        {
+            <div style="word-break: break-all;"><span
+                    style="color: #666;">@entry.Timestamp.ToString("HH:mm:ss.fff")</span><span
+                    style="margin: 0 6px; color: #555;">|</span>
+                @foreach (AnsiSegment segment in AnsiColorConverter.Parse(entry.Message))
+                {
+                    if (string.IsNullOrEmpty(segment.CssColor))
+                    {
+                        <span>@segment.Text</span>
+                    }
+                    else
+                    {
+                        <span style="color: @segment.CssColor;">@segment.Text</span>
+                    }
+                }
+            </div>
+        }
+    </div>
+</Modal>
+
+<style>
+    .log-floating-button {
+        position: fixed;
+        bottom: 24px;
+        left: 16px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #1890ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 10001;
+        transition: all 0.2s;
+    }
+
+    .log-floating-button:hover {
+        background: #40a9ff;
+        transform: scale(1.1);
+    }
+
+    .log-container {
+        height: 60vh;
+        overflow-y: auto;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        font-family: Consolas, 'Courier New', monospace;
+        font-size: 12px;
+        padding: 8px;
+        border-radius: 4px;
+        line-height: 1.5;
+    }
+
+    .log-modal-top {
+        z-index: 99999 !important;
+    }
+</style>
+
+@code {
+    const string jsHelpers =
+        "window.alifeLogScroll=function(el){if(el)el.scrollTop=el.scrollHeight;};" +
+        "window.alifeDownloadText=function(text,fname){" +
+        "var b=new Blob([text],{type:'text/plain;charset=utf-8'});" +
+        "var u=URL.createObjectURL(b);" +
+        "var a=document.createElement('a');" +
+        "a.href=u;a.download=fname;document.body.appendChild(a);a.click();" +
+        "setTimeout(function(){URL.revokeObjectURL(u);a.remove();},200);};";
+
+    bool visible;
+    bool autoScroll = false;
+    IReadOnlyList<LogEntry> entries = Array.Empty<LogEntry>();
+    ElementReference container;
+    System.Timers.Timer? refreshTimer;
+
+    void ToggleLog()
+    {
+        visible = visible == false;
+        if (visible)
+        {
+            entries = ConsoleCapture.GetBuffer();
+            StartRefreshTimer();
+        }
+        else
+        {
+            StopRefreshTimer();
+        }
+    }
+
+    void OnModalOpened()
+    {
+        _ = ScrollToEnd();
+    }
+
+    void OnModalClosed()
+    {
+        StopRefreshTimer();
+    }
+
+    void StartRefreshTimer()
+    {
+        StopRefreshTimer();
+        refreshTimer = new System.Timers.Timer(100);
+        refreshTimer.Elapsed += (_, _) => {
+            entries = ConsoleCapture.GetBuffer();
+            _ = InvokeAsync(() => {
+                StateHasChanged();
+                if (autoScroll)
+                    _ = ScrollToEnd();
+            });
+        };
+        refreshTimer.Start();
+    }
+
+    void StopRefreshTimer()
+    {
+        refreshTimer?.Stop();
+        refreshTimer?.Dispose();
+        refreshTimer = null;
+    }
+
+    async Task ExportLogs()
+    {
+        StringBuilder sb = new();
+        foreach (LogEntry e in entries)
+            sb.AppendLine($"[{e.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{e.Level}] {AnsiColorConverter.StripAnsi(e.Message)}");
+        await JS.InvokeVoidAsync("alifeDownloadText", sb.ToString(), $"alife-log-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JS.InvokeVoidAsync("eval", jsHelpers);
+    }
+
+    async Task ScrollToEnd()
+    {
+        try { await JS.InvokeVoidAsync("alifeLogScroll", container); }
+        catch {}
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        StopRefreshTimer();
+        await Task.CompletedTask;
+    }
+}

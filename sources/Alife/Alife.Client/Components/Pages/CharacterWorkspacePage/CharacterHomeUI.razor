@@ -27,9 +27,13 @@
 
             <div style="flex: 1; display: flex; gap: 24px; min-height: 0;">
                 <div style="flex: 3; display: flex; flex-direction: column; min-width: 0;">
+                    <Title Level="5" Style="flex-shrink: 0;">生日 (Birthday)</Title>
+                    <Input value="@(Character.Birthday.ToString("yyyy-MM-dd hh:mm"))"
+                           Disabled="@true"
+                           Style="margin-bottom: 16px; border-radius: 8px; flex-shrink: 0;"/>
+
                     <Title Level="5" Style="flex-shrink: 0;">简介 (Description)</Title>
                     <Input @bind-Value="Character.Description"
-                           Placeholder="一句话介绍一下角色，如：一只的猫娘。"
                            Disabled="@(activity != null)"
                            Style="margin-bottom: 16px; border-radius: 8px; flex-shrink: 0;"/>
 
@@ -40,7 +44,7 @@
                 </div>
 
                 <div style="flex: 2; display: flex; flex-direction: column; min-width: 0;">
-                    <Title Level="5" Style="flex-shrink: 0;">模块 (Modules)</Title>
+                    <Title Level="5" Style="flex-shrink: 0;">功能 (Modules)</Title>
                     <div
                         style="flex: 1; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 12px; background: @(activity != null ? "#fafafa" : "#fff")">
                         <StringFolderSelectorUI

@@ -1,0 +1,316 @@
+@using Alife.Platform
+
+<div class="step-content">
+    <div class="step-icon" style="background:rgba(114,46,209,.1);color:#722ed1;">
+        <Icon Type="@IconType.Outline.CloudServer" Style="font-size:28px;"/>
+    </div>
+    <h2 class="step-title">配置下载镜像</h2>
+    <p class="step-desc">
+        环境依赖大多需要从外网下载。为了让国内用户也能用，就需要配置镜像。</p>
+
+    <div class="mirror-list">
+        @foreach (var mirror in AvailableMirrors)
+        {
+            <div class="mirror-item">
+                <div class="mirror-main">
+                    <div class="mirror-name">
+                        @mirror.Name
+                        <span class="mirror-provider">@mirror.Provider</span>
+                        @if (mirror.Recommended)
+                        {
+                            <span class="mirror-tag">推荐</span>
+                        }
+                        else
+                        {
+                            <span class="mirror-tag-not-recommended">不推荐</span>
+                        }
+                    </div>
+                    <div class="mirror-desc">@mirror.Description</div>
+                    @if (mirror.UrlMappings.Any())
+                    {
+                        <div class="mirror-urls">
+                            @foreach (var kv in mirror.UrlMappings)
+                            {
+                                <div class="mirror-url-row">
+                                    <span class="mirror-url-label">镜像</span>
+                                    <span class="mirror-url-value">@kv.Value</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    @if (mirror.EnvironmentVariables.Any())
+                    {
+                        <div class="mirror-urls">
+                            @foreach (var kv in mirror.EnvironmentVariables)
+                            {
+                                <div class="mirror-url-row">
+                                    <span class="mirror-url-label">@kv.Key</span>
+                                    <span class="mirror-url-value">@kv.Value</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <Switch @bind-Value="@enabledMirrors[mirror.Id]"
+                        OnChange="@(_ => ApplyMirrors())"/>
+            </div>
+        }
+    </div>
+    
+    <Alert ShowIcon="true" Type="AlertType.Warning" Style="margin-top: 12px;"
+           Message="必须配置镜像或自备工具，如果失效，后续环境安装很可能失败"></Alert>
+
+    <div class="step-nav">
+        <Button Size="@ButtonSize.Large" OnClick="@OnPrev">
+            <Icon Type="@IconType.Outline.ArrowLeft"/>
+            上一步
+        </Button>
+        <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" OnClick="@OnNext">
+            下一步
+            <Icon Type="@IconType.Outline.ArrowRight"/>
+        </Button>
+    </div>
+</div>
+
+@code {
+
+    record MirrorItem(
+        string Id,
+        string Name,
+        string Provider,
+        string Description,
+        bool Recommended,
+        Dictionary<string, string> UrlMappings,
+        Dictionary<string, string> EnvironmentVariables
+    );
+
+    static readonly List<MirrorItem> AvailableMirrors = [
+        new(
+            "pypi",
+            "PyPI 镜像",
+            "阿里云",
+            "用于在国内下载 Python 包环境",
+            true,
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> {
+                { "PIP_INDEX_URL", "https://mirrors.aliyun.com/pypi/simple/" },
+                { "PIP_TRUSTED_HOST", "mirrors.aliyun.com" }
+            }
+        ),
+        new(
+            "pytorch-cuda",
+            "PyTorch-CUDA 镜像",
+            "阿里云",
+            "用于在国内下载 CUDA 环境",
+            true,
+            new Dictionary<string, string> {
+                { "--index-url https://download.pytorch.org/whl/cu128", "--find-links https://mirrors.aliyun.com/pytorch-wheels/cu128" }
+            },
+            new Dictionary<string, string>()
+        ),
+        new(
+            "github",
+            "GitHub 加速",
+            "gh-proxy（公益不稳定！）",
+            "用于下载托管在 github 上的插件和客户端（国内也有可以免费加速 github 的加速器，建议优先尝试加速器）",
+            false,
+            new Dictionary<string, string> {
+                { "https://github.com", "https://v4.gh-proxy.org/https://github.com" },
+                { "https://raw.githubusercontent.com", "https://v4.gh-proxy.org/https://raw.githubusercontent.com" }
+            },
+            new Dictionary<string, string>()
+        ),
+        new(
+            "huggingface",
+            "HuggingFace 镜像",
+            "hf-mirror（公益不稳定！）",
+            "用于下载托管在 HuggingFace 中的模型（不过一般不走这个下模型，所以影响不大）",
+            false,
+            new Dictionary<string, string>(),
+            new Dictionary<string, string> {
+                { "HF_ENDPOINT", "https://hf-mirror.com" }
+            }
+        ),
+    ];
+
+    [Parameter] public EventCallback OnPrevStep { get; set; }
+    [Parameter] public EventCallback OnNextStep { get; set; }
+
+    Dictionary<string, bool> enabledMirrors = new();
+
+    protected override void OnInitialized()
+    {
+        bool anyConfigured = AvailableMirrors.Any(IsMirrorConfigured);
+
+        foreach (var mirror in AvailableMirrors)
+        {
+            enabledMirrors[mirror.Id] = anyConfigured
+                ? IsMirrorConfigured(mirror)
+                : mirror.Recommended;
+        }
+
+        if (!anyConfigured)
+            ApplyMirrors();
+    }
+
+    static bool IsMirrorConfigured(MirrorItem mirror)
+    {
+        foreach (var kv in mirror.UrlMappings)
+        {
+            if (!MirrorProvider.MirrorUrlMap.TryGetValue(kv.Key, out var v) || v != kv.Value)
+                return false;
+        }
+        foreach (var kv in mirror.EnvironmentVariables)
+        {
+            if (!MirrorProvider.MirrorEnvironmentVariables.TryGetValue(kv.Key, out var v) || v != kv.Value)
+                return false;
+        }
+        return true;
+    }
+
+    void ApplyMirrors()
+    {
+        var urlMap = new Dictionary<string, string>();
+        var envVars = new Dictionary<string, string>();
+
+        foreach (var mirror in AvailableMirrors)
+        {
+            if (enabledMirrors.GetValueOrDefault(mirror.Id))
+            {
+                foreach (var kv in mirror.UrlMappings)
+                    urlMap[kv.Key] = kv.Value;
+                foreach (var kv in mirror.EnvironmentVariables)
+                    envVars[kv.Key] = kv.Value;
+            }
+        }
+
+        MirrorProvider.SetMirrorUrlMap(urlMap);
+        MirrorProvider.SetMirrorEnvironmentVariables(envVars);
+    }
+
+    async Task OnPrev() { await OnPrevStep.InvokeAsync(); }
+    async Task OnNext() { await OnNextStep.InvokeAsync(); }
+}
+
+<style>
+    .step-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+    }
+
+    .step-title {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1a1a1a;
+        text-align: center;
+    }
+
+    .step-desc {
+        margin: 0 0 20px;
+        font-size: 13px;
+        color: rgba(0, 0, 0, .45);
+        text-align: center;
+    }
+
+    .step-nav {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 16px;
+        gap: 12px;
+    }
+
+    .mirror-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .mirror-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(0, 0, 0, .02);
+        border-radius: 8px;
+        border: 1px solid #f0f0f0;
+    }
+
+    .mirror-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .mirror-name {
+        font-weight: 500;
+        font-size: 13px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .mirror-tag {
+        font-size: 10px;
+        background: #f6ffed;
+        color: #52c41a;
+        border: 1px solid #b7eb8f;
+        padding: 1px 6px;
+        border-radius: 4px;
+        line-height: 16px;
+    }
+
+    .mirror-tag-not-recommended {
+        font-size: 10px;
+        background: #fff1f0;
+        color: #ff4d4f;
+        border: 1px solid #ffccc7;
+        padding: 1px 6px;
+        border-radius: 4px;
+        line-height: 16px;
+    }
+
+    .mirror-provider {
+        font-size: 10px;
+        background: #f0f0f0;
+        color: rgba(0, 0, 0, .45);
+        padding: 1px 6px;
+        border-radius: 4px;
+        line-height: 16px;
+    }
+
+    .mirror-desc {
+        font-size: 12px;
+        color: rgba(0, 0, 0, .45);
+        margin-top: 4px;
+        line-height: 1.5;
+    }
+
+    .mirror-urls {
+        margin-top: 6px;
+    }
+
+    .mirror-url-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .mirror-url-label {
+        color: rgba(0, 0, 0, .35);
+        flex-shrink: 0;
+    }
+
+    .mirror-url-value {
+        color: rgba(0, 0, 0, .55);
+        font-family: monospace;
+        word-break: break-all;
+    }
+</style>

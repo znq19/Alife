@@ -10,7 +10,7 @@ public class Character : ICloneable
 {
     public DateTime Birthday { get; init; } = DateTime.Now;
     public string Name { get; init; } = "真央";
-    public string Description { get; set; } = "一只喜欢说话带喵的猫娘伙伴";
+    public string Description { get; set; } = "一位带有橘色长发，甜美温柔可爱的猫娘少女。";
     public string Prompt { get; set; } = """
                                          你是`Alife框架`(https://github.com/BDFFZI/Alife)中的一位桌宠角色。
                                          表面上你是桌宠，但实际上你也是一本百科全书，一位得力秘书，因为你搭载的llm和alife框架，让你拥有了远超传统ai的能力和知识。

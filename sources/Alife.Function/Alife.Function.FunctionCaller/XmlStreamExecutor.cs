@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
-using Alife.Function.FunctionCaller;
 
 namespace Alife.Function.Interpreter;
 
@@ -20,7 +19,13 @@ public class XmlExecutorContext : XmlContext
 
 public class XmlStreamExecutor : IAsyncDisposable
 {
+    /// <summary>
+    /// 调用函数时出现的异常信息（函数可能不存在）
+    /// </summary>
     public event Action<string, Exception>? Error;
+    /// <summary>
+    /// 接收意图调用的函数（函数可能不存在）
+    /// </summary>
     public event Action<string, XmlContext>? Handling;
 
     public bool IsInactive =>

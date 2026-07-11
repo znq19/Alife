@@ -5,6 +5,7 @@
 @inject INotificationService NotificationService
 
 <div class="step-content">
+    <ErrorWindowUI @bind-Value="@operException"/>
     <div class="step-icon" style="background:rgba(250,173,20,.1);color:#faad14;">
         <Icon Type="@IconType.Outline.Appstore" Style="font-size:28px;"/>
     </div>
@@ -107,6 +108,7 @@
     List<Plugin> availablePlugins = new();
     HashSet<string> selectedIds = new();
     (int Current, int Total, string Name)? installProgress;
+    Exception? operException;
     bool installDone;
     int installedCount;
 
@@ -166,7 +168,7 @@
         catch (Exception ex)
         {
             installProgress = null;
-            _ = NotificationService.Error(new NotificationConfig { Message = $"安装失败: {ex.Message}" });
+            operException = ex;
         }
 
         StateHasChanged();

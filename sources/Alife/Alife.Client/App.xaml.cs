@@ -7,6 +7,7 @@ using Alife.Framework;
 using Alife.Components.Services;
 using Alife.Platform;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 
 namespace Alife;
 
@@ -16,10 +17,14 @@ public partial class App
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        Console.WriteLine("123");
         base.OnStartup(e);
 
+        //托管日志系统
         Console.OutputEncoding = Encoding.UTF8;
         Console.InputEncoding = Encoding.UTF8;
+        // Environment.SetEnvironmentVariable("DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION", "1");//保留颜色码以便解析
+        // ConsoleCapture.Install();
 
 #if DEBUG
         Console.WriteLine(typeof(Function.Memory.MemoryService).Assembly.FullName);
@@ -64,7 +69,6 @@ public partial class App
             // logger 库
             services.AddLogging(builder => {
                 builder.AddConsole();
-                builder.AddFile(Path.Combine(AlifePath.RuntimeFolderPath, "Logs"), "app");
                 builder.SetMinimumLevel(LogLevel.Information);
             });
             // Alife.Client 核心业务系统
@@ -81,10 +85,6 @@ public partial class App
             ServiceProvider = services.BuildServiceProvider();
         }
 
-        // 初始化日志
-        loggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
-        logger = loggerFactory.CreateLogger<App>();
-
         // 订阅全局异常处理
         DispatcherUnhandledException += App_DispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -98,9 +98,6 @@ public partial class App
         ServiceProvider.GetRequiredService<PluginMarketService>();
         ServiceProvider.GetRequiredService<MainWindow>().Show();
     }
-
-    static ILoggerFactory loggerFactory = null!;
-    static ILogger<App> logger = null!;
 
     void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
@@ -124,23 +121,40 @@ public partial class App
 
     void HandleUnhandledException(Exception exception, string source)
     {
+        string crashFilePath = "";
         try
         {
-            logger.LogError(exception, "未处理的异常: {Source}", source);
-            loggerFactory.Dispose();
+            string logDir = Path.Combine(AlifePath.TempFolderPath, "Logs");
+            Directory.CreateDirectory(logDir);
+            crashFilePath = Path.Combine(logDir, $"crash-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+
+            StringBuilder sb = new();
+            sb.AppendLine($"崩溃时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            sb.AppendLine($"异常来源: {source}");
+            sb.AppendLine();
+            sb.AppendLine("=== 异常信息 ===");
+            sb.AppendLine(exception.ToString());
+            sb.AppendLine();
+            sb.AppendLine("=== 最近日志 ===");
+
+            IReadOnlyList<LogEntry> recentLogs = ConsoleCapture.GetBuffer();
+            foreach (LogEntry entry in recentLogs)
+                sb.AppendLine($"[{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{entry.Level}] {AnsiColorConverter.StripAnsi(entry.Message)}");
+
+            File.WriteAllText(crashFilePath, sb.ToString(), Encoding.UTF8);
         }
         catch
         {
-            // 忽略日志记录异常
+            // 忽略崩溃日志写入异常
         }
 
         try
         {
-            MessageBox.Show(
-                $"程序发生未处理的异常，即将退出。\n\n错误信息: {exception.Message}\n\n详细信息已记录到日志文件。",
-                "Alife - 错误",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            string message = $"程序发生未处理的异常，即将退出。\n\n错误信息: {exception.Message}";
+            if (string.IsNullOrEmpty(crashFilePath) == false)
+                message += $"\n\n崩溃详情已保存至:\n{crashFilePath}";
+
+            MessageBox.Show(message, "Alife - 错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch
         {

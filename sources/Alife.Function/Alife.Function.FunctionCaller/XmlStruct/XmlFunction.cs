@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,11 @@ public class XmlFunctionAttribute(FunctionMode mode, string? name = null, int or
 
 public class XmlFunction : IComparable<XmlFunction>
 {
-    public required string Name { get; init; }
+    public required string Name
+    {
+        get => name;
+        init => name = value.ToLower();
+    }
     public int Order { get; init; }
     public FunctionMode Mode { get; init; }
     public string? Description { get; init; }
@@ -87,4 +92,6 @@ public class XmlFunction : IComparable<XmlFunction>
         if (other is null) return 1;
         return Order.CompareTo(other.Order);
     }
+
+    readonly string name;
 }

@@ -6,7 +6,7 @@
     <div class="welcome-bubble">
         <div class="bubble-header">
             <div class="step-indicator">
-                @for (int i = 1; i <= 5; i++)
+                @for (int i = 1; i <= 6; i++)
                 {
                     <div class="step-dot @(currentStep == i ? "active" : "") @(currentStep > i ? "completed" : "")">
                         @if (currentStep > i)
@@ -18,7 +18,7 @@
                             @i
                         }
                     </div>
-                    @if (i < 5)
+                    @if (i < 6)
                     {
                         <div class="step-line @(currentStep > i ? "completed" : "")"></div>
                     }
@@ -33,17 +33,21 @@
             }
             else if (currentStep == 2)
             {
-                <EnvSetup OnNextStep="@(() => GoToStep(3))"/>
+                <MirrorSetup OnPrevStep="@(() => GoToStep(1))" OnNextStep="@(() => GoToStep(3))"/>
             }
             else if (currentStep == 3)
             {
-                <LlmConfig OnPrevStep="@(() => GoToStep(2))" OnNextStep="@(() => GoToStep(4))"/>
+                <EnvSetup OnPrevStep="@(() => GoToStep(2))" OnNextStep="@(() => GoToStep(4))"/>
             }
             else if (currentStep == 4)
             {
-                <PresetDownload OnPrevStep="@(() => GoToStep(3))" OnNextStep="@(() => GoToStep(5))"/>
+                <LlmConfig OnPrevStep="@(() => GoToStep(3))" OnNextStep="@(() => GoToStep(5))"/>
             }
             else if (currentStep == 5)
+            {
+                <PresetDownload OnPrevStep="@(() => GoToStep(4))" OnNextStep="@(() => GoToStep(6))"/>
+            }
+            else if (currentStep == 6)
             {
                 <Complete/>
             }

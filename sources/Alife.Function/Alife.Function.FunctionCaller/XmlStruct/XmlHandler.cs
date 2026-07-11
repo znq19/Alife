@@ -11,9 +11,9 @@ namespace Alife.Function.Interpreter;
 
 public class XmlHandler
 {
-    public string? Name { get; set; }
-    public string? Description { get; set; }
-    public string? Explanation { get; set; }
+    public string Name { get; init; }
+    public string? Description { get; init; }
+    public string? Explanation { get; init; }
     public List<XmlFunction> Functions { get; init; } = new();
     public object? Instance { get; init; }
 
@@ -39,7 +39,10 @@ public class XmlHandler
         return stringBuilder.ToString();
     }
 
-    public XmlHandler() {}
+    public XmlHandler(string name = "")
+    {
+        Name = name;
+    }
     public XmlHandler(object instance, string? explanation = null)
     {
         Instance = instance;
@@ -190,7 +193,7 @@ public class XmlHandler
                 if (isFilled)
                     parameterValuesBuffer[index] = result;
                 else if (parameterInfo.GetCustomAttribute<XmlFormAttribute>() == null)
-                    throw new Exception($"{method.Name}标签缺少{parameterInfo.Name}参数，或参数值解析失败！");
+                    throw new Exception($"<{method.Name}/>缺少{parameterInfo.Name}参数，请检查是否遗漏，或传入的参数格式是否正确！");
             }
 
             //调用

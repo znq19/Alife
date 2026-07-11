@@ -89,7 +89,7 @@
                 <div style="flex: 1; align-self: stretch; position: relative; min-height: 0;">
                     <textarea id="chatInput"
                               class="native-chat-input"
-                              placeholder="@("输入消息... (Enter 发送, Shift+Enter 换行)")"
+                              placeholder="@("输入消息... (Enter 发送，Shift+Enter 换行，Ctrl+V 粘贴文本或文件)")"
                               @bind="inputText"
                               @bind:event="oninput"
                               @onkeydown="HandleNativeKeyDown"

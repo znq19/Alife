@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Alife.Platform;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,7 +32,6 @@ public partial class ChatActivity
         ServiceCollection serviceCollection = new();
         serviceCollection.AddLogging(builder => {
             builder.AddConsole();
-            builder.AddFile(Path.Combine(Alife.Platform.AlifePath.RuntimeFolderPath, "Logs"), $"activity_{character.Name}");
             builder.SetMinimumLevel(LogLevel.Information);
         });
         containerBuilder.Populate(serviceCollection);
@@ -137,8 +134,14 @@ public partial class ChatActivity
                 kernelService = kernelBuilder.Build();
                 ChatCompletionAgent chatCompletionAgent = new() {
                     Name = character.Name,
-                    Instructions =
-                        $"名称：{character.Name}\n生日：{character.Birthday}\n简介：{character.Description}\n设定：\n{character.Prompt}",
+                    Instructions = $"""
+                                    这是你的人物信息：
+                                    - 名称：{character.Name}
+                                    - 生日：{character.Birthday}
+                                    - 简介：{character.Description}
+                                    - 设定：
+                                    {character.Prompt}
+                                    """,
                     InstructionsRole = AuthorRole.System,
                     Kernel = kernelService,
                     Arguments = new KernelArguments(languageModel.ProvidePromptExecutionSettings()),
@@ -187,8 +190,8 @@ public partial class ChatActivity(Character character, Kernel kernelService, ICo
         {
             foreach (ISystemEvent systemEvent in ((IEnumerable<ISystemEvent>)eventModules).Reverse())
                 await systemEvent.DestroyAsync();
-            await chatBot.DisposeAsync();
             await moduleService.DisposeAsync();
+            await chatBot.DisposeAsync();
         }
         catch (Exception e)
         {

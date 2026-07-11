@@ -10,8 +10,7 @@
             </Text>
         </div>
         <div style="display: flex; gap: 8px;">
-            <Button OnClick="OnResetMirror">重置镜像</Button>
-            <Button Danger OnClick="OnDeleteMirror">删除镜像</Button>
+            <Button Danger OnClick="OnDeleteMirror">清空镜像</Button>
         </div>
     </div>
 
@@ -152,20 +151,12 @@
         MirrorProvider.SetMirrorEnvironmentVariables(MirrorEnvironmentVariables);
     }
 
-    void OnResetMirror()
-    {
-        MirrorProvider.ResetToDefaults();
-        MirrorUrlMap = MirrorProvider.MirrorUrlMap.ToDictionary(x => x.Key, x => x.Value);
-        MirrorEnvironmentVariables = MirrorProvider.MirrorEnvironmentVariables.ToDictionary(x => x.Key, x => x.Value);
-        _ = NotificationService.Success(new NotificationConfig { Message = "镜像配置已重置为默认值" });
-    }
-
     void OnDeleteMirror()
     {
         MirrorUrlMap.Clear();
         MirrorEnvironmentVariables.Clear();
         MirrorProvider.SetMirrorUrlMap(MirrorUrlMap);
         MirrorProvider.SetMirrorEnvironmentVariables(MirrorEnvironmentVariables);
-        _ = NotificationService.Success(new NotificationConfig { Message = "镜像配置已删除，所有地址将保持原样" });
+        _ = NotificationService.Success(new NotificationConfig { Message = "镜像配置已清空" });
     }
 }

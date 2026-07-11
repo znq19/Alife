@@ -5,6 +5,7 @@
 @inject INotificationService NotificationService
 
 <div class="step-content">
+    <ErrorWindowUI @bind-Value="@operException"/>
     <div class="step-icon" style="background:rgba(82,196,26,.1);color:#52c41a;">
         <Icon Type="@IconType.Outline.Setting" Style="font-size:28px;"/>
     </div>
@@ -57,6 +58,7 @@
     readonly OpenAILanguageModelConfig llmConfig = new();
     bool isFetchingModels;
     List<string> availableModels = new();
+    Exception? operException;
 
     protected override void OnInitialized()
     {
@@ -93,9 +95,9 @@
                 else
                     MessageService.Warning("未发现可用模型");
             }
-            else MessageService.Error($"拉取失败 ({r.StatusCode})");
+            else operException = new Exception($"拉取失败 ({r.StatusCode})");
         }
-        catch (Exception ex) { MessageService.Error($"连接出错: {ex.Message}"); }
+        catch (Exception ex) { operException = ex; }
         finally { isFetchingModels = false; StateHasChanged(); }
     }
 
