@@ -11,11 +11,13 @@
 >
 > 那时候我就想，我也要做一个。但我不想只做一个群机器人。我想做一个赛博生命——一个真正活在我电脑桌面上的伙伴。
 >
-> LLM 火了几年了，类似的框架网上也有，但我试过之后，总觉得差了点什么。幸运的是，现在 AI 编程效率很高，一个人从零开始做一套 Agent 框架，已经不是什么难事。
+> LLM 火了几年了，类似的框架网上也有，但我试过之后，发现都没有能让我完全满意的。但幸运的是，现在 AI 编程效率很高，一个人从零开始做一套 Agent 框架，已经不是什么难事。
 >
 > 于是，Alife 诞生了。
 
-<img width="543" height="724" title="由真央给自己生成的自画像" alt="由真央给自己生成的自画像" src="https://github.com/user-attachments/assets/02c2c56a-e805-43fc-a352-f866955a7aef" />
+<div align="center">
+  <img src="Sources/Alife/Alife.Client/wwwroot/images/alife-icon.png" width="128" alt="Alife Logo" />
+</div>
 
 # Alife - 创造赛博生命
 
@@ -24,11 +26,11 @@
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-green?style=for-the-badge)
 
-欢迎来到Alife！
+欢迎来到 Alife！
 
-Alife是一款主打桌宠陪伴方向的AIAgent，目的是为了创造或逼近一个真实赛博生命的效果，它不是功能特化，不是角色扮演，而是一切为了AI的生命而搭建！
+Alife 是一款主打桌宠陪伴方向的 AIAgent，目的是为了创造或逼近一个真实赛博生命的效果，它不是功能特化，不是角色扮演，而是一切为了 AI 的生命而搭建！
 
-正因如此，它是个具有强烈个人风格的AIAgent。相比市面上的主流陪伴向AI产品，它在功能体验上有很大的不同：
+正因如此，它是款具有强烈个人风格的 AIAgent。相比市面上的主流陪伴向 AI 产品，它在功能体验上有很大的不同：
 
 - 极低词元开销：人工高度优化的提示词、专门设计过的上下文和注入系统，非常省钱。
 - 高度信息透明：明文存储数据，完全暴露上下文和AI执行过程，支持实时源码级功能自定义。
