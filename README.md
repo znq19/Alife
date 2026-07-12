@@ -16,7 +16,7 @@
 > 于是，Alife 诞生了。
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/7f0d259c-51cb-4709-a8d9-c4a1139008f4" width="256" height="256" alt="Alife Logo" />
+  <img src="https://github.com/user-attachments/assets/7f0d259c-51cb-4709-a8d9-c4a1139008f4" width="128" height="128" alt="Alife Logo" />
 </div>
 
 # Alife - 创造赛博生命
@@ -90,6 +90,33 @@ Alife 是一款主打桌宠陪伴方向的 AIAgent，目的是为了创造或逼
 - 🔗 多开互联：支持角色多开并可相互交流，借此构建一个完整的赛博世界，让他们也有自己的社交圈子。
 - 🔄 自我升级：允许ai直接编辑插件，并自行编译重载，让ai自己改造自己，不再是一种科幻场景。
 - ️️🛠️ 扩展能力：支持自定义插件，以及接入 MCP、Skills 功能，通过标准化的AI生态，自由方便的扩展功能。
+
+---
+
+## 📸 软件截图 (Screenshots)
+
+<table>
+  <tr>
+    <td align="center"><img src="https://github.com/user-attachments/assets/8f5ab023-7399-4224-9bb7-bdbf5791f686" width="100%" alt="欢迎页"/></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/e42b16b7-4bc0-459e-99a6-b6b446480e9b" width="100%" alt="插件市场"/></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/e8ec399c-3ffc-44b0-a53c-2d374348a150" width="100%" alt="插件配置"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>欢迎页</b></td>
+    <td align="center"><b>插件市场</b></td>
+    <td align="center"><b>插件配置</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="https://github.com/user-attachments/assets/c7e10001-ac49-470e-8379-0db5589daed0" width="100%" alt="角色设定"/></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/92fed28f-4e56-41a8-9964-3728674b6d34" width="100%" alt="对话看板"/></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/0eb9cece-88bd-4b47-b60d-a2568fa7aaba" width="100%" alt="上下文片段"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>角色设定</b></td>
+    <td align="center"><b>对话看板</b></td>
+    <td align="center"><b>上下文片段</b></td>
+  </tr>
+</table>
 
 ---
 
