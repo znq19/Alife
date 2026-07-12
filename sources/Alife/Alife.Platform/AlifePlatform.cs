@@ -61,7 +61,7 @@ public static class AlifePlatform
             if (progress != null && readSoFar >= nextReport)
             {
                 progress(readSoFar, totalBytes);
-                nextReport = readSoFar + 10 * 1024 * 1024; // 每 10MB 报告一次
+                nextReport = readSoFar + 10 * 1024 * 1024;// 每 10MB 报告一次
             }
         }
 
@@ -118,6 +118,8 @@ public static class AlifePlatform
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
         using Process? process = Process.Start(psi);
         StringBuilder stdoutBuilder = new();
@@ -200,7 +202,7 @@ public static class AlifePlatform
 
         return "当前平台不支持 OCR";
     }
-    
+
     static readonly string[] CommandIgnore;
 
     static AlifePlatform()

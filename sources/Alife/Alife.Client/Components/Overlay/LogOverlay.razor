@@ -12,7 +12,9 @@
        Title="运行日志"
        Width="@("80%")"
        Style="top: 20px;"
+       MaskStyle="z-index: 99998;"
        WrapClassName="log-modal-top"
+       ZIndex="99999"
        Footer="null"
        AfterOpen="OnModalOpened"
        AfterClose="OnModalClosed">
@@ -57,7 +59,7 @@
         justify-content: center;
         cursor: pointer;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 10001;
+        z-index: 99999;
         transition: all 0.2s;
     }
 
