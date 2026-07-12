@@ -21,15 +21,15 @@ class Program
     static async Task TestBasicPipe()
     {
         string code = """
-def add(a, b):
-    return a + b
+                      def add(a, b):
+                          return a + b
 
-def greet(name):
-    return f"Hello, {name}!"
+                      def greet(name):
+                          return f"Hello, {name}!"
 
-def div(a, b):
-    return a / b
-""";
+                      def div(a, b):
+                          return a / b
+                      """;
 
         await using var pipe = new PythonPipeProcess("test_basic", code);
         pipe.OnStderr += line => Console.WriteLine($"  [stderr] {line}");
@@ -72,8 +72,7 @@ def div(a, b):
         Console.WriteLine($"  图片: {imagePath}");
         Console.WriteLine("  正在初始化 MiniCPMVisionModel (首次加载模型可能需要几分钟)...");
 
-        using var loggerFactory = LoggerFactory.Create(builder =>
-        {
+        using var loggerFactory = LoggerFactory.Create(builder => {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Warning);
         });
@@ -90,10 +89,6 @@ def div(a, b):
         catch (Exception ex)
         {
             Console.WriteLine($"  异常: {ex}");
-        }
-        finally
-        {
-            await model.DisposeAsync();
         }
     }
 }
