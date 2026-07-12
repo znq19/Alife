@@ -16,7 +16,7 @@
 > 于是，Alife 诞生了。
 
 <div align="center">
-  <img src="Sources/Alife/Alife.Client/wwwroot/images/alife-icon.png" width="128" alt="Alife Logo" />
+  <img src="https://github.com/user-attachments/assets/7f0d259c-51cb-4709-a8d9-c4a1139008f4" width="256" height="256" alt="Alife Logo" />
 </div>
 
 # Alife - 创造赛博生命
