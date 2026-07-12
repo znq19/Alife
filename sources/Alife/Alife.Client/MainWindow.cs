@@ -60,15 +60,22 @@ public class MainWindow : Form
 
         trayIcon.Visible = true;
     }
+
+    Rectangle savedBounds;
+
     void ShowWindow()
     {
-        ShowInTaskbar = true;
         Show();
+        ShowInTaskbar = true;
+        WindowState = FormWindowState.Normal;
+        Bounds = savedBounds;
         Activate();
     }
     void HideWindow()
     {
+        savedBounds = Bounds;
         ShowInTaskbar = false;
+        WindowState = FormWindowState.Minimized;
         Hide();
     }
 

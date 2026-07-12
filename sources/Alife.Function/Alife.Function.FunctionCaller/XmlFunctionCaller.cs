@@ -125,6 +125,7 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
     readonly List<XmlHandler> explicitHandlers = new();
     readonly List<XmlHandler> implicitHandlers = new();
     string currentProcess = "";
+    readonly List<ChatMessageContent> chatHistoryBuffer = new();
 
     string GetExplicitDocument(XmlHandler handler)
     {
@@ -268,15 +269,26 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
     {
         currentProcess = $"执行{name}函数中...";
 
-        //实现当ai调用隐射函数时自动注入对应的隐式文档
-        IReadOnlyList<XmlHandler>? handlers = handlerTable.GetHandlersOfFunction(name);
-        if (handlers != null)
+        if (context.CallMode == CallMode.Opening || context.CallMode == CallMode.OneShot)
         {
-            foreach (XmlHandler xmlHandler in handlers.Intersect(implicitHandlers))
+            //实现当ai调用隐射函数时自动注入对应的隐式文档
+            IReadOnlyList<XmlHandler>? handlers = handlerTable.GetHandlersOfFunction(name);
+            if (handlers != null)
             {
-                string explicitDocumentTag = GetExplicitDocumentTag(xmlHandler.Name);
-                if (ChatHistory.All(content => !content.Content?.Contains(explicitDocumentTag) ?? false))
-                    Poke(GetExplicitDocument(xmlHandler));
+                var dependentImplicitHandlers = handlers.Intersect(implicitHandlers).ToArray();
+                if (dependentImplicitHandlers.Length != 0)
+                {
+                    chatHistoryBuffer.Clear();
+                    chatHistoryBuffer.AddRange(ChatHistory);
+
+                    foreach (XmlHandler xmlHandler in dependentImplicitHandlers)
+                    {
+                        string explicitDocumentTag = GetExplicitDocumentTag(xmlHandler.Name);
+
+                        if (chatHistoryBuffer.All(content => !content.Content?.Contains(explicitDocumentTag) ?? false))
+                            Poke(GetExplicitDocument(xmlHandler));
+                    }
+                }
             }
         }
     }

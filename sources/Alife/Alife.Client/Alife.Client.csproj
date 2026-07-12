@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <OutputType>WinExe</OutputType>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>alife-icon.ico</ApplicationIcon>
     <RootNamespace>Alife</RootNamespace>
     <SelfContained>true</SelfContained>
     <PublishSelfContained>true</PublishSelfContained>
@@ -27,8 +28,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <_ContentIncludedByDefault Remove="output\ebMzDPu2zMT_mRgYgtL6eQ.json" />
-    <_ContentIncludedByDefault Remove="wwwroot\images\wallpaper.png" />
+    <Content Update="alife-icon.ico">
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
