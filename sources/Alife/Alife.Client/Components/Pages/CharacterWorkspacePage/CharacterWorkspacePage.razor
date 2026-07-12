@@ -32,7 +32,7 @@ else
                 <Title Level="4" Style="margin-top: 12px; margin-bottom: 0;">@character.Name</Title>
                 <div
                     style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;">
-                    <StatusDot Online="@(activity != null)" />
+                    <StatusDot Online="@(activity != null)"/>
                     <Text Type="@TextElementType.Secondary"
                           Style="font-size: 12px">@(activity != null ? "正在运行" : "待机中")</Text>
                 </div>
@@ -75,9 +75,17 @@ else
                 }
                 else
                 {
-                    <Button Danger Block Loading="@isStopping" OnClick="@(DeactivateCharacter)">
+                    var isCancelled = activity?.ChatBot?.ChatBreakTokenSource?.IsCancellationRequested == true;
+                    <Button Danger Block Loading="@isStopping" Disabled="@isCancelled" OnClick="@(DeactivateCharacter)">
                         停止运行
                     </Button>
+                    @if (isStopping && !isCancelled)
+                    {
+                        <Button Danger Block Style="margin-top: 8px;"
+                                OnClick="@(() => activity?.ChatBot?.ChatBreakTokenSource?.Cancel())">
+                            强制停止
+                        </Button>
+                    }
                 }
 
                 <Button Danger Block Style="margin-top: 12px;" OnClick="@DeleteCharacter">删除角色</Button>
@@ -151,6 +159,8 @@ else
 
         activity = chatActivity;
         InvokeAsync(StateHasChanged);
+        
+        activity.ChatBot.ChatSent += _ => InvokeAsync(StateHasChanged);//用于更新 ChatBreakTokenSource
     }
     void OnChatActivityDestroying(ChatActivity obj)
     {

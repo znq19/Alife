@@ -4,31 +4,38 @@
 <div class="welcome-page">
     <div class="welcome-bubble">
         <div class="bubble-header">
-            <div class="step-indicator">
-                @for (int i = 1; i <= 6; i++)
-                {
-                    <div class="step-dot @(currentStep == i ? "active" : "") @(currentStep > i ? "completed" : "")">
-                        @if (currentStep > i)
-                        {
-                            <Icon Type="@IconType.Outline.Check" Style="font-size:12px;"/>
-                        }
-                        else
-                        {
-                            @i
-                        }
-                    </div>
-                    @if (i < 6)
+            @if (currentStep > 0)
+            {
+                <div class="step-indicator">
+                    @for (int i = 1; i <= 6; i++)
                     {
-                        <div class="step-line @(currentStep > i ? "completed" : "")"></div>
+                        <div class="step-dot @(currentStep == i ? "active" : "") @(currentStep > i ? "completed" : "")">
+                            @if (currentStep > i)
+                            {
+                                <Icon Type="@IconType.Outline.Check" Style="font-size:12px;"/>
+                            }
+                            else
+                            {
+                                @i
+                            }
+                        </div>
+                        @if (i < 6)
+                        {
+                            <div class="step-line @(currentStep > i ? "completed" : "")"></div>
+                        }
                     }
-                }
-            </div>
+                </div>
+            }
         </div>
 
         <div class="bubble-body">
-            @if (currentStep == 1)
+            @if (currentStep == 0)
             {
-                <PathSetup OnNextStep="@(() => GoToStep(2))"/>
+                <WelcomeCover OnNextStep="@(() => GoToStep(1))"/>
+            }
+            else if (currentStep == 1)
+            {
+                <PathSetup OnPrevStep="@(() => GoToStep(0))" OnNextStep="@(() => GoToStep(2))"/>
             }
             else if (currentStep == 2)
             {
@@ -55,7 +62,7 @@
 </div>
 
 @code {
-    int currentStep = 1;
+    int currentStep = 0;
 
     void GoToStep(int step)
     {
@@ -78,7 +85,7 @@
 
 .welcome-bubble {
     width: 100%;
-    max-width: 520px;
+    max-width: 600px;
     background: #fff;
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04);

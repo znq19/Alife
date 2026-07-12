@@ -27,8 +27,19 @@
             <Form Model="@Configuration" Layout="@FormLayout.Vertical" Style="padding-right: 60px;">
                 @foreach (var prop in properties)
                 {
-                    <FormItem Label="@GetLabel(prop)" Tooltip="@GetDescription(prop)">
-                        @RenderField(prop)
+                    <FormItem>
+                        <LabelTemplate>
+                            <div>
+                                <div>@GetLabel(prop)</div>
+                                @if (GetDescription(prop) is { } desc)
+                                {
+                                    <div style="font-size: 12px; color: rgba(0,0,0,0.45); font-weight: normal; margin-top: 2px;">@desc</div>
+                                }
+                            </div>
+                        </LabelTemplate>
+                        <ChildContent>
+                            @RenderField(prop)
+                        </ChildContent>
                     </FormItem>
                 }
             </Form>
@@ -136,9 +147,7 @@
             prop.SetValue(Configuration, value);
             NotifyChanged();
         }
-        catch
-        {
-        }
+        catch {}
     }
 
     void SetNestedValue(object parent, PropertyInfo prop, object? value)
@@ -148,9 +157,7 @@
             prop.SetValue(parent, value);
             NotifyChanged();
         }
-        catch
-        {
-        }
+        catch {}
     }
 
     void NotifyChanged()
@@ -164,9 +171,9 @@
 
     string GetLabel(PropertyInfo prop)
     {
-        var desc = prop.GetCustomAttribute<System.ComponentModel.DescriptionAttribute>();
-        if (desc != null && !string.IsNullOrEmpty(desc.Description))
-            return desc.Description;
+        var desc = prop.GetCustomAttribute<System.ComponentModel.DisplayNameAttribute>();
+        if (desc != null && !string.IsNullOrEmpty(desc.DisplayName))
+            return desc.DisplayName;
         return prop.Name;
     }
 
@@ -182,8 +189,8 @@
     {
         var underlying = Nullable.GetUnderlyingType(type) ?? type;
         return underlying.IsPrimitive
-            || underlying == typeof(string)
-            || underlying == typeof(decimal);
+               || underlying == typeof(string)
+               || underlying == typeof(decimal);
     }
 
     bool IsComplexType(Type type)
@@ -274,9 +281,9 @@
 }
 
 @* ═══ 字段渲染 ═══ *@
+
 @code {
-    RenderFragment RenderField(PropertyInfo prop) => __builder =>
-    {
+    RenderFragment RenderField(PropertyInfo prop) => __builder => {
         var value = prop.GetValue(Configuration);
         var propType = prop.PropertyType;
         var underlyingType = Nullable.GetUnderlyingType(propType) ?? propType;
@@ -288,26 +295,26 @@
         }
         else if (underlyingType == typeof(int))
         {
-            <AntDesign.InputNumber TValue="int" 
+            <AntDesign.InputNumber TValue="int"
                                    Value="@((int)(value ?? 0))"
                                    ValueChanged="@((int v) => SetValue(prop, v))"/>
         }
         else if (underlyingType == typeof(long))
         {
-            <AntDesign.InputNumber TValue="long" 
+            <AntDesign.InputNumber TValue="long"
                                    Value="@((long)(value ?? 0))"
                                    ValueChanged="@((long v) => SetValue(prop, v))"/>
         }
         else if (underlyingType == typeof(float))
         {
-            <AntDesign.InputNumber TValue="float" 
+            <AntDesign.InputNumber TValue="float"
                                    Value="@((float)(value ?? 0f))"
                                    ValueChanged="@((float v) => SetValue(prop, v))"
                                    Step="0.1f"/>
         }
         else if (underlyingType == typeof(double))
         {
-            <AntDesign.InputNumber TValue="double" 
+            <AntDesign.InputNumber TValue="double"
                                    Value="@((double)(value ?? 0d))"
                                    ValueChanged="@((double v) => SetValue(prop, v))"
                                    Step="0.1"/>
@@ -345,9 +352,9 @@
 }
 
 @* ═══ 集合类型渲染 ═══ *@
+
 @code {
-    RenderFragment RenderCollectionField(PropertyInfo prop, object? value, Type elementType) => __builder =>
-    {
+    RenderFragment RenderCollectionField(PropertyInfo prop, object? value, Type elementType) => __builder => {
         var list = value as System.Collections.IList;
         var isSimpleType = IsSimpleType(elementType);
 
@@ -363,21 +370,30 @@
                             @if (elementType == typeof(string))
                             {
                                 <Input Value="@((string)(list[index] ?? ""))"
-                                       ValueChanged="@((string v) => { list[index] = v; NotifyChanged(); })"
+                                       ValueChanged="@((string v) => {
+                                                         list[index] = v;
+                                                         NotifyChanged();
+                                                     })"
                                        Style="flex: 1;"/>
                             }
                             else if (elementType == typeof(int))
                             {
                                 <AntDesign.InputNumber TValue="int"
                                                        Value="@((int)(list[index] ?? 0))"
-                                                       ValueChanged="@((int v) => { list[index] = v; NotifyChanged(); })"
+                                                       ValueChanged="@((int v) => {
+                                                                         list[index] = v;
+                                                                         NotifyChanged();
+                                                                     })"
                                                        Style="flex: 1;"/>
                             }
                             else if (elementType == typeof(float))
                             {
                                 <AntDesign.InputNumber TValue="float"
                                                        Value="@((float)(list[index] ?? 0f))"
-                                                       ValueChanged="@((float v) => { list[index] = v; NotifyChanged(); })"
+                                                       ValueChanged="@((float v) => {
+                                                                         list[index] = v;
+                                                                         NotifyChanged();
+                                                                     })"
                                                        Style="flex: 1;" Step="0.1f"/>
                             }
                             else
@@ -426,21 +442,24 @@
 }
 
 @* ═══ 嵌套对象渲染 ═══ *@
+
 @code {
-    RenderFragment RenderNestedObject(PropertyInfo prop, object? value, Type type) => __builder =>
-    {
+    RenderFragment RenderNestedObject(PropertyInfo prop, object? value, Type type) => __builder => {
         if (value == null)
         {
             <Button Size="@ButtonSize.Small"
-                    OnClick="@(() => { var obj = Activator.CreateInstance(type); SetValue(prop, obj); })">
+                    OnClick="@(() => {
+                                 var obj = Activator.CreateInstance(type);
+                                 SetValue(prop, obj);
+                             })">
                 初始化
             </Button>
             return;
         }
 
         var subProps = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                          .Where(p => p.CanRead)
-                          .ToList();
+            .Where(p => p.CanRead)
+            .ToList();
 
         if (subProps.Count == 0)
         {
@@ -455,16 +474,26 @@
             <div style="padding-top: 12px;">
                 @foreach (var subProp in subProps)
                 {
-                    <FormItem Label="@GetLabel(subProp)" Tooltip="@GetDescription(subProp)">
-                        @RenderNestedField(value, subProp)
+                    <FormItem>
+                        <LabelTemplate>
+                            <div>
+                                <div>@GetLabel(subProp)</div>
+                                @if (GetDescription(subProp) is { } desc)
+                                {
+                                    <div style="font-size: 12px; color: rgba(0,0,0,0.45); font-weight: normal; margin-top: 2px;">@desc</div>
+                                }
+                            </div>
+                        </LabelTemplate>
+                        <ChildContent>
+                            @RenderNestedField(value, subProp)
+                        </ChildContent>
                     </FormItem>
                 }
             </div>
         </details>
     };
 
-    RenderFragment RenderNestedField(object parent, PropertyInfo prop) => __builder =>
-    {
+    RenderFragment RenderNestedField(object parent, PropertyInfo prop) => __builder => {
         var value = prop.GetValue(parent);
         var propType = prop.PropertyType;
         var underlyingType = Nullable.GetUnderlyingType(propType) ?? propType;

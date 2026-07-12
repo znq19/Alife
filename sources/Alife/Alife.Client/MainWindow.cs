@@ -43,7 +43,15 @@ public class MainWindow : Form
         trayIcon.Text = "Alife";
         trayIcon.Icon = icon;
 
-        trayIcon.Click += (_, _) => ShowWindow();
+        trayIcon.MouseClick += (_, e) => {
+            if (e.Button == MouseButtons.Left)
+            {
+                if (ShowInTaskbar)
+                    HideWindow();
+                else
+                    ShowWindow();
+            }
+        };
 
         ContextMenuStrip trayMenu = new();
         trayMenu.Items.Add("显示主窗口", null, (_, _) => ShowWindow());
@@ -58,7 +66,7 @@ public class MainWindow : Form
         Show();
         Activate();
     }
-    void HintWindow()
+    void HideWindow()
     {
         ShowInTaskbar = false;
         Hide();
@@ -80,7 +88,7 @@ public class MainWindow : Form
             }
             else if (result == DialogResult.No)
             {
-                HintWindow();
+                HideWindow();
             }
 
             e.Cancel = true;

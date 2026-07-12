@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Alife.Framework;
@@ -8,6 +9,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
 namespace Alife.Function.FunctionCaller;
+
+public class XmlFunctionCallerConfig
+{
+    [Description("触发子句分隔的字符标记。调整子句会对字幕、语音生成等流式输出的功能产生影响")]
+    public List<string> Separators { get; set; } = ["，", "。", "！", "？", "......", "~", "…"];
+
+    [Description("触发子句分隔的最短文本长度（字符数）")]
+    public int MinBreakingLength { get; set; } = 23;
+}
 
 public enum DocumentMode
 {
@@ -19,9 +29,16 @@ public enum DocumentMode
 [Module("Xml函数执行器", "提供一种Xml函数调用框架，可以将注册其中的函数，暴露给AI，并指导其用Xml标签调用。",
     defaultCategory: "Alife 官方/功能底座",
     launchOrder: -1000)]
-public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveModule<XmlFunctionCaller>
+public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveModule<XmlFunctionCaller>, IConfigurable<XmlFunctionCallerConfig>
 {
+    public XmlFunctionCallerConfig? Configuration { get; set; }
     public bool IsIdle => executor.IsInactive;
+
+    /// <summary>
+    /// 当前系统中的函数调用注册信息。
+    /// XmlHandlerTable支持你禁用其中的部分函数，从而实现拦截或手动调用的需求
+    /// </summary>
+    public XmlHandlerTable HandlerTable => handlerTable;
 
     public string GetExplicitDocumentTag(string handlerName)
     {
@@ -153,8 +170,8 @@ public class XmlFunctionCaller(ILogger<XmlFunctionCaller> logger) : InteractiveM
         executor = new XmlStreamExecutor(
             parser,
             handlerTable,
-            ["，", "。", "！", "？", "......", "~", "…"],
-            minBreakingLength: 9
+            Configuration!.Separators.ToArray(),
+            minBreakingLength: Configuration.MinBreakingLength
         );
         parser.Error += OnError;
         executor.Error += OnError;

@@ -384,12 +384,14 @@
         base.OnInitialized();
 
         messages = ChatMessageService.GetMessages(CharacterName);
-        ChatMessageService.OnMessageChanged += OnMessageChanged;
-        ChatMessageService.OnUserMessageSent += OnUserMessageSent;
-        ChatMessageService.OnChatException += OnChatException;
+        ChatMessageService.MessageChanged += OnMessageChanged;
+        ChatMessageService.UserMessageSent += OnUserMessageSent;
+        ChatMessageService.ChatExceptionThrew += OnChatExceptionThrew;
+        ChatMessageService.ChatbotMapUpdated += OnChatbotMapUpdated;
 
         _ = UpdateStatusLoop();
     }
+
     protected override void OnParametersSet()
     {
         if (lastCharacterName != CharacterName)
@@ -419,9 +421,9 @@
         if (!string.IsNullOrEmpty(CharacterName))
             ChatMessageService.SetDraft(CharacterName, inputText);
 
-        ChatMessageService.OnMessageChanged -= OnMessageChanged;
-        ChatMessageService.OnUserMessageSent -= OnUserMessageSent;
-        ChatMessageService.OnChatException -= OnChatException;
+        ChatMessageService.MessageChanged -= OnMessageChanged;
+        ChatMessageService.UserMessageSent -= OnUserMessageSent;
+        ChatMessageService.ChatExceptionThrew -= OnChatExceptionThrew;
     }
 
     async Task UpdateStatusLoop()
@@ -474,13 +476,17 @@
         if (name == CharacterName)
             InvokeAsync(StateHasChanged);
     }
-    void OnChatException(string name, Exception exception)
+    void OnChatExceptionThrew(string name, Exception exception)
     {
         if (name == CharacterName)
         {
             chatException = exception;
             InvokeAsync(StateHasChanged);
         }
+    }
+    void OnChatbotMapUpdated()
+    {
+        InvokeAsync(StateHasChanged);
     }
 
     void OnClear()

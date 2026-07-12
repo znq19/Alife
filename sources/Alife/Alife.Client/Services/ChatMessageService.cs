@@ -22,9 +22,10 @@ public class ChatMessage
 /// </summary>
 public class ChatMessageService
 {
-    public event Action<string>? OnMessageChanged;
-    public event Action<string>? OnUserMessageSent;
-    public event Action<string, Exception>? OnChatException;
+    public event Action? ChatbotMapUpdated;
+    public event Action<string>? MessageChanged;
+    public event Action<string>? UserMessageSent;
+    public event Action<string, Exception>? ChatExceptionThrew;
 
     public string MessageTag
     {
@@ -109,6 +110,7 @@ public class ChatMessageService
         string name = activity.Character.Name;
         List<ChatMessage> messages = GetMessages(name);
         chatbotMap.Add(name, activity.ChatBot);
+        ChatbotMapUpdated?.Invoke();
         activity.ChatBot.ChatSent += message => {
             lock (messages)
             {
@@ -117,15 +119,15 @@ public class ChatMessageService
                 TrimMessages(name);
             }
 
-            OnMessageChanged?.Invoke(name);
-            OnUserMessageSent?.Invoke(name);
+            MessageChanged?.Invoke(name);
+            UserMessageSent?.Invoke(name);
         };
         activity.ChatBot.ChatReceived += (obj) => {
             ChatMessage? aiMessage = messages.LastOrDefault(m => m is { IsUser: false, IsInputting: true });
             if (aiMessage != null)
             {
                 aiMessage.Content += obj;
-                OnMessageChanged?.Invoke(name);
+                MessageChanged?.Invoke(name);
             }
         };
         activity.ChatBot.ReasoningReceived += (obj) => {
@@ -133,7 +135,7 @@ public class ChatMessageService
             if (aiMessage != null)
             {
                 aiMessage.Reasoning += obj;
-                OnMessageChanged?.Invoke(name);
+                MessageChanged?.Invoke(name);
             }
         };
         activity.ChatBot.ChatOver += () => {
@@ -141,18 +143,20 @@ public class ChatMessageService
             if (aiMessage != null)
             {
                 aiMessage.IsInputting = false;
-                OnMessageChanged?.Invoke(name);
+                MessageChanged?.Invoke(name);
             }
         };
-        activity.ChatBot.ChatExceptionThrow += exception => OnChatException?.Invoke(name, exception);
+        activity.ChatBot.ChatExceptionThrow += exception => ChatExceptionThrew?.Invoke(name, exception);
     }
     void OnActivationFailed(Character arg1, Exception arg2)
     {
         chatbotMap.Remove(arg1.Name);
+        ChatbotMapUpdated?.Invoke();
     }
     void OnActivityDestroyed(ChatActivity activity)
     {
         string name = activity.Character.Name;
         chatbotMap.Remove(name);
+        ChatbotMapUpdated?.Invoke();
     }
 }

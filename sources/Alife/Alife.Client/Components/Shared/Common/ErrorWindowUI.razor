@@ -60,7 +60,11 @@
             var finalException = Value.InnerException;
             while (finalException?.InnerException != null)
                 finalException = finalException.InnerException;
-            innerMessage = finalException?.Message ?? "";
+            if (finalException != null)
+            {
+                innerMessage = finalException.Message;
+                stackTrace = finalException.StackTrace ?? stackTrace;
+            }
         }
     }
 }

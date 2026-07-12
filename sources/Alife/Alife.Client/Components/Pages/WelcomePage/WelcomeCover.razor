@@ -1,0 +1,143 @@
+<div class="step-content">
+    <div class="cover-logo">
+        <Icon Type="@IconType.Outline.Rocket" Style="font-size:32px;"/>
+    </div>
+    <h2 class="cover-title">欢迎来到 Alife！</h2>
+
+    <div class="cover-body">
+        <p>
+            Alife是一款主打桌宠陪伴方向的AIAgent，目的是为了创造或逼近一个真实赛博生命的效果，它不是功能特化，不是角色扮演，而是一切为了AI的生命而搭建！
+        </p>
+        <p>
+            正因如此，它是个具有强烈个人风格的AI Agent。相比市面上的主流陪伴向AI产品，它在功能体验上有很大的不同：
+        </p>
+        <ul class="feature-list">
+            <li>
+                <div class="feature-name">极低词元开销</div>
+                <div class="feature-desc">人工高度优化的提示词、专门设计过的上下文和注入系统，非常省钱。</div>
+            </li>
+            <li>
+                <div class="feature-name">高度信息透明</div>
+                <div class="feature-desc">明文存储数据，完全暴露上下文和AI执行过程，支持实时源码级功能自定义。</div>
+            </li>
+            <li>
+                <div class="feature-name">基础功能齐全</div>
+                <div class="feature-desc">自主玩耍陪伴、多模态能力、远程通讯、设备网页操作等，一样不少。</div>
+            </li>
+            <li>
+                <div class="feature-name">深度自由扩展</div>
+                <div class="feature-desc">插件扩展性极强，官方功能全插件化、自由开关、配有在线插件市场。</div>
+            </li>
+            <li>
+                <div class="feature-name">永久唯一会话</div>
+                <div class="feature-desc">无论何时，对话工作都是同一个AI，不会割裂，无需初始人设，可完全靠成长形成。</div>
+            </li>
+        </ul>
+        <p class="cover-hint">
+            正式开始Alife前，你需要配置一些环境内容，但你不用担心，只要一路点"下一步"即可。
+        </p>
+    </div>
+
+    <div class="step-nav">
+        <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" OnClick="@OnNext">
+            开始教程
+            <Icon Type="@IconType.Outline.ArrowRight"/>
+        </Button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNextStep { get; set; }
+
+    async Task OnNext() { await OnNextStep.InvokeAsync(); }
+}
+
+<style>
+    .cover-logo {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: rgba(24,144,255,.08);
+        color: #1890ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        animation: rocketFloat 3s ease-in-out infinite;
+    }
+
+    @@keyframes rocketFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+    }
+
+    .cover-title {
+        margin: 0 0 16px;
+        font-size: 22px;
+        font-weight: 700;
+        color: #1a1a1a;
+        text-align: center;
+    }
+
+    .cover-body {
+        flex: 1;
+    }
+
+    .cover-body p {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: rgba(0,0,0,.65);
+        line-height: 1.8;
+    }
+
+    .feature-list {
+        margin: 4px 0 12px;
+        padding-left: 0;
+        list-style: none;
+    }
+
+    .feature-list li {
+        position: relative;
+        padding: 6px 0 6px 16px;
+    }
+
+    .feature-list li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 13px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #1890ff;
+    }
+
+    .feature-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: #333;
+        line-height: 1.7;
+    }
+
+    .feature-desc {
+        font-size: 12px;
+        color: rgba(0,0,0,.5);
+        line-height: 1.7;
+    }
+
+    .cover-hint {
+        margin-top: 12px !important;
+        padding: 10px 14px;
+        background: rgba(24,144,255,.04);
+        border-radius: 8px;
+        color: rgba(0,0,0,.45) !important;
+        font-size: 12px !important;
+    }
+
+    .step-nav {
+        display: flex;
+        justify-content: center;
+        margin-top: auto;
+        padding-top: 16px;
+    }
+</style>

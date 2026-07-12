@@ -8,27 +8,25 @@ namespace Alife.Function.Browser;
 
 public class NavigateResult
 {
-    public bool Success { get; set; }
-    public int StatusCode { get; set; }
+    public bool Success { get; init; }
+    public int StatusCode { get; init; }
 }
 
-public class BrowserEngine : IDisposable
+public class BrowserEngine : IAsyncDisposable
 {
     public async Task WaitToLoadedAsync(TimeSpan timeout)
     {
         using var cts = new CancellationTokenSource(timeout);
-        while (!worker.IsLoaded)
+        while (!worker.IsLaunched)
         {
             await Task.Delay(100, cts.Token);
         }
     }
 
-    /// <summary>
-    /// 跳转到指定页面
-    /// </summary>
-    public Task<NavigateResult> NavigateAsync(string url)
+    public async Task<NavigateResult> OpenWebsiteAsync(string url)
     {
-        return worker.AddFormTask(async webView => {
+        await worker.ClearPopupWindows();//跳转操作总是使用主窗口
+        return await worker.ExecuteTaskAsync(async webView => {
             var tcs = new TaskCompletionSource<NavigateResult>();
             webView.CoreWebView2.NavigationCompleted += OnCompleted;
             webView.CoreWebView2.Navigate(url);
@@ -45,8 +43,7 @@ public class BrowserEngine : IDisposable
             }
         });
     }
-
-    public async Task<string> ObserveAsync(int page, int maxLength = 700)
+    public async Task<string> ReadWebsiteAsync(int page, int maxLength = 700)
     {
         //等待页面稳定
         while (worker.IsNavigating)
@@ -64,10 +61,19 @@ public class BrowserEngine : IDisposable
                               function canClick(el) {
                                   if (el === document.body) return false;
                                   if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.onclick) return true;
+                                  if (el.nodeType === Node.ELEMENT_NODE) {
+                                      const role = el.getAttribute('role');
+                                      if (role === 'link' || role === 'button') return true;
+                                      if (el.hasAttribute('tabindex')) return true;
+                                  }
                               }
 
                               function canEdit(el) {
                                   if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+                                  if (el.nodeType === Node.ELEMENT_NODE) {
+                                      const role = el.getAttribute('role');
+                                      if (role === 'textbox' || role === 'searchbox' || role === 'combobox') return true;
+                                  }
                               }
 
                               function getDescription(el) {
@@ -164,29 +170,21 @@ public class BrowserEngine : IDisposable
                           })();
                           """;
 
-        return await ExecuteScriptAsync(jsCode);
+        return await RunWebsiteJsAsync(jsCode);
     }
-
-    /// <summary>
-    /// 查询指定data-alife-id元素
-    /// </summary>
-    public Task<string> CheckElementAsync(int id)
+    public Task<string> GetElementInfoAsync(int id)
     {
         string jsCode = $$"""
-                           (() => {
-                               const el = document.querySelector('[data-alife-id="{{id}}"]');
-                               return el ? el.outerHTML : '[元素不存在]';
-                           })();
-                           """;
-        return ExecuteScriptAsync(jsCode);
+                          (() => {
+                              const el = document.querySelector('[data-alife-id="{{id}}"]');
+                              return el ? el.outerHTML : '[元素不存在]';
+                          })();
+                          """;
+        return RunWebsiteJsAsync(jsCode);
     }
-
-    /// <summary>
-    /// 执行JavaScript并易读的结果
-    /// </summary>
-    public Task<string> ExecuteScriptAsync(string code)
+    public Task<string> RunWebsiteJsAsync(string code)
     {
-        return worker.AddFormTask(async webView => {
+        return worker.ExecuteTaskAsync(async webView => {
             string wrapperScript =
                 $$$"""
                    (function() {
@@ -247,20 +245,10 @@ public class BrowserEngine : IDisposable
         });
     }
 
+    readonly BrowserWorker worker = new();
 
-
-
-    /// <summary>
-    /// 是否有弹出窗口
-    /// </summary>
-    public bool HasActivePopup => worker.HasActivePopup;
-
-    /// <summary>
-    /// 关闭最顶层的弹出窗口
-    /// </summary>
-    public Task<bool> CloseTopPopupAsync() => worker.CloseTopPopupAsync();
-
-    readonly WebViewWorker worker = new();
-
-    public void Dispose() => worker.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        await worker.DisposeAsync();
+    }
 }

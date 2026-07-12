@@ -50,7 +50,6 @@ public class XmlHandlerTable
             }
         }
     }
-
     public void Unregister(XmlHandler handler)
     {
         xmlHandlers.Remove(handler);
@@ -59,6 +58,23 @@ public class XmlHandlerTable
             if (xmlFunctions.TryGetValue(xmlHandlerFunction.Name, out SortedSet<XmlFunction>? xmlFunctionGroup))
                 xmlFunctionGroup.Remove(xmlHandlerFunction);
         }
+    }
+
+    /// <summary>
+    /// 取消被禁用的函数
+    /// </summary>
+    /// <param name="function"></param>
+    public void EnableFunction(XmlFunction function)
+    {
+        functions.Remove(function);
+    }
+    /// <summary>
+    /// 被禁用的函数将被跳过执行
+    /// </summary>
+    /// <param name="function"></param>
+    public void DisableFunction(XmlFunction function)
+    {
+        functions.Add(function);
     }
 
     public async Task Handle(string name, XmlContext tagContext, CancellationToken cancellationToken = default)
@@ -72,11 +88,16 @@ public class XmlHandlerTable
             throw new Exception($"环境中没有<{name}/>，请停止使用");
         }
         foreach (XmlFunction xmlFunction in xmlFunctionGroup)
+        {
+            if (functions.Contains(xmlFunction))
+                continue;
             await xmlFunction.Invoker(tagContext, cancellationToken);
+        }
     }
 
     readonly List<XmlHandler> xmlHandlers = new();
     readonly Dictionary<string, SortedSet<XmlFunction>> xmlFunctions = new();
     readonly Dictionary<string, List<XmlHandler>> functionToHandler = new();
+    readonly HashSet<XmlFunction> functions = new();
     readonly HashSet<string> xmlForms = new();
 }

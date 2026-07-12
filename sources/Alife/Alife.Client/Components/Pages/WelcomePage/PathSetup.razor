@@ -101,6 +101,10 @@
     </div>
 
     <div class="step-actions">
+        <Button Size="@ButtonSize.Large" OnClick="@OnPrev">
+            <Icon Type="@IconType.Outline.ArrowLeft"/>
+            上一步
+        </Button>
         <Button Type="@ButtonType.Primary" Size="@ButtonSize.Large" Disabled="@hasNonAsciiPath" OnClick="@OnNext">
             下一步
             <Icon Type="@IconType.Outline.ArrowRight"/>
@@ -109,6 +113,7 @@
 </div>
 
 @code {
+    [Parameter] public EventCallback OnPrevStep { get; set; }
     [Parameter] public EventCallback OnNextStep { get; set; }
 
     string runtimePath = "";
@@ -212,10 +217,8 @@
         }
     }
 
-    async Task OnNext()
-    {
-        await OnNextStep.InvokeAsync();
-    }
+    async Task OnPrev() { await OnPrevStep.InvokeAsync(); }
+    async Task OnNext() { await OnNextStep.InvokeAsync(); }
 }
 
 <style>
@@ -327,8 +330,9 @@
 
     .step-actions {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         margin-top: auto;
         padding-top: 16px;
+        gap: 12px;
     }
 </style>

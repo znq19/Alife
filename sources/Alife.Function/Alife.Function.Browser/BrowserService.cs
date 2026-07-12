@@ -16,26 +16,22 @@ public class BrowserConfig
 [Module("浏览器工具", "让AI可以像人一样操控真实的浏览器，从而能够执行各种网页任务的同时，避免反爬。",
     defaultCategory: "Alife 官方/实用工具")]
 public class BrowserService(XmlFunctionCaller functionService)
-    : InteractiveModule<BrowserService>, IConfigurable<BrowserConfig>, IDisposable
+    : InteractiveModule<BrowserService>, IConfigurable<BrowserConfig>, IAsyncDisposable
 {
     public BrowserConfig? Configuration { get; set; }
 
     [XmlFunction(FunctionMode.OneShot)]
     public async Task OpenWebsite(string url)
     {
-        if (browser.HasActivePopup)
-        {
-            Poke($"当前处于弹出窗口中，无法直接导航。请先调用{nameof(ClosePopupWindow)}关闭弹出窗口");
-            return;
-        }
-        await browser.NavigateAsync(url);
+        await browser.OpenWebsiteAsync(url);
         Poke("已打开网站");
     }
+
     [XmlFunction(FunctionMode.OneShot)]
     [Description($"返回当前打开网页的文本。其中可交互元素会以[{{交互类型}}{{id}}:{{描述}}]的格式返回。交互类型中：t=文本框，b=按钮；id则可在{nameof(GetElementInfo)}中用来查看对应元素的原始html信息")]
     public async Task ReadWebsite([Description("从1开始")] int page)
     {
-        string result = await browser.ObserveAsync(page, Configuration!.PageCharLimit);
+        string result = await browser.ReadWebsiteAsync(page, Configuration!.PageCharLimit);
         Poke($"页面内容：{result}\n提示：翻页寻找可疑的交互元素，然后使用{nameof(GetElementInfo)}查看");
     }
 
@@ -43,7 +39,7 @@ public class BrowserService(XmlFunctionCaller functionService)
     [Description($"查看{nameof(ReadWebsite)}中返回的可交互元素的原始完整html信息")]
     public async Task GetElementInfo(int id)
     {
-        string result = await browser.CheckElementAsync(id);
+        string result = await browser.GetElementInfoAsync(id);
         Poke("元素内容：" + result);
     }
 
@@ -53,16 +49,9 @@ public class BrowserService(XmlFunctionCaller functionService)
         if (context.CallMode == CallMode.Closing)
         {
             string code = context.FullContent.Trim();
-            string result = await browser.ExecuteScriptAsync(code);
+            string result = await browser.RunWebsiteJsAsync(code);
             Poke($"JS结果：{result}\n注意：执行成功不代表符合预期，请验证执行结果");
         }
-    }
-
-    [XmlFunction(FunctionMode.OneShot)]
-    public async Task ClosePopupWindow()
-    {
-        bool closed = await browser.CloseTopPopupAsync();
-        Poke(closed ? "已关闭弹出窗口" : "当前没有弹出窗口");
     }
 
     readonly BrowserEngine browser = new();
@@ -94,9 +83,8 @@ public class BrowserService(XmlFunctionCaller functionService)
         functionService.RegisterHandler(xmlHandler, DocumentMode.Implicit);
         functionService.AddPlainAreas(nameof(RunWebsiteJs));
     }
-
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        browser.Dispose();
+        await browser.DisposeAsync();
     }
 }

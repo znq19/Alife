@@ -28,6 +28,17 @@
         </Text>
     </div>
 
+    <Title Level="5" Style="margin-bottom: 12px;">系统设置</Title>
+    <div style="margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <Text Strong>开机自启</Text>
+            <Switch Checked="_autoStart" OnChange="OnAutoStartChanged"/>
+        </div>
+        <Text Type="@TextElementType.Secondary" Style="font-size: 12px; margin-top: 4px; display: block;">
+            开启后，系统启动时自动运行 Alife。
+        </Text>
+    </div>
+
     <Divider Style="margin: 16px 0;"/>
 
     <Title Level="5" Style="margin-bottom: 12px;">版本信息</Title>
@@ -86,6 +97,7 @@
     bool _isChecking;
     bool _isDownloading;
     int _downloadProgress;
+    bool _autoStart;
 
     string storageFolderPath = Platform.AlifePath.StorageFolderPath;
     string runtimeFolderPath = Platform.AlifePath.RuntimeFolderPath;
@@ -93,6 +105,42 @@
     protected override void OnInitialized()
     {
         _currentVersion = UpdateService.GetCurrentVersion();
+        _autoStart = ReadAutoStart();
+    }
+
+    void OnAutoStartChanged(bool value)
+    {
+        try
+        {
+            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
+            if (value)
+                Platform.AlifePlatform.Command("schtasks", $"/create /tn \"Alife\" /tr \"\\\"{exePath}\\\"\" /sc onlogon /rl highest /f");
+            else
+                Platform.AlifePlatform.Command("schtasks", "/delete /tn \"Alife\" /f");
+
+            _autoStart = value;
+            _ = NotificationService.Success(new NotificationConfig
+            {
+                Message = value ? "已开启开机自启" : "已关闭开机自启"
+            });
+        }
+        catch (Exception ex)
+        {
+            _ = NotificationService.Error(new NotificationConfig
+            {
+                Message = $"设置开机自启失败: {ex.Message}"
+            });
+        }
+    }
+
+    static bool ReadAutoStart()
+    {
+        try
+        {
+            string result = Platform.AlifePlatform.Command("schtasks", "/query /tn \"Alife\" /fo csv /nh");
+            return result.Contains("Alife");
+        }
+        catch { return false; }
     }
 
     async Task CheckForUpdate()

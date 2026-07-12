@@ -51,12 +51,11 @@
                         </div>
                     }
                 </div>
-                <Switch @bind-Value="@enabledMirrors[mirror.Id]"
-                        OnChange="@(_ => ApplyMirrors())"/>
+                <Switch @bind-Value="@enabledMirrors[mirror.Id]"/>
             </div>
         }
     </div>
-    
+
     <Alert ShowIcon="true" Type="AlertType.Warning" Style="margin-top: 12px;"
            Message="必须配置镜像或自备工具，如果失效，后续环境安装很可能失败"></Alert>
 
@@ -136,38 +135,38 @@
     [Parameter] public EventCallback OnPrevStep { get; set; }
     [Parameter] public EventCallback OnNextStep { get; set; }
 
-    Dictionary<string, bool> enabledMirrors = new();
+    readonly Dictionary<string, bool> enabledMirrors = new();
 
     protected override void OnInitialized()
     {
         bool anyConfigured = AvailableMirrors.Any(IsMirrorConfigured);
-
-        foreach (var mirror in AvailableMirrors)
+        if (anyConfigured)
         {
-            enabledMirrors[mirror.Id] = anyConfigured
-                ? IsMirrorConfigured(mirror)
-                : mirror.Recommended;
+            foreach (var mirror in AvailableMirrors)
+                enabledMirrors[mirror.Id] = IsMirrorConfigured(mirror);
         }
-
-        if (!anyConfigured)
-            ApplyMirrors();
+        else
+        {
+            foreach (var mirror in AvailableMirrors)
+                enabledMirrors[mirror.Id] = true;
+        }
+        
+        static bool IsMirrorConfigured(MirrorItem mirror)
+        {
+            foreach (var kv in mirror.UrlMappings)
+            {
+                if (!MirrorProvider.MirrorUrlMap.TryGetValue(kv.Key, out var v) || v != kv.Value)
+                    return false;
+            }
+            foreach (var kv in mirror.EnvironmentVariables)
+            {
+                if (!MirrorProvider.MirrorEnvironmentVariables.TryGetValue(kv.Key, out var v) || v != kv.Value)
+                    return false;
+            }
+            return true;
+        }
     }
-
-    static bool IsMirrorConfigured(MirrorItem mirror)
-    {
-        foreach (var kv in mirror.UrlMappings)
-        {
-            if (!MirrorProvider.MirrorUrlMap.TryGetValue(kv.Key, out var v) || v != kv.Value)
-                return false;
-        }
-        foreach (var kv in mirror.EnvironmentVariables)
-        {
-            if (!MirrorProvider.MirrorEnvironmentVariables.TryGetValue(kv.Key, out var v) || v != kv.Value)
-                return false;
-        }
-        return true;
-    }
-
+    
     void ApplyMirrors()
     {
         var urlMap = new Dictionary<string, string>();
@@ -186,10 +185,15 @@
 
         MirrorProvider.SetMirrorUrlMap(urlMap);
         MirrorProvider.SetMirrorEnvironmentVariables(envVars);
+        MirrorProvider.SetupEnvironment();
     }
 
     async Task OnPrev() { await OnPrevStep.InvokeAsync(); }
-    async Task OnNext() { await OnNextStep.InvokeAsync(); }
+    async Task OnNext()
+    {
+        ApplyMirrors();
+        await OnNextStep.InvokeAsync();
+    }
 }
 
 <style>
