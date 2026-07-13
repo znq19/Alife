@@ -32,7 +32,7 @@ public class MainWindow : Form
         // Form设置
         Text = "Alife";
         Icon = icon;
-        ClientSize = new Size(1400, 900);
+        ClientSize = new Size(1500, 950);
         StartPosition = FormStartPosition.CenterScreen;
 
         ResumeLayout(false);

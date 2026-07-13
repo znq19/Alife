@@ -1,4 +1,3 @@
-using System.IO;
 using Alife.Framework;
 using Alife.Platform;
 using Alife.PluginMarket;
@@ -21,7 +20,7 @@ public class PluginMarketService
     Alife.PluginMarket.PluginMarket? pluginMarket;
 
     const string ConfigKey = "PluginMarketConfig";
-    static readonly PluginMarketConfig defaultConfig = new();
+    readonly PluginMarketConfig defaultConfig = new();
 
     public PluginMarketService(ModuleSystem moduleSystem, StorageSystem storageSystem, ILogger<PluginMarketService> logger)
     {
@@ -48,6 +47,7 @@ public class PluginMarketService
         pluginMarket.RefreshLocalPlugins();
         UpdateModuleDirectories();
 
+        //自动编译插件
         try
         {
             moduleSystem.ReloadModules();

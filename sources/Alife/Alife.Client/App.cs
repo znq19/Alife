@@ -55,33 +55,25 @@ public class App
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
 
         //业务功能注册
-        {
-            ServiceCollection services = new();
-            services.AddWindowsFormsBlazorWebView();
-            services.AddBlazorWebViewDeveloperTools();
-            services.AddAntDesign();
-            services.AddLogging(builder => {
-                builder.AddConsole();
-                builder.SetMinimumLevel(LogLevel.Information);
-            });
-            services.AddSingleton<StorageSystem>();
-            services.AddSingleton<ConfigurationSystem>();
-            services.AddSingleton<ModuleSystem>();
-            services.AddSingleton<CharacterSystem>();
-            services.AddSingleton<ChatActivitySystem>();
-            services.AddSingleton<ChatMessageService>();
-            services.AddSingleton<PluginMarketService>();
-            services.AddSingleton<UpdateService>();
-            services.AddSingleton<EnvironmentInstaller>();
-            services.AddSingleton<MainWindow>();
-            ServiceProvider = services.BuildServiceProvider();
-        }
-
-        //业务环境初始化
-        EnvironmentInstaller.SetupEnvironmentPaths();
-        MirrorProvider.SetupEnvironment();
-        ServiceProvider.GetRequiredService<ChatMessageService>();
-        ServiceProvider.GetRequiredService<PluginMarketService>();
+        ServiceCollection services = new();
+        services.AddWindowsFormsBlazorWebView();
+        services.AddBlazorWebViewDeveloperTools();
+        services.AddAntDesign();
+        services.AddLogging(builder => {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+        services.AddSingleton<StorageSystem>();
+        services.AddSingleton<ConfigurationSystem>();
+        services.AddSingleton<ModuleSystem>();
+        services.AddSingleton<CharacterSystem>();
+        services.AddSingleton<ChatActivitySystem>();
+        services.AddSingleton<ChatMessageService>();
+        services.AddSingleton<PluginMarketService>();
+        services.AddSingleton<UpdateService>();
+        services.AddSingleton<EnvironmentInstaller>();
+        services.AddSingleton<MainWindow>();
+        ServiceProvider = services.BuildServiceProvider();
 
         //前端配置并启动
         Application.ThreadException += ThreadException;

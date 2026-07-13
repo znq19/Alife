@@ -1,5 +1,9 @@
 @inherits LayoutComponentBase
 @using Alife.Components.Overlay
+@using Alife.Platform
+@using Microsoft.Extensions.DependencyInjection
+
+@using Alife.Components.Services
 @implements IDisposable
 @inject CharacterSystem CharacterSystem
 @inject NavigationManager Navigation
@@ -16,7 +20,7 @@
 
     .global-sidebar {
         background: #001529 !important;
-        border-right: 1px solid rgba(255,255,255,0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -56,6 +60,13 @@
 
     protected override void OnInitialized()
     {
+        //业务环境初始化
+        EnvironmentInstaller.SetupEnvironmentPaths();
+        MirrorProvider.SetupEnvironment();
+        App.ServiceProvider.GetRequiredService<ChatMessageService>();
+        App.ServiceProvider.GetRequiredService<PluginMarketService>();
+
+        //定向到开始页面
         TryRedirect();
         Navigation.LocationChanged += OnLocationChanged;
     }

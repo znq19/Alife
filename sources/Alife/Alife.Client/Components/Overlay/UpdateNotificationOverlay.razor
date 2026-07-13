@@ -9,13 +9,8 @@
     <PopupNotification Title="@($"发现新版本 v{updateInfo.Version}")"
                        Icon="@IconType.Outline.Bell"
                        ProgressVisible="@isDownloading"
-                       ProgressValue="@downloadProgress">
-        <Body>
-        @if (!string.IsNullOrEmpty(updateInfo.ReleaseNotes))
-        {
-            @updateInfo.ReleaseNotes
-        }
-        </Body>
+                       ProgressValue="@downloadProgress"
+                       BodyText="@updateInfo.ReleaseNotes">
         <Actions>
             <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="@StartUpdate">
                 立即升级
@@ -55,9 +50,9 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
 
     protected override async Task OnInitializedAsync()
     {
-        updateInfo = await UpdateService.CheckForUpdateAsync();
-        if (updateInfo != null)
+        if (UpdateService.HasUpdate && UpdateService.LatestUpdate != null)
         {
+            updateInfo = UpdateService.LatestUpdate;
             showAppUpdate = true;
             await InvokeAsync(StateHasChanged);
             return;
@@ -94,7 +89,6 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
     {
         showAppUpdate = false;
         await InvokeAsync(StateHasChanged);
-        await CheckPluginUpdates();
     }
 
     void OnGoToPluginMarket()

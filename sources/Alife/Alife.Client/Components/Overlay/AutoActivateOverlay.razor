@@ -1,25 +1,96 @@
 @inject CharacterSystem CharacterSystem
 @inject ChatActivitySystem ChatActivitySystem
 
+<Modal Title="角色自动启动"
+       Visible="@showCountdown"
+       OnCancel="@CancelAutoActivate"
+       OnOk="@ActivateNow"
+       OkText="@("立即启动")"
+       CancelText="@("取消")"
+       MaskClosable="false"
+       Closable="false"
+       Width="360">
+    <div style="margin-bottom: 8px;">
+        即将启动以下角色：
+    </div>
+    @foreach (var c in charactersToActivate)
+    {
+        <div style="padding: 4px 0; color: rgba(0,0,0,0.85);">- @c.Name</div>
+    }
+    <div style="margin-top: 16px; text-align: center;">
+        <Progress Type="ProgressType.Circle" Percent="@countdownPercent" Width="80" Format="@((_) => countdown.ToString())" />
+        <div style="color: rgba(0,0,0,0.45); font-size: 12px; margin-top: 8px;">
+            @countdown 秒后自动启动
+        </div>
+    </div>
+</Modal>
+
 @code {
+    bool showCountdown;
+    int countdown = 5;
+    double countdownPercent => (5 - countdown) * 20.0;
+    List<Character> charactersToActivate = [];
+    CancellationTokenSource? cts;
+
     protected override void OnInitialized()
     {
-        Task.Run(async () => {
-            var toActivate = CharacterSystem.GetAllCharacters()
-                .Where(c => c.AutoActivate && ChatActivitySystem.GetChatActivity(c) == null)
-                .ToList();
+        charactersToActivate = CharacterSystem.GetAllCharacters()
+            .Where(c => c.AutoActivate && ChatActivitySystem.GetChatActivity(c) == null)
+            .ToList();
 
-            foreach (var character in toActivate)
+        if (charactersToActivate.Count > 0)
+        {
+            showCountdown = true;
+            StartCountdown();
+        }
+    }
+
+    async void StartCountdown()
+    {
+        cts = new CancellationTokenSource();
+        try
+        {
+            for (int i = 5; i > 0; i--)
             {
-                try
-                {
-                    await ChatActivitySystem.Activate(character);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
+                if (cts.Token.IsCancellationRequested) return;
+                countdown = i;
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(1000, cts.Token);
             }
-        });
+            showCountdown = false;
+            await InvokeAsync(StateHasChanged);
+            await ActivateAll();
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    void CancelAutoActivate()
+    {
+        cts?.Cancel();
+        showCountdown = false;
+    }
+
+    async Task ActivateNow()
+    {
+        cts?.Cancel();
+        showCountdown = false;
+        await InvokeAsync(StateHasChanged);
+        await ActivateAll();
+    }
+
+    async Task ActivateAll()
+    {
+        foreach (var character in charactersToActivate)
+        {
+            try
+            {
+                await ChatActivitySystem.Activate(character);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+        }
+        charactersToActivate.Clear();
     }
 }

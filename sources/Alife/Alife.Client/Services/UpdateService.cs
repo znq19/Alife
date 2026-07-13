@@ -12,10 +12,18 @@ public class UpdateService
 {
     const string RawGitHubApiUrl = "https://api.github.com/repos/BDFFZI/Alife/releases/latest";
 
-    public string GetCurrentVersion()
+    public string LocalVersion { get; }
+    public string? RemoteVersion { get; private set; }
+    public bool HasUpdate { get; private set; }
+    public UpdateInfo? LatestUpdate { get; private set; }
+
+    public UpdateService()
     {
-        return Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
+        LocalVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
+        Task.Run(CheckForUpdateAsync).Wait();
     }
+
+    public string GetCurrentVersion() => LocalVersion;
 
     public async Task<UpdateInfo?> CheckForUpdateAsync()
     {
@@ -28,16 +36,23 @@ public class UpdateService
             if (string.IsNullOrEmpty(tagName))
                 return null;
 
-            string latestVersion = tagName.TrimStart('v');
-            string currentVersion = GetCurrentVersion();
+            RemoteVersion = tagName.TrimStart('v');
 
-            if (new Version(latestVersion) > new Version(currentVersion))
+            if (new Version(RemoteVersion) > new Version(LocalVersion))
             {
+                HasUpdate = true;
                 string? body = json["body"]?.ToString();
                 string? downloadUrl = json["assets"]?[0]?["browser_download_url"]?.ToString();
 
                 if (string.IsNullOrEmpty(downloadUrl) == false)
-                    return new UpdateInfo(latestVersion, body, downloadUrl);
+                {
+                    LatestUpdate = new UpdateInfo(RemoteVersion, body, downloadUrl);
+                    return LatestUpdate;
+                }
+            }
+            else
+            {
+                HasUpdate = false;
             }
         }
         catch
