@@ -1,4 +1,5 @@
 @using Microsoft.SemanticKernel
+@implements IDisposable
 
 <div style="padding: 24px; height: 100%; overflow-y: auto;">
     <Flex Justify="FlexJustify.SpaceBetween" Align="FlexAlign.Center" Style="margin-bottom: 24px;">
@@ -25,7 +26,8 @@
                         <div
                             style="font-size: 13px; color: rgba(0,0,0,0.45); font-weight: 500; display: flex; align-items: center; justify-content: space-between;">
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="color: rgba(0,0,0,0.25); font-size: 12px; min-width: 32px;">#@context.Index</span>
+                                <span
+                                    style="color: rgba(0,0,0,0.25); font-size: 12px; min-width: 32px;">#@context.Index</span>
                                 <Tag Color="@(GetRoleColor(context.Item.Role.ToString()))"
                                      Style="margin: 0;">@context.Item.Role</Tag>
                                 @if (!string.IsNullOrWhiteSpace(context.Item.AuthorName))
@@ -33,10 +35,24 @@
                                     <span>@@@context.Item.AuthorName</span>
                                 }
                             </div>
-                            <Button Type="@ButtonType.Text" Danger Icon="@IconType.Outline.Delete"
-                                    Size="@ButtonSize.Small"
-                                    Disabled="@(Activity?.ChatBot.IsChatting ?? false)"
-                                    OnClick="@(() => DeleteMessage(context.Item))"/>
+                            <Space Size="@("small")">
+                                <SpaceItem>
+                                    <Button Type="@ButtonType.Text" Icon="@IconType.Outline.Edit"
+                                            Size="@ButtonSize.Small"
+                                            Disabled="@(Activity?.ChatBot.IsChatting ?? false)"
+                                            OnClick="@(() => StartEditMessage(context.Item))"/>
+                                </SpaceItem>
+                                <SpaceItem>
+                                    <Popconfirm Title="确定要删除这条消息吗？"
+                                                OnConfirm="@(() => DeleteMessage(context.Item))"
+                                                OkText="@("确定")"
+                                                CancelText="@("取消")">
+                                        <Button Type="@ButtonType.Text" Danger Icon="@IconType.Outline.Delete"
+                                                Size="@ButtonSize.Small"
+                                                Disabled="@(Activity?.ChatBot.IsChatting ?? false)"/>
+                                    </Popconfirm>
+                                </SpaceItem>
+                            </Space>
                         </div>
                         <Paragraph
                             Style="@($"margin: 0; white-space: pre-wrap; padding: 12px; border-radius: 4px; border: 1px solid #f0f0f0; {(IsKeyMemory(context.Item) ? "background: #fffbe6; border-color: #ffe58f;" : "background: #f9f9f9;")}")">
@@ -60,10 +76,48 @@
     }
 </div>
 
+<Modal Title="编辑消息"
+       @bind-Visible="editVisible"
+       OnOk="OnConfirmEdit"
+       OnCancel="@(() => editVisible = false)"
+       OkText="@("保存")"
+       CancelText="@("取消")">
+    <InputTextArea @bind-Value="editingContent" Rows="6" Style="width: 100%;"/>
+</Modal>
+
 @code {
     [Parameter] public ChatActivity? Activity { get; set; }
 
     string historyRoleFilter = "All";
+    bool editVisible;
+    string editingContent = "";
+    ChatMessageContent? editingMessage;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Activity?.ChatBot != null)
+        {
+            Activity.ChatBot.ChatRequesting -= UpdateState;
+            Activity.ChatBot.ChatRequesting += UpdateState;
+            Activity.ChatBot.ChatReleased -= UpdateState;
+            Activity.ChatBot.ChatReleased += UpdateState;
+        }
+    }
+
+    void UpdateState()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        if (Activity?.ChatBot != null)
+        {
+            Activity.ChatBot.ChatRequesting -= UpdateState;
+            Activity.ChatBot.ChatReleased -= UpdateState;
+        }
+    }
 
     IEnumerable<ChatMessageContent> GetFilteredHistory()
     {
@@ -96,6 +150,24 @@
         if (Activity == null || Activity.ChatBot.IsChatting) return;
         Activity.ChatBot.ChatHistory.Remove(content);
         StateHasChanged();
+    }
+
+    void StartEditMessage(ChatMessageContent content)
+    {
+        if (Activity == null || Activity.ChatBot.IsChatting) return;
+        editingMessage = content;
+        editingContent = content.Content ?? "";
+        editVisible = true;
+    }
+
+    void OnConfirmEdit()
+    {
+        if (editingMessage != null)
+        {
+            editingMessage.Content = editingContent;
+            editVisible = false;
+            StateHasChanged();
+        }
     }
 
 

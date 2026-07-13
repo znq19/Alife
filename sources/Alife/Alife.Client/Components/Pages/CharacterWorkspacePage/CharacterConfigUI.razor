@@ -95,7 +95,7 @@
     string GetModuleName(string fullName)
     {
         Type? type = ModuleSystem.GetModule(fullName);
-        if (type == null) return "[未知模块] " + fullName;
+        if (type == null) return "[无法识别的模块] " + fullName;
         ModuleAttribute? attr = type.GetCustomAttribute<ModuleAttribute>();
         return attr?.Name ?? type.Name;
     }

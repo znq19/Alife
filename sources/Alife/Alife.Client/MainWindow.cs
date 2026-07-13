@@ -32,7 +32,7 @@ public class MainWindow : Form
         // Form设置
         Text = "Alife";
         Icon = icon;
-        ClientSize = new Size(1200, 800);
+        ClientSize = new Size(1400, 900);
         StartPosition = FormStartPosition.CenterScreen;
 
         ResumeLayout(false);
@@ -61,19 +61,28 @@ public class MainWindow : Form
         trayIcon.Visible = true;
     }
 
-    Rectangle savedBounds;
+    Rectangle? savedBounds;
 
     void ShowWindow()
     {
         Show();
         ShowInTaskbar = true;
-        WindowState = FormWindowState.Normal;
-        Bounds = savedBounds;
+
+        if (savedBounds.HasValue)
+        {
+            WindowState = FormWindowState.Normal;
+            Bounds = savedBounds.Value;
+        }
+        else
+        {
+            WindowState = FormWindowState.Maximized;
+        }
+
         Activate();
     }
     void HideWindow()
     {
-        savedBounds = Bounds;
+        savedBounds = WindowState == FormWindowState.Normal ? Bounds : null;
         ShowInTaskbar = false;
         WindowState = FormWindowState.Minimized;
         Hide();
