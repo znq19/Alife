@@ -4,12 +4,42 @@
     <title>Alife</title>
     <meta charset="utf-8"/>
     <base href="/" />
+    <link rel="stylesheet" href="loading/loading.css">
     <style>
         .log-modal-top.ant-modal-wrap { z-index: 99999 !important; }
     </style>
 </head>
 <body>
-    <div id="app">Loading...</div>
+    <div id="app">
+        <!-- Alife Loading Screen -->
+        <div id="loadingScreen" class="loading-screen">
+            <div id="starsContainer" class="stars-container"></div>
+
+            <div class="glow-orb glow-orb--1"></div>
+            <div class="glow-orb glow-orb--2"></div>
+            <div class="glow-orb glow-orb--3"></div>
+
+            <div class="loading-logo-wrapper">
+                <img class="loading-logo" src="images/alife-icon.png" alt="Alife" />
+                <div class="loading-title">ALIFE</div>
+            </div>
+
+            <div class="loading-bar-container">
+                <div class="loading-bar">
+                    <div class="loading-bar-fill"></div>
+                </div>
+            </div>
+
+            <div class="loading-tip">正在进入赛博生命的世界...</div>
+
+            <div class="cloud-decoration">
+                <div class="cloud cloud--1"></div>
+                <div class="cloud cloud--2"></div>
+                <div class="cloud cloud--3"></div>
+            </div>
+        </div>
+    </div>
+    <script src="loading/loading.js"></script>
     <script src="_framework/blazor.webview.js"></script>
 </body>
 </html>
