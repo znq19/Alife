@@ -19,7 +19,7 @@ public class PluginMarketService
     readonly SemaphoreSlim installLock = new(1, 1);
     Alife.PluginMarket.PluginMarket? pluginMarket;
 
-    const string ConfigKey = "PluginMarketConfig";
+    const string ConfigKey = "Settings/PluginMarketConfig";
     readonly PluginMarketConfig defaultConfig = new();
 
     public PluginMarketService(ModuleSystem moduleSystem, StorageSystem storageSystem, ILogger<PluginMarketService> logger)

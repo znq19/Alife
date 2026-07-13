@@ -232,7 +232,7 @@ public class ModuleSystem
     readonly string moduleRoot = Path.Combine(AlifePath.StorageFolderPath, "Plugins");
 #endif
 
-    readonly string moduleSystemConfig = "ModuleCategory";
+    readonly string moduleSystemConfig = "Settings/ModuleCategory";
     readonly StorageSystem storageSystem;
     readonly Dictionary<string, Type> moduleTypes;
     readonly StringFolder moduleFolder;

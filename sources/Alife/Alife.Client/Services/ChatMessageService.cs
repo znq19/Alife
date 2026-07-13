@@ -96,7 +96,7 @@ public class ChatMessageService
     readonly Dictionary<string, List<ChatMessage>> messagesMap = new();
     readonly Dictionary<string, ChatBot> chatbotMap = new();
 
-    const string SettingsKey = "ChatSettings";
+    const string SettingsKey = "Settings/ChatSettings";
     readonly StorageSystem storage;
     readonly ChatSettings settings;
 

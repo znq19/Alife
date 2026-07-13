@@ -318,7 +318,7 @@
     {
         PluginMarketService.OnInstalled += OnPluginsChanged;
         sourceUrl = PluginMarketService.SourceUrl;
-        hideUpgradeAnimation = StorageSystem.GetObject("PluginMarketViewConfig", new PluginMarketViewConfig())?.HideUpgradeAnimation ?? false;
+        hideUpgradeAnimation = StorageSystem.GetObject("Settings/PluginMarketViewConfig", new PluginMarketViewConfig())?.HideUpgradeAnimation ?? false;
         RefreshLocal();
     }
 
@@ -698,9 +698,9 @@
 
     void OnHideAnimationChanged(bool checkedValue)
     {
-        var config = StorageSystem.GetObject("PluginMarketViewConfig", new PluginMarketViewConfig()) ?? new PluginMarketViewConfig();
+        var config = StorageSystem.GetObject("Settings/PluginMarketViewConfig", new PluginMarketViewConfig()) ?? new PluginMarketViewConfig();
         config.HideUpgradeAnimation = checkedValue;
-        StorageSystem.SetObject("PluginMarketViewConfig", config);
+        StorageSystem.SetObject("Settings/PluginMarketViewConfig", config);
     }
 
     void OpenContributePage()
