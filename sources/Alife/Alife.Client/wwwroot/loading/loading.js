@@ -37,11 +37,9 @@
         const screen = document.getElementById('loadingScreen');
         if (screen) {
             screen.classList.add('fade-out');
-            // 动画结束后移除 DOM
+            // 动画结束后隐藏（不删除DOM，避免与Blazor冲突）
             setTimeout(function () {
-                if (screen.parentNode) {
-                    screen.parentNode.removeChild(screen);
-                }
+                screen.style.display = 'none';
             }, 700);
         }
     }
