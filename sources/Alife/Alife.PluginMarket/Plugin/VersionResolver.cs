@@ -138,4 +138,15 @@ public class VersionResolver
         }
         return 0;
     }
+
+    public static int GetMajorVersion(string version)
+    {
+        string[] parts = version.Split('.');
+        return parts.Length > 0 && int.TryParse(parts[0], out int major) ? major : 0;
+    }
+
+    public static bool IsVersionCompatible(string pluginVersion, string clientVersion)
+    {
+        return GetMajorVersion(pluginVersion) <= GetMajorVersion(clientVersion);
+    }
 }

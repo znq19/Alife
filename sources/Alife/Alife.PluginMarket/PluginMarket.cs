@@ -50,6 +50,7 @@ public interface IPluginInstaller
 public class PluginMarket
 {
     public event Action? OnInstalled;
+    readonly string clientVersion;
 
     public IEnumerable<Plugin> GetAllPlugins()
     {
@@ -74,6 +75,7 @@ public class PluginMarket
             return false;
 
         string? latestVersion = plugin.Releases.Keys
+            .Where(v => VersionResolver.IsVersionCompatible(v, clientVersion))
             .OrderByDescending(v => v, Comparer<string>.Create(VersionResolver.CompareVersions))
             .FirstOrDefault();
 
@@ -83,8 +85,14 @@ public class PluginMarket
     public string? GetLatestVersion(Plugin plugin)
     {
         return plugin.Releases?.Keys
+            .Where(v => VersionResolver.IsVersionCompatible(v, clientVersion))
             .OrderByDescending(v => v, Comparer<string>.Create(VersionResolver.CompareVersions))
             .FirstOrDefault();
+    }
+
+    public bool IsVersionCompatible(string pluginVersion)
+    {
+        return VersionResolver.IsVersionCompatible(pluginVersion, clientVersion);
     }
 
     public async Task InstallPlugin(Plugin plugin, string version)
@@ -278,13 +286,14 @@ public class PluginMarket
     Dictionary<string, Plugin> allPlugins;
     Dictionary<string, string> hadPlugins;
 
-    public PluginMarket(IPluginProvider onlinePlugins, IPluginResolver localPlugins, IPluginInstaller pluginInstaller, Dictionary<string, IEnvironmentInstaller> environmentInstallers, string pluginsRootPath)
+    public PluginMarket(IPluginProvider onlinePlugins, IPluginResolver localPlugins, IPluginInstaller pluginInstaller, Dictionary<string, IEnvironmentInstaller> environmentInstallers, string pluginsRootPath, string clientVersion)
     {
         this.onlinePlugins = onlinePlugins;
         this.localPlugins = localPlugins;
         this.pluginInstaller = pluginInstaller;
         this.environmentInstallers = environmentInstallers;
         this.pluginsRootPath = pluginsRootPath;
+        this.clientVersion = clientVersion;
 
         allPlugins = new Dictionary<string, Plugin>();
         hadPlugins = [];

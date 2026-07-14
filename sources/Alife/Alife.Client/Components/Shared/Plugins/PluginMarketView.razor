@@ -38,19 +38,15 @@
                 <Button Type="@ButtonType.Link" Icon="@IconType.Outline.CloudDownload" OnClick="FetchOnline"
                         Loading="isLoading"/>
             </Tooltip>
-            @if (upgradableCount > 0)
-            {
-                <Badge Count="@upgradableCount" Size="@AntDesign.BadgeSize.Small">
-                    <Tooltip Title="@(UpdateService.HasUpdate ? "请先升级软件到最新版本" : "")">
-                        <Button Type="@ButtonType.Link" Icon="@IconType.Outline.ArrowUp" OnClick="OpenUpgradeModal"
-                                Loading="isUpgrading" Disabled="@(UpdateService.HasUpdate)"
-                                Style="@($"color: {(UpdateService.HasUpdate ? "#d9d9d9" : "#52c41a")};")"
-                                Class="@("upgrade-btn" + (showUpgradeModal || hideUpgradeAnimation ? " upgrade-paused" : ""))">
-                            一键升级
-                        </Button>
-                    </Tooltip>
-                </Badge>
-            }
+            <Badge Count="@(upgradableCount > 0 ? upgradableCount : null)" Size="@AntDesign.BadgeSize.Small">
+                <Tooltip Title="@(UpdateService.HasUpdate ? "请先升级软件到最新版本" : upgradableCount == 0 ? "没有可升级的插件" : "")">
+                    <Button Type="@ButtonType.Link" Icon="@IconType.Outline.ArrowUp" OnClick="OpenUpgradeModal"
+                            Style="@($"color: {(UpdateService.HasUpdate ? "#d9d9d9" : "#52c41a")};")"
+                            Class="@("upgrade-btn" + (showUpgradeModal || hideUpgradeAnimation ? " upgrade-paused" : ""))">
+                        一键升级
+                    </Button>
+                </Tooltip>
+            </Badge>
         </Flex>
     </div>
 
@@ -189,42 +185,15 @@
 </Modal>
 
 @* 一键升级弹窗 *@
-<Modal Title="一键升级"
-       Visible="showUpgradeModal"
-       OnCancel="@(() => showUpgradeModal = false)"
-       Footer="null"
-       Width="520"
-       Centered="true">
-    <div style="max-height: 400px; overflow-y: auto;">
+<PluginUpgradeModal @bind-Visible="showUpgradeModal"
+                    UpgradeList="upgradeList"
+                    OnUpgradeComplete="EventCallback.Factory.Create(this, () => RefreshLocal())">
+    <HeaderContent>
         <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 12px; line-height: 1.8;">
             一键升级不仅可以批量配置插件环境，还可以避免插件版本冲突，实现更快更安全的升级，<b style="color: #1890ff;">建议总是使用一键升级来升级插件</b>。<Checkbox @bind-Value="hideUpgradeAnimation" OnChange="@OnHideAnimationChanged" Style="margin-left: 4px;">我知道了</Checkbox>
         </div>
-        @foreach (var item in upgradeList)
-        {
-            <div
-                style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
-                <Checkbox @bind-Value="item.isSelected">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 600; font-size: 14px;">@item.plugin.Name</div>
-                        <div style="font-size: 12px; color: #999;">
-                            v@(item.oldVersion) → v@(item.newVersion)
-                        </div>
-                    </div>
-                </Checkbox>
-            </div>
-        }
-        @if (upgradeList.Count == 0)
-        {
-            <Empty Description="@("暂无可用升级")"/>
-        }
-    </div>
-    <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid #f0f0f0;">
-        <Button OnClick="@(() => showUpgradeModal = false)">取消</Button>
-        <Button Type="@ButtonType.Primary" Loading="isUpgrading" Disabled="@(!upgradeList.Any(x => x.isSelected))" OnClick="UpgradeSelected">
-            @(isUpgrading && isRollingBack ? "回滚中" : "一键升级")
-        </Button>
-    </div>
-</Modal>
+    </HeaderContent>
+</PluginUpgradeModal>
 
 <style>
     .upgrade-btn {
@@ -240,12 +209,6 @@
 
     .upgrade-paused {
         animation: none !important;
-    }
-
-    .upgrade-btn:disabled {
-        color: #d9d9d9 !important;
-        animation: none !important;
-        cursor: not-allowed;
     }
 
     @@keyframes upgrade-bounce {
@@ -268,11 +231,6 @@
 </style>
 
 @code {
-    class PluginMarketViewConfig
-    {
-        public bool HideUpgradeAnimation { get; set; }
-    }
-
     string viewMode = "all";
     string searchText = "";
     string sourceUrl = "";
@@ -281,8 +239,6 @@
     string tagSearchText = "";
     bool isLoading;
     bool isSaving;
-    bool isUpgrading;
-    bool isRollingBack;
     bool hideUpgradeAnimation;
     int upgradableCount;
     int currentPage = 1;
@@ -296,16 +252,7 @@
     Exception? operException;
 
     bool showUpgradeModal;
-    List<UpgradeItem> upgradeList = [];
-
-    class UpgradeItem
-    {
-        public Plugin plugin { get; set; } = null!;
-        public string newVersion { get; set; } = "";
-        public string oldVersion { get; set; } = "";
-        public bool isSelected = true;
-        public bool isOperating;
-    }
+    List<PluginUpgradeModal.UpgradeItem> upgradeList = [];
 
     string[] allTags = [];
     string[] authorOptions = [];
@@ -318,8 +265,13 @@
     {
         PluginMarketService.OnInstalled += OnPluginsChanged;
         sourceUrl = PluginMarketService.SourceUrl;
-        hideUpgradeAnimation = StorageSystem.GetObject("Settings/PluginMarketViewConfig", new PluginMarketViewConfig())?.HideUpgradeAnimation ?? false;
+        hideUpgradeAnimation = StorageSystem.GetObject("Settings/PluginMarketViewConfig", new UpgradeAnimationConfig())?.HideUpgradeAnimation ?? false;
         RefreshLocal();
+    }
+
+    class UpgradeAnimationConfig
+    {
+        public bool HideUpgradeAnimation { get; set; }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -439,7 +391,7 @@
     {
         upgradeList = allPlugins
             .Where(p => PluginMarketService.HasUpdate(p))
-            .Select(p => new UpgradeItem {
+            .Select(p => new PluginUpgradeModal.UpgradeItem {
                 plugin = p,
                 newVersion = PluginMarketService.GetLatestVersion(p) ?? "",
                 oldVersion = PluginMarketService.GetInstalledVersion(p.Id) ?? ""
@@ -447,81 +399,6 @@
             .Where(x => !string.IsNullOrEmpty(x.newVersion) && !string.IsNullOrEmpty(x.oldVersion))
             .ToList();
         showUpgradeModal = true;
-    }
-
-    async Task UpgradeSingle(UpgradeItem item)
-    {
-        item.isOperating = true;
-        StateHasChanged();
-
-        try
-        {
-            await PluginMarketService.InstallPlugin(item.plugin, item.newVersion);
-            MessageService.Success($"[{item.plugin.Name}] 升级成功");
-            upgradeList.Remove(item);
-            RefreshLocal();
-        }
-        catch (Exception ex)
-        {
-            isRollingBack = true;
-            StateHasChanged();
-
-            try
-            {
-                await PluginMarketService.InstallPlugin(item.plugin, item.oldVersion);
-                MessageService.Warning($"[{item.plugin.Name}] 升级失败，已回退到 v{item.oldVersion}");
-            }
-            catch {}
-            operException = ex;
-            isRollingBack = false;
-        }
-
-        item.isOperating = false;
-        StateHasChanged();
-    }
-
-    async Task UpgradeSelected()
-    {
-        var toUpgrade = upgradeList
-            .Where(x => x.isSelected && !x.isOperating)
-            .ToList();
-
-        if (toUpgrade.Count == 0) return;
-
-        isUpgrading = true;
-        StateHasChanged();
-
-        try
-        {
-            await PluginMarketService.InstallPlugins(toUpgrade.Select(x => (x.plugin, x.newVersion)));
-            MessageService.Success($"已升级 {toUpgrade.Count} 个插件");
-            foreach (var item in toUpgrade)
-                upgradeList.Remove(item);
-            showUpgradeModal = false;
-            RefreshLocal();
-        }
-        catch (Exception ex)
-        {
-            operException = ex;
-            isRollingBack = true;
-            StateHasChanged();
-
-            try
-            {
-                await PluginMarketService.InstallPlugins(toUpgrade.Select(x => (x.plugin, x.oldVersion)));
-                MessageService.Warning($"已回滚 {toUpgrade.Count} 个插件");
-                RefreshLocal();
-            }
-            catch (Exception rollbackEx)
-            {
-                operException = rollbackEx;
-            }
-
-            isRollingBack = false;
-        }
-
-        isUpgrading = false;
-        StateHasChanged();
     }
 
     void ShowDetail(Plugin plugin)
@@ -624,7 +501,7 @@
     {
         PluginMarketService.RefreshLocalPlugins();
         var onlinePlugins = PluginMarketService.GetAllPlugins().OrderByDescending(plugin => {
-            if (DateTime.TryParse(plugin.Releases?.First().Value.Date, out DateTime time))
+            if (plugin.Releases != null && plugin.Releases.Count > 0 && DateTime.TryParse(plugin.Releases.First().Value.Date, out DateTime time))
                 return time;
             return DateTime.MinValue;
         });
@@ -665,6 +542,13 @@
         StateHasChanged();
     }
 
+    void OnHideAnimationChanged(bool checkedValue)
+    {
+        var config = StorageSystem.GetObject("Settings/PluginMarketViewConfig", new UpgradeAnimationConfig()) ?? new UpgradeAnimationConfig();
+        config.HideUpgradeAnimation = checkedValue;
+        StorageSystem.SetObject("Settings/PluginMarketViewConfig", config);
+    }
+
     async Task SaveSource()
     {
         if (string.IsNullOrWhiteSpace(sourceUrl))
@@ -694,13 +578,6 @@
 
         isSaving = false;
         StateHasChanged();
-    }
-
-    void OnHideAnimationChanged(bool checkedValue)
-    {
-        var config = StorageSystem.GetObject("Settings/PluginMarketViewConfig", new PluginMarketViewConfig()) ?? new PluginMarketViewConfig();
-        config.HideUpgradeAnimation = checkedValue;
-        StorageSystem.SetObject("Settings/PluginMarketViewConfig", config);
     }
 
     void OpenContributePage()

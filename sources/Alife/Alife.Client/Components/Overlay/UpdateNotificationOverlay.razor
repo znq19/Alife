@@ -1,5 +1,6 @@
 @using Alife.Components.Services
 @using Alife.PluginMarket
+@using Alife.Components.Shared.Plugins
 @inject UpdateService UpdateService
 @inject PluginMarketService PluginMarketService
 @inject NavigationManager Navigation
@@ -11,6 +12,16 @@
                        ProgressVisible="@isDownloading"
                        ProgressValue="@downloadProgress"
                        BodyText="@updateInfo.ReleaseNotes">
+        <Body>
+        @if (isMajorUpdate)
+        {
+            <div style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; font-size: 12px; color: #096dd9;">
+                <Icon Type="@IconType.Outline.InfoCircle" Style="margin-right: 4px;" />
+                此次为非兼容性更新，部分插件可能不支持。
+            </div>
+        }
+        @updateInfo.ReleaseNotes
+        </Body>
         <Actions>
             <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="@StartUpdate">
                 立即升级
@@ -18,6 +29,18 @@
             <Button Size="@ButtonSize.Small" OnClick="@OnDismissAppUpdate">下次再说（会影响插件功能！）</Button>
         </Actions>
     </PopupNotification>
+}
+else if (showForceUpgrade)
+{
+    <PluginUpgradeModal @bind-Visible="showForceUpgrade"
+                        UpgradeList="forceUpgradeList"
+                        OnUpgradeComplete="OnForceUpgradeComplete">
+        <HeaderContent>
+            <div style="font-size: 12px; color: rgba(0,0,0,0.45); margin-bottom: 12px; line-height: 1.8;">
+                <b style="color: #ff4d4f;">检测到存在非兼容插件，必须升级才能正常使用。</b>
+            </div>
+        </HeaderContent>
+    </PluginUpgradeModal>
 }
 else if (showPluginUpdate && upgradablePlugins.Length > 0)
 {
@@ -43,31 +66,92 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
 @code {
     UpdateInfo? updateInfo;
     Plugin[] upgradablePlugins = [];
+    List<PluginUpgradeModal.UpgradeItem> forceUpgradeList = [];
     bool isDownloading;
     int downloadProgress;
     bool showAppUpdate;
     bool showPluginUpdate;
+    bool showForceUpgrade;
+    bool isMajorUpdate;
 
     protected override async Task OnInitializedAsync()
     {
         if (UpdateService.HasUpdate && UpdateService.LatestUpdate != null)
         {
             updateInfo = UpdateService.LatestUpdate;
+            isMajorUpdate = VersionResolver.GetMajorVersion(updateInfo.Version) > VersionResolver.GetMajorVersion(UpdateService.LocalVersion);
             showAppUpdate = true;
             await InvokeAsync(StateHasChanged);
-            return;
         }
 
-        await CheckPluginUpdates();
-    }
-
-    async Task CheckPluginUpdates()
-    {
         try
         {
             await PluginMarketService.FetchOnlinePluginsAsync();
             PluginMarketService.RefreshLocalPlugins();
+        }
+        catch {}
 
+        await CheckForceUpgrade();
+        if (!showForceUpgrade)
+            CheckPluginUpdates();
+    }
+
+    async Task CheckForceUpgrade()
+    {
+        try
+        {
+            var forcePlugins = PluginMarketService.GetForceUpgradedPlugins();
+            if (forcePlugins.Count == 0) return;
+
+            var forceIds = new HashSet<string>(forcePlugins.Select(p => p.Id));
+
+            foreach (var plugin in forcePlugins)
+            {
+                string? oldVersion = PluginMarketService.GetInstalledVersion(plugin.Id);
+                string? newVersion = PluginMarketService.GetLatestVersion(plugin);
+                if (string.IsNullOrEmpty(oldVersion) || string.IsNullOrEmpty(newVersion))
+                    continue;
+
+                forceUpgradeList.Add(new PluginUpgradeModal.UpgradeItem {
+                    plugin = plugin,
+                    oldVersion = oldVersion,
+                    newVersion = newVersion,
+                    isLocked = true,
+                    isSelected = true
+                });
+            }
+
+            var allPlugins = PluginMarketService.GetAllPlugins();
+            foreach (var plugin in allPlugins.Where(p => !forceIds.Contains(p.Id) && PluginMarketService.HasUpdate(p)))
+            {
+                string? oldVersion = PluginMarketService.GetInstalledVersion(plugin.Id);
+                string? newVersion = PluginMarketService.GetLatestVersion(plugin);
+                if (string.IsNullOrEmpty(oldVersion) || string.IsNullOrEmpty(newVersion))
+                    continue;
+
+                forceUpgradeList.Add(new PluginUpgradeModal.UpgradeItem {
+                    plugin = plugin,
+                    oldVersion = oldVersion,
+                    newVersion = newVersion
+                });
+            }
+
+            if (forceUpgradeList.Count > 0)
+            {
+                showForceUpgrade = true;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
+
+    void CheckPluginUpdates()
+    {
+        try
+        {
             var allPlugins = PluginMarketService.GetAllPlugins();
             upgradablePlugins = allPlugins
                 .Where(p => PluginMarketService.HasUpdate(p))
@@ -76,13 +160,18 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
             if (upgradablePlugins.Length > 0)
             {
                 showPluginUpdate = true;
-                await InvokeAsync(StateHasChanged);
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine(ex);
         }
+    }
+
+    void OnForceUpgradeComplete()
+    {
+        showForceUpgrade = false;
+        PluginMarketService.RefreshLocalPlugins();
     }
 
     async Task OnDismissAppUpdate()
