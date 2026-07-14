@@ -8,7 +8,8 @@
        OnCancel="@(() => VisibleChanged.InvokeAsync(false))"
        Footer="null"
        Width="520"
-       Centered="true">
+       Centered="true"
+       MaskClosable="false">
     <div style="max-height: 400px; overflow-y: auto;">
         @HeaderContent
         @foreach (var item in UpgradeList)
