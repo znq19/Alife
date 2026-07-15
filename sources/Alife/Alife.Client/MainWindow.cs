@@ -24,7 +24,7 @@ public class MainWindow : Form
             Dock = DockStyle.Fill,
             HostPage = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", "index.html"),
             StartPath = "/",
-            Services = App.ServiceProvider
+            Services = Program.ServiceProvider
         };
         blazor.RootComponents.Add<Components.Routes>("#app");
         Controls.Add(blazor);

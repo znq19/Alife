@@ -1,18 +1,18 @@
 using System.Text;
-using Microsoft.Extensions.DependencyInjection;
 using Alife.Framework;
 using Alife.Components.Services;
 using Alife.Platform;
-using Microsoft.Extensions.Logging;
+using ElectronNET.API;
+using ElectronNET.API.Entities;
 
 namespace Alife;
 
-public class App
+public class Program
 {
     public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
 #if DEBUG
         Console.WriteLine(typeof(Function.Memory.MemoryService).Assembly.FullName);
@@ -55,39 +55,48 @@ public class App
         AppDomain.CurrentDomain.UnhandledException += UnhandledException;
 
         //业务功能注册
-        ServiceCollection services = new();
-        services.AddWindowsFormsBlazorWebView();
-        services.AddBlazorWebViewDeveloperTools();
-        services.AddAntDesign();
-        services.AddLogging(builder => {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Information);
-        });
-        services.AddSingleton<StorageSystem>();
-        services.AddSingleton<ConfigurationSystem>();
-        services.AddSingleton<ModuleSystem>();
-        services.AddSingleton<CharacterSystem>();
-        services.AddSingleton<ChatActivitySystem>();
-        services.AddSingleton<ChatMessageService>();
-        services.AddSingleton<PluginMarketService>();
-        services.AddSingleton<UpdateService>();
-        services.AddSingleton<EnvironmentInstaller>();
-        services.AddSingleton<MainWindow>();
-        ServiceProvider = services.BuildServiceProvider();
+        var builder = WebApplication.CreateBuilder(args);
+        {
+            //前端框架
+            builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+            //前端组件库
+            builder.Services.AddAntDesign();
+            //前端载体
+            builder.Services.AddElectron();
+            builder.UseElectron(args, async () => {
+                var options = new BrowserWindowOptions {
+                    Show = false,
+                    IsRunningBlazor = true,
+                };
+                if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+                    options.AutoHideMenuBar = true;
 
-        //前端配置并启动
-        Application.ThreadException += ThreadException;
-        Environment.SetEnvironmentVariable("COREWEBVIEW2_FORCED_HOSTING_MODE", "COREWEBVIEW2_HOSTING_MODE_WINDOW_TO_VISUAL");//解决光标等渲染问题
-        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);//跟随系统 Dpi，解决字体模糊问题
-        Application.EnableVisualStyles();//现代化 Form 预设组件样式
-        Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(ServiceProvider.GetRequiredService<MainWindow>());
+                var browserWindow = await Electron.WindowManager.CreateWindowAsync(options);
+                browserWindow.OnReadyToShow += () => browserWindow.Show();
+            });
+            //系统功能
+            builder.Services.AddSingleton<StorageSystem>();
+            builder.Services.AddSingleton<ConfigurationSystem>();
+            builder.Services.AddSingleton<ModuleSystem>();
+            builder.Services.AddSingleton<CharacterSystem>();
+            builder.Services.AddSingleton<ChatActivitySystem>();
+            builder.Services.AddSingleton<ChatMessageService>();
+            builder.Services.AddSingleton<PluginMarketService>();
+            builder.Services.AddSingleton<UpdateService>();
+            builder.Services.AddSingleton<EnvironmentInstaller>();
+        }
+
+        var app = builder.Build();
+        ServiceProvider = app.Services;
+
+        Environment.SetEnvironmentVariable("COREWEBVIEW2_FORCED_HOSTING_MODE", "COREWEBVIEW2_HOSTING_MODE_WINDOW_TO_VISUAL");
+        app.UseAntiforgery();
+        app.UseStaticFiles();
+        app.MapRazorComponents<Components.App>()
+            .AddInteractiveServerRenderMode();
+        app.Run();
     }
 
-    static void ThreadException(object sender, ThreadExceptionEventArgs e)
-    {
-        HandleException(e.Exception, nameof(ThreadException), false);
-    }
     static void UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         HandleException(e.Exception, nameof(UnobservedTaskException), false);

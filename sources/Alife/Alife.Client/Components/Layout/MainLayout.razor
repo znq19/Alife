@@ -60,11 +60,13 @@
 
     protected override void OnInitialized()
     {
+        Console.WriteLine("########OnInitialized");
+        
         //业务环境初始化
         EnvironmentInstaller.SetupEnvironmentPaths();
         MirrorProvider.SetupEnvironment();
-        App.ServiceProvider.GetRequiredService<ChatMessageService>();
-        App.ServiceProvider.GetRequiredService<PluginMarketService>();
+        Program.ServiceProvider.GetRequiredService<ChatMessageService>();
+        Program.ServiceProvider.GetRequiredService<PluginMarketService>();
 
         //定向到开始页面
         TryRedirect();

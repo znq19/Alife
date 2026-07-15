@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Alife</title>
+    <meta charset="utf-8"/>
+    <base href="/"/>
+
+    @* Blazor-AntDesgin 组件库 *@
+    <meta no-antblazor-js no-antblazor-css/>
+    <link href="_content/AntDesign/css/ant-design-blazor.css" rel="stylesheet">
+    <script src="_content/AntDesign/js/ant-design-blazor.js"></script>
+
+    @* 组件自定义样式 *@
+    <link rel="stylesheet" href="@Assets["Alife.Client.styles.css"]"/>
+    <style>
+        .log-modal-top.ant-modal-wrap {
+            z-index: 99999 !important;
+        }
+    </style> @* 实现置顶弹窗 *@
+
+</head>
+
+<body>
+<Routes @rendermode="InteractiveServer"/>
+<script src="@Assets["_framework/blazor.server.js"]"></script> @* Blazor 前端框架 *@
+</body>
+</html>
