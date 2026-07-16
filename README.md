@@ -22,7 +22,7 @@
 # Alife - 创造赛博生命
 
 ![Alife Logo](https://img.shields.io/badge/Alife-AI_Assistant-blue?style=for-the-badge)
-![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?style=for-the-badge&logo=dotnet)
+![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=dotnet)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-green?style=for-the-badge)
 
@@ -149,10 +149,10 @@ Alife 是一款主打桌宠陪伴方向的 AIAgent，目的是为了创造或逼
 
 ### 📦 基本依赖
 
-- .NET 9：编程语言生态
-- Python 3.12：模型框架接入
+- .NET 10 SDK：编程语言生态
+- Python 3.12：本地模型接入
 - Semantic Kernel：基本llm协议接入
-- WPF + Blazor Hybrid + AntDesign Blazor：前端界面框架
+- ASP.NET + Blazor + AntDesign + ElectronNET：前端界面框架
 
 ### 🏛️ 解决方案目录结构
 
@@ -161,13 +161,13 @@ Alife 采用全插件化架构，解决方案按目录分组组织：
 ```
 Sources/
 ├── Alife/                              # 核心平台
-│   ├── Alife.Client/                   # 主入口 (WPF + Blazor Hybrid)
-│   ├── Alife.Framework/                # 核心框架 (插件系统、角色管理、配置、存储)
-│   ├── Alife.LanguageModel/            # 语言模型插件 (LLM 接入)
-│   └── Alife.Platform/                 # 平台抽象 (路径、日志)
+│   ├── Alife.Client/                   # 客户端外壳
+│   ├── Alife.Framework/                # 核心框架
+│   ├── Alife.PluginMarket/             # 插件市场
+│   └── Alife.Platform/                 # 平台抽象 (弃用中，平台处理应放在插件中)
 │
 ├── Alife.DeskPet/                      # 桌宠子系统
-│   ├── Alife.DeskPet.Client/           # 桌宠 WPF 客户端 (WebView2 + Live2D)
+│   ├── Alife.DeskPet.Client/           # Live2D 桌宠外挂程序
 │   └── Alife.DeskPet.Protocol/         # IPC 协议库
 │
 ├── Alife.Function/                     # 功能插件 — 以面向 AI 视角组织
