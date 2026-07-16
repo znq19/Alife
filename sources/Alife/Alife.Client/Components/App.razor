@@ -5,11 +5,12 @@
     <title>Alife</title>
     <meta charset="utf-8"/>
     <base href="/"/>
+    <link rel="icon" type="image/png" href="images/alife-icon.png" />
 
     @* Blazor-AntDesgin 组件库 *@
     <meta no-antblazor-js no-antblazor-css/>
-    <link href="_content/AntDesign/css/ant-design-blazor.css" rel="stylesheet">
-    <script src="_content/AntDesign/js/ant-design-blazor.js"></script>
+    <link href="@Assets["_content/AntDesign/css/ant-design-blazor.css"]" rel="stylesheet">
+    <script src="@Assets["_content/AntDesign/js/ant-design-blazor.js"]"></script>
 
     @* 组件自定义样式 *@
     <link rel="stylesheet" href="@Assets["Alife.Client.styles.css"]"/>
@@ -22,7 +23,7 @@
 </head>
 
 <body>
-<Routes @rendermode="InteractiveServer"/>
+<Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))"/>
 <script src="@Assets["_framework/blazor.server.js"]"></script> @* Blazor 前端框架 *@
 </body>
 </html>

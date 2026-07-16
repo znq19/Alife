@@ -62,18 +62,21 @@ public class Program
             //前端组件库
             builder.Services.AddAntDesign();
             //前端载体
-            builder.Services.AddElectron();
-            builder.UseElectron(args, async () => {
-                var options = new BrowserWindowOptions {
-                    Show = false,
-                    IsRunningBlazor = true,
-                };
-                if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
-                    options.AutoHideMenuBar = true;
+            if (Environment.GetEnvironmentVariable("DISABLE_ElectronENT") == null)
+            {
+                builder.Services.AddElectron();
+                builder.UseElectron(args, async () => {
+                    var options = new BrowserWindowOptions {
+                        Show = false,
+                        IsRunningBlazor = true,
+                    };
+                    if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+                        options.AutoHideMenuBar = true;
 
-                var browserWindow = await Electron.WindowManager.CreateWindowAsync(options);
-                browserWindow.OnReadyToShow += () => browserWindow.Show();
-            });
+                    var browserWindow = await Electron.WindowManager.CreateWindowAsync(options);
+                    browserWindow.OnReadyToShow += () => browserWindow.Show();
+                });
+            }
             //系统功能
             builder.Services.AddSingleton<StorageSystem>();
             builder.Services.AddSingleton<ConfigurationSystem>();

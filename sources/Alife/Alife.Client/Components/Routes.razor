@@ -1,8 +1,50 @@
-<Router AppAssembly="typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)"/>
-        <FocusOnNavigate RouteData="routeData" Selector="h1"/>
-    </Found>
-</Router>
+@using Alife.Components.Overlay
+@using Alife.Components.Services
+@using Alife.Platform
+@inject CharacterSystem CharacterSystem
+@inject NavigationManager Navigation
 
-<AntContainer /> 
+@if (isAppInitialized)
+{
+     <Router AppAssembly="typeof(App).Assembly">
+         <Found Context="routeData">
+             <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)"/>
+             <FocusOnNavigate RouteData="routeData" Selector="h1"/>
+         </Found>
+     </Router>
+}
+else
+{
+    <Loading/>
+}
+
+@code
+{
+    static bool isAppInitialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false)
+            return;//仅执行一次
+    
+        //业务环境初始化
+        await Task.Run(() => {
+            EnvironmentInstaller.SetupEnvironmentPaths();
+            MirrorProvider.SetupEnvironment();
+            Program.ServiceProvider.GetRequiredService<ChatMessageService>();
+            Program.ServiceProvider.GetRequiredService<PluginMarketService>();
+        });
+        isAppInitialized = true;
+    
+        //老用户重定向
+        if (new Uri(Navigation.Uri).AbsolutePath is "/")
+        {
+            if (CharacterSystem.GetAllCharacters().Count > 0)
+            {
+                Navigation.NavigateTo("/system");
+            }
+        }
+    
+        StateHasChanged();
+    }
+}
