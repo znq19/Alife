@@ -49,50 +49,32 @@ public interface IPluginInstaller
 
 public class PluginMarket
 {
-    public event Action? OnInstalled;
-    readonly string clientVersion;
-
     public IEnumerable<Plugin> GetAllPlugins()
     {
         return allPlugins.Values;
     }
-    public Plugin[] GetHadPlugins()
+    public Dictionary<string, string> GetInstalledPlugins()
     {
-        return hadPlugins.Select(pair => allPlugins.GetValueOrDefault(pair.Key))
-            .Where(plugin => plugin != null).Cast<Plugin>().ToArray();
+        return localPlugins.GetPlugins();
     }
 
-    public Dictionary<string, string> GetInstalledPlugins() => localPlugins.GetPlugins();
-
-    public bool IsInstalled(string pluginId) => hadPlugins.ContainsKey(pluginId);
-
-    public string? GetInstalledVersion(string pluginId) => hadPlugins.GetValueOrDefault(pluginId);
-
-    public bool HasUpdate(Plugin plugin)
+    public List<string> GetDependents(string pluginId)
     {
-        string? installedVersion = GetInstalledVersion(plugin.Id);
-        if (installedVersion == null || plugin.Releases == null)
-            return false;
+        List<string> dependents = new();
+        foreach ((string id, string version) in hadPlugins)
+        {
+            if (id == pluginId)
+                continue;
 
-        string? latestVersion = plugin.Releases.Keys
-            .Where(v => VersionResolver.IsVersionCompatible(v, clientVersion))
-            .OrderByDescending(v => v, Comparer<string>.Create(VersionResolver.CompareVersions))
-            .FirstOrDefault();
+            Plugin? plugin = allPlugins.GetValueOrDefault(id);
+            if (plugin == null)
+                continue;
 
-        return latestVersion != null && latestVersion != installedVersion;
-    }
-
-    public string? GetLatestVersion(Plugin plugin)
-    {
-        return plugin.Releases?.Keys
-            .Where(v => VersionResolver.IsVersionCompatible(v, clientVersion))
-            .OrderByDescending(v => v, Comparer<string>.Create(VersionResolver.CompareVersions))
-            .FirstOrDefault();
-    }
-
-    public bool IsVersionCompatible(string pluginVersion)
-    {
-        return VersionResolver.IsVersionCompatible(pluginVersion, clientVersion);
+            Dictionary<string, string>? dependencies = plugin.GetDependencies(version);
+            if (dependencies != null && dependencies.ContainsKey(pluginId))
+                dependents.Add(id);
+        }
+        return dependents;
     }
 
     public async Task InstallPlugin(Plugin plugin, string version)
@@ -143,34 +125,7 @@ public class PluginMarket
         }
 
         await pluginInstaller.InstallPlugin(plugin, version);
-        OnInstalled?.Invoke();
     }
-
-    public List<string> GetDependents(string pluginId)
-    {
-        List<string> dependents = new();
-        foreach ((string id, string version) in hadPlugins)
-        {
-            if (id == pluginId)
-                continue;
-
-            Plugin? plugin = allPlugins.GetValueOrDefault(id);
-            if (plugin == null)
-                continue;
-
-            Dictionary<string, string>? dependencies = plugin.GetDependencies(version);
-            if (dependencies != null && dependencies.ContainsKey(pluginId))
-                dependents.Add(id);
-        }
-        return dependents;
-    }
-
-    public async Task UninstallPlugin(Plugin plugin)
-    {
-        await pluginInstaller.UninstallPlugin(plugin);
-        OnInstalled?.Invoke();
-    }
-
     public async Task InstallPlugins(IEnumerable<(Plugin plugin, string version)> plugins)
     {
         var pluginList = plugins.ToList();
@@ -189,7 +144,7 @@ public class PluginMarket
             if (dependencies != null)
             {
                 versionResolver.AddRange(dependencies);
-                foreach (var (depId, versionSpec) in dependencies)
+                foreach (var (depId, _) in dependencies)
                 {
                     string? hadVersion = hadPlugins.GetValueOrDefault(depId);
                     if (hadVersion != null && versionResolver.IsSatisfied(depId, hadVersion))
@@ -219,7 +174,7 @@ public class PluginMarket
 
         // 统一安装环境依赖
         HashSet<string> envTypes = new();
-        foreach (var (id, entry) in installPlan)
+        foreach (var (_, entry) in installPlan)
         {
             var envs = entry.plugin.GetEnvironments(entry.version);
             if (envs != null)
@@ -235,7 +190,7 @@ public class PluginMarket
             List<KeyValuePair<string, string>> manifest = new();
             GetEnvironment(type, manifest);
 
-            foreach (var (id, entry) in installPlan)
+            foreach (var (_, entry) in installPlan)
             {
                 var envs = entry.plugin.GetEnvironments(entry.version)?.GetValueOrDefault(type);
                 if (envs != null)
@@ -246,14 +201,24 @@ public class PluginMarket
         }
 
         // 逐个安装插件本体
-        foreach (var (id, entry) in installPlan)
+        foreach (var (_, entry) in installPlan)
         {
             await pluginInstaller.InstallPlugin(entry.plugin, entry.version);
         }
-
-        OnInstalled?.Invoke();
+    }
+    public async Task UninstallPlugin(Plugin plugin)
+    {
+        await pluginInstaller.UninstallPlugin(plugin);
     }
 
+    /// <summary>
+    /// 从云端拉取插件列表，并写入缓存
+    /// </summary>
+    public async Task FetchOnlinePluginsAsync()
+    {
+        allPlugins = (await onlinePlugins.GetPluginsAsync()).ToDictionary(plugin => plugin.Id, plugin => plugin);
+        SaveCache();
+    }
     /// <summary>
     /// 刷新本地已安装插件列表
     /// </summary>
@@ -262,7 +227,30 @@ public class PluginMarket
         hadPlugins = localPlugins.GetPlugins();
     }
 
-    public void GetEnvironment(string type, List<KeyValuePair<string, string>> environments)
+
+    readonly IPluginProvider onlinePlugins;
+    readonly IPluginResolver localPlugins;
+    readonly IPluginInstaller pluginInstaller;
+    readonly Dictionary<string, IEnvironmentInstaller> environmentInstallers;
+    Dictionary<string, Plugin> allPlugins;
+    Dictionary<string, string> hadPlugins;
+    readonly string cacheDir = Path.Combine(AlifePath.RuntimeFolderPath, "PluginMarket");
+
+    public PluginMarket(IPluginProvider onlinePlugins, IPluginResolver localPlugins, IPluginInstaller pluginInstaller, Dictionary<string, IEnvironmentInstaller> environmentInstallers)
+    {
+        this.onlinePlugins = onlinePlugins;
+        this.localPlugins = localPlugins;
+        this.pluginInstaller = pluginInstaller;
+        this.environmentInstallers = environmentInstallers;
+
+        allPlugins = new Dictionary<string, Plugin>();
+        hadPlugins = [];
+
+        LoadCache();
+        RefreshLocalPlugins();
+    }
+
+    void GetEnvironment(string type, List<KeyValuePair<string, string>> environments)
     {
         environments.Clear();
         foreach ((string pluginID, string version) in hadPlugins)
@@ -278,102 +266,47 @@ public class PluginMarket
         }
     }
 
-    readonly IPluginProvider onlinePlugins;
-    readonly IPluginResolver localPlugins;
-    readonly IPluginInstaller pluginInstaller;
-    readonly Dictionary<string, IEnvironmentInstaller> environmentInstallers;
-    readonly string pluginsRootPath;
-    Dictionary<string, Plugin> allPlugins;
-    Dictionary<string, string> hadPlugins;
-
-    public PluginMarket(IPluginProvider onlinePlugins, IPluginResolver localPlugins, IPluginInstaller pluginInstaller, Dictionary<string, IEnvironmentInstaller> environmentInstallers, string pluginsRootPath, string clientVersion)
-    {
-        this.onlinePlugins = onlinePlugins;
-        this.localPlugins = localPlugins;
-        this.pluginInstaller = pluginInstaller;
-        this.environmentInstallers = environmentInstallers;
-        this.pluginsRootPath = pluginsRootPath;
-        this.clientVersion = clientVersion;
-
-        allPlugins = new Dictionary<string, Plugin>();
-        hadPlugins = [];
-
-        LoadCache();
-        RefreshLocalPlugins();
-    }
-
-    /// <summary>
-    /// 从云端拉取插件列表，并写入缓存
-    /// </summary>
-    public async Task FetchOnlinePluginsAsync()
-    {
-        allPlugins = (await onlinePlugins.GetPluginsAsync()).ToDictionary(plugin => plugin.Id, plugin => plugin);
-        SaveCache();
-    }
-
     void SaveCache()
     {
         try
         {
-            if (allPlugins.Count == 0) return;
-            foreach (var plugin in allPlugins.Values)
-            {
-                SavePluginCache(plugin);
-            }
+            Directory.CreateDirectory(cacheDir);
+            foreach (var plugin in Directory.GetFiles(cacheDir))
+                File.Delete(plugin);
+            foreach ((string _, Plugin plugin) in allPlugins)
+                File.WriteAllText(Path.Combine(cacheDir, $"{plugin.Id}.json"), JsonConvert.SerializeObject(plugin, Formatting.Indented));
         }
-        catch
+        catch (Exception ex)
         {
-            // ignore cache write errors
+            Console.WriteLine(ex);
         }
     }
-
-    void SavePluginCache(Plugin plugin)
-    {
-        try
-        {
-            string pluginDir = Path.Combine(pluginsRootPath, plugin.Id);
-            Directory.CreateDirectory(pluginDir);
-            string cacheFile = Path.Combine(pluginDir, "plugin.json");
-            string json = JsonConvert.SerializeObject(plugin, Formatting.Indented);
-            File.WriteAllText(cacheFile, json);
-        }
-        catch
-        {
-            // ignore cache write errors
-        }
-    }
-
     void LoadCache()
     {
         try
         {
-            if (!Directory.Exists(pluginsRootPath))
+            if (!Directory.Exists(cacheDir))
                 return;
 
-            foreach (string pluginDir in Directory.GetDirectories(pluginsRootPath))
+            foreach (string pluginFile in Directory.GetFiles(cacheDir, "*.json"))
             {
-                string cacheFile = Path.Combine(pluginDir, "plugin.json");
-                if (!File.Exists(cacheFile))
-                    continue;
-
                 try
                 {
-                    string json = File.ReadAllText(cacheFile);
+                    string json = File.ReadAllText(pluginFile);
                     Plugin? plugin = JsonConvert.DeserializeObject<Plugin>(json);
-                    if (plugin != null && !string.IsNullOrEmpty(plugin.Id))
-                    {
+                    if (plugin != null)
                         allPlugins[plugin.Id] = plugin;
-                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore individual plugin cache errors
+                    File.Delete(pluginFile);
+                    Console.WriteLine(ex);
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            return;
+            Console.WriteLine(ex);
         }
     }
 }

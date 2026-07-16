@@ -132,6 +132,6 @@ public class UpdateService
             UseShellExecute = true
         });
 
-        Application.Exit();
+        Program.CloseApplication();
     }
 }

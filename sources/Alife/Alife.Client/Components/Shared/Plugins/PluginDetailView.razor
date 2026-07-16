@@ -96,7 +96,7 @@
             {
                 @foreach (var release in Plugin.Releases.OrderByDescending(r => r.Key, Comparer<string>.Create(VersionResolver.CompareVersions)))
                 {
-                    bool isCompatible = PluginMarketService.IsVersionCompatible(release.Key);
+                    bool isCompatible = PluginMarketService.IsClientCompatible(release.Key);
                     <TimelineItem Color="@(release.Key == latestVersion ? "blue" : "gray")">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <Tooltip Title="@(isCompatible ? "" : "版本不兼容：插件大版本号高于当前客户端版本")">

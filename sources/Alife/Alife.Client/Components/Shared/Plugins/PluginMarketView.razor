@@ -38,15 +38,18 @@
                 <Button Type="@ButtonType.Link" Icon="@IconType.Outline.CloudDownload" OnClick="FetchOnline"
                         Loading="isLoading"/>
             </Tooltip>
-            <Badge Count="@(upgradableCount > 0 ? upgradableCount : null)" Size="@AntDesign.BadgeSize.Small">
-                <Tooltip Title="@(UpdateService.HasUpdate ? "请先升级软件到最新版本" : upgradableCount == 0 ? "没有可升级的插件" : "")">
-                    <Button Type="@ButtonType.Link" Icon="@IconType.Outline.ArrowUp" OnClick="OpenUpgradeModal"
-                            Style="@($"color: {(UpdateService.HasUpdate ? "#d9d9d9" : "#52c41a")};")"
-                            Class="@("upgrade-btn" + (showUpgradeModal || hideUpgradeAnimation ? " upgrade-paused" : ""))">
-                        一键升级
-                    </Button>
-                </Tooltip>
-            </Badge>
+            @if (upgradableCount > 0)
+            {
+                <Badge Count="upgradableCount" Size="@AntDesign.BadgeSize.Small">
+                    <Tooltip Title="@(UpdateService.HasUpdate ? "请先升级软件到最新版本" : "")">
+                        <Button Type="@ButtonType.Link" Icon="@IconType.Outline.ArrowUp" OnClick="OpenUpgradeModal"
+                                Style="@($"color: {(UpdateService.HasUpdate ? "#d9d9d9" : "#52c41a")};")"
+                                Class="@("upgrade-btn" + (showUpgradeModal || hideUpgradeAnimation ? " upgrade-paused" : ""))">
+                            一键升级
+                        </Button>
+                    </Tooltip>
+                </Badge>
+            }
         </Flex>
     </div>
 
@@ -565,7 +568,7 @@
 
         try
         {
-            PluginMarketService.SetSource(sourceUrl);
+            PluginMarketService.SourceUrl = sourceUrl;
             MessageService.Success("插件源已更新，正在重新拉取...");
             await PluginMarketService.FetchOnlinePluginsAsync();
             RefreshLocal();
