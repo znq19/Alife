@@ -21,7 +21,7 @@ public record MemoryConfig
     public int Threshold { get; set; } = 100;
     public int BatchSize { get; set; } = 70;
     public float Probability { get; set; } = 0.4f;
-    public int MaxCompressionLevel { get; set; } = 7;
+    public int MaxCompressionLevel { get; set; } = 8;
     public List<string> Keywords { get; set; } = ["记得", "记住", "忆", "时候", "以前", "过去"];
     public string CompressPrompt { get; set; } =
         """
@@ -282,6 +282,7 @@ public partial class MemoryService(XmlFunctionCaller functionService)
 
         //加载历史记忆
         memoryManager.LoadHistory(ChatHistory);
+        ChatBot.UpdateHistoryEndIndex();
     }
 
     string OnChatSend(string message)

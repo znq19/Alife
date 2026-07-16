@@ -18,7 +18,8 @@
         <div style="padding: 4px 0; color: rgba(0,0,0,0.85);">- @c.Name</div>
     }
     <div style="margin-top: 16px; text-align: center;">
-        <Progress Type="ProgressType.Circle" Percent="@countdownPercent" Width="80" Format="@((_) => countdown.ToString())" />
+        <Progress Type="ProgressType.Circle" Percent="@CountdownPercent" Width="80"
+                  Format="@((_) => countdown.ToString())"/>
         <div style="color: rgba(0,0,0,0.45); font-size: 12px; margin-top: 8px;">
             @countdown 秒后自动启动
         </div>
@@ -26,9 +27,10 @@
 </Modal>
 
 @code {
+    double CountdownPercent => (5 - countdown) * 20.0;
+
     bool showCountdown;
     int countdown = 5;
-    double countdownPercent => (5 - countdown) * 20.0;
     List<Character> charactersToActivate = [];
     CancellationTokenSource? cts;
 
@@ -52,45 +54,46 @@
         {
             for (int i = 5; i > 0; i--)
             {
-                if (cts.Token.IsCancellationRequested) return;
                 countdown = i;
-                await InvokeAsync(StateHasChanged);
+                StateHasChanged();
                 await Task.Delay(1000, cts.Token);
             }
             showCountdown = false;
-            await InvokeAsync(StateHasChanged);
-            await ActivateAll();
+            StateHasChanged();
+            await StartActivation();
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) {}
     }
 
+    async Task ActivateNow()
+    {
+        if (cts != null)
+            await cts.CancelAsync();
+        showCountdown = false;
+        StateHasChanged();
+        await StartActivation();
+    }
     void CancelAutoActivate()
     {
         cts?.Cancel();
         showCountdown = false;
     }
 
-    async Task ActivateNow()
+    async Task StartActivation()
     {
-        cts?.Cancel();
-        showCountdown = false;
-        await InvokeAsync(StateHasChanged);
-        await ActivateAll();
-    }
-
-    async Task ActivateAll()
-    {
-        foreach (var character in charactersToActivate)
-        {
-            try
+        await Task.Run(async () => {
+            foreach (var character in charactersToActivate)
             {
-                await ChatActivitySystem.Activate(character);
+                try
+                {
+                    await ChatActivitySystem.Activate(character);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-        }
-        charactersToActivate.Clear();
+            charactersToActivate.Clear();
+        });
     }
 }

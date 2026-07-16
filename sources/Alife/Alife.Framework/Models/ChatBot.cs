@@ -34,12 +34,13 @@ public class ChatBot : IAsyncDisposable
     public ChatCompletionAgent ChatCompletionAgent => chatCompletionAgent;
     public ChatHistoryAgentThread ChatHistoryAgentThread => chatHistoryAgentThread;
     public ChatHistory ChatHistory => chatHistoryAgentThread.ChatHistory;
-    public bool IsChatting => chatSemaphore.CurrentCount == 0;
+    public bool IsChatting => chatRequestCount != 0;
     public CancellationTokenSource ChatBreakTokenSource => chatBreakSource;
 
     public async Task RequestChatAsync(CancellationToken cancellationToken = default, Func<string>? reason = null)
     {
-        ChatRequesting?.Invoke();
+        if (Interlocked.Increment(ref chatRequestCount) == 1)
+            ChatRequesting?.Invoke();
         await chatSemaphore.WaitAsync(cancellationToken);
         ChatOccupiedReason = reason;
     }
@@ -48,7 +49,8 @@ public class ChatBot : IAsyncDisposable
     {
         ChatOccupiedReason = null;
         chatSemaphore.Release();
-        ChatReleased?.Invoke();
+        if (Interlocked.Decrement(ref chatRequestCount) == 0)
+            ChatReleased?.Invoke();
     }
 
     public async IAsyncEnumerable<string> ChatStreamingAsync(string message, AuthorRole? role = null)
@@ -214,6 +216,7 @@ public class ChatBot : IAsyncDisposable
     readonly ConcurrentQueue<string> messageCache;
     readonly SemaphoreSlim chatSemaphore;
     CancellationTokenSource chatBreakSource = new();
+    int chatRequestCount;
 
     int lastContentIndex;
 

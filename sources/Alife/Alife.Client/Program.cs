@@ -98,16 +98,15 @@ public static class Program
     {
         //创建窗口
         var browserOptions = new BrowserWindowOptions {
-            Show = false,
-            IsRunningBlazor = true,
-            Width = 1500,
-            Height = 950,
+            Title = "Alife",
             Icon = "alife-icon.ico",
+            Width = 1300,
+            Height = 800,
+            IsRunningBlazor = true,
         };
         if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
             browserOptions.AutoHideMenuBar = true;
         var browserWindow = await Electron.WindowManager.CreateWindowAsync(browserOptions);
-        browserWindow.OnReadyToShow += () => browserWindow.Show();
 
         //创建托盘
         var menuItems = new[] {

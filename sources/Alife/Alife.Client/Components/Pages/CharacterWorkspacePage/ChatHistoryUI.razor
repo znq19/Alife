@@ -92,6 +92,7 @@
     bool editVisible;
     string editingContent = "";
     ChatMessageContent? editingMessage;
+    readonly List<ChatMessageContent> chatHistoryMirror = new();
 
     protected override void OnParametersSet()
     {
@@ -103,13 +104,8 @@
             Activity.ChatBot.ChatReleased -= UpdateState;
             Activity.ChatBot.ChatReleased += UpdateState;
         }
+        TryUpdateMirror();
     }
-
-    void UpdateState()
-    {
-        InvokeAsync(StateHasChanged);
-    }
-
     public void Dispose()
     {
         if (Activity?.ChatBot != null)
@@ -119,45 +115,18 @@
         }
     }
 
-    IEnumerable<ChatMessageContent> GetFilteredHistory()
+    void UpdateState()
     {
-        if (Activity == null) return [];
-        var history = Activity.ChatBot.ChatHistory.AsEnumerable();
-
-        return historyRoleFilter switch {
-            "Chat" => history.Where(c => !IsKeyMemory(c) && (c.Role.ToString().Equals("user", StringComparison.OrdinalIgnoreCase) || c.Role.ToString().Equals("assistant", StringComparison.OrdinalIgnoreCase))),
-            "System" => history.Where(c => c.Role.ToString().Equals("system", StringComparison.OrdinalIgnoreCase)),
-            "Memory" => history.Where(IsKeyMemory),
-            _ => history
-        };
+        TryUpdateMirror();
+        InvokeAsync(StateHasChanged);
     }
-
-
-    string GetRoleColor(string role)
+    void TryUpdateMirror()
     {
-        return role.ToLower() switch {
-            "user" => "blue",
-            "assistant" => "green",
-            "system" => "orange",
-            "tool" => "purple",
-            _ => "default"
-        };
-    }
-
-
-    void DeleteMessage(ChatMessageContent content)
-    {
-        if (Activity == null || Activity.ChatBot.IsChatting) return;
-        Activity.ChatBot.ChatHistory.Remove(content);
-        StateHasChanged();
-    }
-
-    void StartEditMessage(ChatMessageContent content)
-    {
-        if (Activity == null || Activity.ChatBot.IsChatting) return;
-        editingMessage = content;
-        editingContent = content.Content ?? "";
-        editVisible = true;
+        if (Activity is { ChatBot.IsChatting: false })
+        {
+            chatHistoryMirror.Clear();
+            chatHistoryMirror.AddRange(Activity.ChatBot.ChatHistory);
+        }
     }
 
     void OnConfirmEdit()
@@ -171,9 +140,46 @@
     }
 
 
+    string GetRoleColor(string role)
+    {
+        return role.ToLower() switch {
+            "user" => "blue",
+            "assistant" => "green",
+            "system" => "orange",
+            "tool" => "purple",
+            _ => "default"
+        };
+    }
     bool IsKeyMemory(ChatMessageContent content)
     {
         if (string.IsNullOrEmpty(content.Content)) return false;
         return content.Content.StartsWith("[记忆存档");
     }
+
+    IEnumerable<ChatMessageContent> GetFilteredHistory()
+    {
+        if (Activity == null) return [];
+        var history = chatHistoryMirror.AsEnumerable();
+
+        return historyRoleFilter switch {
+            "Chat" => history.Where(c => !IsKeyMemory(c) && (c.Role.ToString().Equals("user", StringComparison.OrdinalIgnoreCase) || c.Role.ToString().Equals("assistant", StringComparison.OrdinalIgnoreCase))),
+            "System" => history.Where(c => c.Role.ToString().Equals("system", StringComparison.OrdinalIgnoreCase)),
+            "Memory" => history.Where(IsKeyMemory),
+            _ => history
+        };
+    }
+    void DeleteMessage(ChatMessageContent content)
+    {
+        if (Activity == null || Activity.ChatBot.IsChatting) return;
+        Activity.ChatBot.ChatHistory.Remove(content);
+        StateHasChanged();
+    }
+    void StartEditMessage(ChatMessageContent content)
+    {
+        if (Activity == null || Activity.ChatBot.IsChatting) return;
+        editingMessage = content;
+        editingContent = content.Content ?? "";
+        editVisible = true;
+    }
+
 }
