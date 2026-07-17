@@ -15,18 +15,21 @@
         <Body>
         @if (isMajorUpdate)
         {
-            <div style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; font-size: 12px; color: #096dd9;">
-                <Icon Type="@IconType.Outline.InfoCircle" Style="margin-right: 4px;" />
-                此次为非兼容性更新，部分插件可能不支持。
+            <div
+                style="background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; font-size: 12px; color: #096dd9;">
+                <Icon Type="@IconType.Outline.InfoCircle" Style="margin-right: 4px;"/>
+                此次为非兼容性更新，部分第三方插件可能不支持，官方插件也需在更新后立即升级。
             </div>
         }
-        @updateInfo.ReleaseNotes
+        @((MarkupString)updateInfo.ReleaseNotes.Replace("\n", "<br/>"))
         </Body>
         <Actions>
             <Button Type="@ButtonType.Primary" Size="@ButtonSize.Small" OnClick="@StartUpdate">
                 立即升级
             </Button>
-            <Button Size="@ButtonSize.Small" OnClick="@OnDismissAppUpdate">下次再说（会影响插件功能！）</Button>
+            <Button Size="@ButtonSize.Small" OnClick="@OnDismissAppUpdate">
+                下次再说
+            </Button>
         </Actions>
     </PopupNotification>
 }

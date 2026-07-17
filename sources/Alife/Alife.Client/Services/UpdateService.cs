@@ -119,10 +119,10 @@ public class UpdateService
 
                                     Write-Host ''
                                     Write-Host 'Starting Alife...' -ForegroundColor Cyan
-                                    Start-Process -FilePath '{{exePath}}'
-                                    Write-Host ''
-                                    Write-Host 'Upgrade successful! Press Enter to exit.' -ForegroundColor Green
-                                    Read-Host
+                                    cmd /c start "" "{{exePath}}"
+                                    Write-Host 'Upgrade successful!' -ForegroundColor Green
+                                    Start-Sleep -Seconds 2
+                                    exit
                                     """);
 
         Process.Start(new ProcessStartInfo {
