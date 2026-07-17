@@ -16,7 +16,7 @@
             <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">最大条数:</AntDesign.Text>
             <AntDesign.InputNumber @bind-Value="ChatMessageService.MaxMessageCount" Min="10" Max="10000"
                                    Size="@InputSize.Small" Style="width: 80px; border-radius: 4px;"/>
-            <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">显示思考:</AntDesign.Text>
+            <AntDesign.Text Type="@TextElementType.Secondary" Style="font-size: 12px;">展开思考:</AntDesign.Text>
             <Switch @bind-Value="ChatMessageService.ShowReasoning"/>
         </div>
         <Button Icon="@IconType.Outline.Clear"
