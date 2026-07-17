@@ -208,8 +208,6 @@ public static class AlifePlatform
     static AlifePlatform()
     {
         string commandIgnoreFile = Path.Combine(AlifePath.RuntimeFolderPath, "CommandIgnore.txt");
-        if (File.Exists(commandIgnoreFile) == false)
-            File.Create(commandIgnoreFile).Close();
-        CommandIgnore = File.ReadAllLines(commandIgnoreFile).Where(s => string.IsNullOrEmpty(s.Trim()) == false).ToArray();
+        CommandIgnore = File.Exists(commandIgnoreFile) ? File.ReadAllLines(commandIgnoreFile).Where(s => string.IsNullOrEmpty(s.Trim()) == false).ToArray() : [];
     }
 }

@@ -7,7 +7,6 @@
         <RootNamespace>Alife</RootNamespace>
         <UseWindowsForms>true</UseWindowsForms>
         <!-- 发布设置-->
-        <ApplicationManifest>app.manifest</ApplicationManifest>
         <ApplicationIcon>alife-icon.ico</ApplicationIcon>
         <ElectronIcon>alife-icon.ico</ElectronIcon>
         <SelfContained>true</SelfContained>

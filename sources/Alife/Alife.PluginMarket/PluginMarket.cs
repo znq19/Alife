@@ -49,13 +49,30 @@ public interface IPluginInstaller
 
 public class PluginMarket
 {
+    /// <summary>
+    /// 从云端拉取插件列表，并写入缓存
+    /// </summary>
+    public async Task FetchOnlinePluginsAsync()
+    {
+        allPlugins = (await onlinePlugins.GetPluginsAsync()).ToDictionary(plugin => plugin.Id, plugin => plugin);
+        SaveCache();
+    }
+    /// <summary>
+    /// 抓取本地已安装插件列表
+    /// </summary>
+    public void FetchLocalPlugins()
+    {
+        hadPlugins = localPlugins.GetPlugins();
+    }
+
+
     public IEnumerable<Plugin> GetAllPlugins()
     {
         return allPlugins.Values;
     }
     public Dictionary<string, string> GetInstalledPlugins()
     {
-        return localPlugins.GetPlugins();
+        return hadPlugins;
     }
 
     public List<string> GetDependents(string pluginId)
@@ -211,21 +228,6 @@ public class PluginMarket
         await pluginInstaller.UninstallPlugin(plugin);
     }
 
-    /// <summary>
-    /// 从云端拉取插件列表，并写入缓存
-    /// </summary>
-    public async Task FetchOnlinePluginsAsync()
-    {
-        allPlugins = (await onlinePlugins.GetPluginsAsync()).ToDictionary(plugin => plugin.Id, plugin => plugin);
-        SaveCache();
-    }
-    /// <summary>
-    /// 刷新本地已安装插件列表
-    /// </summary>
-    public void RefreshLocalPlugins()
-    {
-        hadPlugins = localPlugins.GetPlugins();
-    }
 
 
     readonly IPluginProvider onlinePlugins;
@@ -247,7 +249,7 @@ public class PluginMarket
         hadPlugins = [];
 
         LoadCache();
-        RefreshLocalPlugins();
+        FetchLocalPlugins();
     }
 
     void GetEnvironment(string type, List<KeyValuePair<string, string>> environments)

@@ -30,7 +30,7 @@ public class PluginMarketService
                     { "pip", pipInstaller }
                 });
 
-            pluginMarket.RefreshLocalPlugins();
+            pluginMarket.FetchLocalPlugins();
             LoadModuleNugetEnvironment();
         }
     }
@@ -82,11 +82,11 @@ public class PluginMarketService
     public async Task FetchOnlinePluginsAsync()
     {
         await pluginMarket.FetchOnlinePluginsAsync();
-        pluginMarket.RefreshLocalPlugins();
+        pluginMarket.FetchLocalPlugins();
     }
     public void RefreshLocalPlugins()
     {
-        pluginMarket.RefreshLocalPlugins();
+        pluginMarket.FetchLocalPlugins();
     }
 
     public List<string> GetDependents(string pluginId)
@@ -159,7 +159,7 @@ public class PluginMarketService
             .Where(NeedForceUpgrade)
             .ToList();
     }
-    
+
     readonly StorageSystem storageSystem;
     readonly ModuleSystem moduleSystem;
     readonly UpdateService updateService;
@@ -191,6 +191,13 @@ public class PluginMarketService
                 { "nuget", nugetInstaller },
                 { "pip", pipInstaller }
             });
+
+        //拉取插件信息
+        if (pluginMarket.GetAllPlugins().Any() == false)
+        {
+            FetchOnlinePluginsAsync().Wait();
+            RefreshLocalPlugins();
+        }
 
         //编译装载插件
         try

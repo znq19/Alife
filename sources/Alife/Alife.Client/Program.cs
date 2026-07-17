@@ -96,10 +96,12 @@ public static class Program
 
     static async Task OnElectronAppReady()
     {
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "alife-icon.ico");
+
         //创建窗口
         var browserOptions = new BrowserWindowOptions {
             Title = "Alife",
-            Icon = "alife-icon.ico",
+            Icon = iconPath,
             Width = 1300,
             Height = 800,
             IsRunningBlazor = true,
@@ -113,7 +115,7 @@ public static class Program
             new MenuItem { Label = "显示主窗口", Click = () => browserWindow.Show() },
             new MenuItem { Label = "退出", Click = CloseApplication }
         };
-        await Electron.Tray.Show("alife-icon.ico", menuItems);
+        await Electron.Tray.Show(iconPath, menuItems);
         await Electron.Tray.SetToolTip("Alife");
         Electron.Tray.OnClick += async (_, _) => {
             if (await browserWindow.IsVisibleAsync()) browserWindow.Hide();

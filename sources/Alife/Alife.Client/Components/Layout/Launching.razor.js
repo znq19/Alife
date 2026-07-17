@@ -1,5 +1,5 @@
 var STAR_COUNT = 50;
-var FADE_DELAY = 500;
+var HIDE_DELAY = 700;
 
 function createStars() {
     var container = document.getElementById('starsContainer');
@@ -25,37 +25,11 @@ function hideLoadingScreen() {
     var screen = document.getElementById('loadingScreen');
     if (screen) {
         screen.classList.add('fade-out');
-        setTimeout(function () { screen.style.display = 'none'; }, 700);
+        setTimeout(function () { screen.style.display = 'none'; }, HIDE_DELAY);
     }
 }
 
-function watchBlazorLoad() {
-    var body = document.body;
-    if (!body) return;
-
-    var observer = new MutationObserver(function (mutations) {
-        for (var i = 0; i < mutations.length; i++) {
-            var mutation = mutations[i];
-            if (mutation.addedNodes.length > 0) {
-                for (var j = 0; j < mutation.addedNodes.length; j++) {
-                    var node = mutation.addedNodes[j];
-                    if (node.nodeType === 1 && node.id !== 'loadingScreen' && !node.classList?.contains('loading-screen')) {
-                        observer.disconnect();
-                        setTimeout(hideLoadingScreen, FADE_DELAY);
-                        return;
-                    }
-                }
-            }
-        }
-    });
-
-    observer.observe(body, { childList: true, subtree: true });
-
-    setTimeout(function () {
-        observer.disconnect();
-        hideLoadingScreen();
-    }, 8000);
-}
-
 createStars();
-watchBlazorLoad();
+
+window.alifeLaunching = window.alifeLaunching || {};
+window.alifeLaunching.complete = hideLoadingScreen;

@@ -84,13 +84,6 @@ else if (showPluginUpdate && upgradablePlugins.Length > 0)
             await InvokeAsync(StateHasChanged);
         }
 
-        try
-        {
-            await PluginMarketService.FetchOnlinePluginsAsync();
-            PluginMarketService.RefreshLocalPlugins();
-        }
-        catch {}
-
         await CheckForceUpgrade();
         if (!showForceUpgrade)
             CheckPluginUpdates();
