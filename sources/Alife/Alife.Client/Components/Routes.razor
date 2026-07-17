@@ -1,10 +1,10 @@
 @using Alife.Components.Overlay
 @using Alife.Components.Services
+@using ElectronNET.API
 @using Alife.Platform
 @inject CharacterSystem CharacterSystem
 @inject NavigationManager Navigation
 @inject IJSRuntime JsRuntime
-@inject MessageService MessageService
 
 @if (isAppInitialized)
 {
@@ -22,10 +22,13 @@ else
 
 <LogOverlay/>
 <AntContainer/>
+<ErrorWindowUI Value="@exception" Title="启动失败" ValueChanged="OnErrorConfirm"/>
 
 @code
 {
-    static bool isAppInitialized;
+    bool isAppInitialized;
+    Exception? exception;
+
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -33,12 +36,21 @@ else
             return;
 
         //业务环境初始化
-        await Task.Run(() => {
-            EnvironmentInstaller.SetupEnvironmentPaths();
-            MirrorProvider.SetupEnvironment();
-            Program.ServiceProvider.GetRequiredService<ChatMessageService>();
-            Program.ServiceProvider.GetRequiredService<PluginMarketService>();
-        });
+        try
+        {
+            await Task.Run(() => {
+                EnvironmentInstaller.SetupEnvironmentPaths();
+                MirrorProvider.SetupEnvironment();
+                Program.ServiceProvider.GetRequiredService<ChatMessageService>();
+                Program.ServiceProvider.GetRequiredService<PluginMarketService>();
+            });
+        }
+        catch (Exception ex)
+        {
+            exception = ex;
+            StateHasChanged();
+            return;
+        }
 
         isAppInitialized = true;
         await JsRuntime.InvokeVoidAsync("alifeLaunching.complete");
@@ -53,5 +65,11 @@ else
         }
 
         StateHasChanged();
+    }
+
+    void OnErrorConfirm(Exception? obj)
+    {
+        if (obj == null)
+            Electron.App.Exit();
     }
 }

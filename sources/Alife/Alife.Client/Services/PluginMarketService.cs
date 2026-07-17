@@ -193,10 +193,14 @@ public class PluginMarketService
             });
 
         //拉取插件信息
-        if (pluginMarket.GetAllPlugins().Any() == false)
+        try
         {
             FetchOnlinePluginsAsync().Wait();
             RefreshLocalPlugins();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
         }
 
         //编译装载插件
