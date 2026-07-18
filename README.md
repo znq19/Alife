@@ -24,7 +24,7 @@
 ![Alife Logo](https://img.shields.io/badge/Alife-AI_Assistant-blue?style=for-the-badge)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=dotnet)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://github.com/BDFFZI/Alife)
+![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://github.com/BDFFZI/Alife)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-green?style=for-the-badge)
 
 欢迎来到 Alife！
